@@ -18,7 +18,7 @@ from fixtures import make_library  # noqa: E402
 
 
 def make_config(tmp_path: Path, **overrides) -> Config:
-    base = dict(data_dir=tmp_path / "data", watch=False, autostart=False, thumb_size=128, data_dir_configured=True)
+    base = dict(data_dir=tmp_path / "data", watch=False, autostart=False, thumb_size=128, scan_workers=1, data_dir_configured=True)
     base.update(overrides)
     return Config(**base)
 

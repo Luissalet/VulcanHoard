@@ -25,6 +25,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("folder", help="Folder with STL/3MF/OBJ files")
     parser.add_argument("--no-thumbs", action="store_true", help="Skip thumbnail rendering")
+    parser.add_argument("--workers", type=int, default=None, help="Worker processes (default: VULCAN_SCAN_WORKERS or cpu_count - 2)")
     parser.add_argument("--query", action="append", help="Search query to run afterwards (repeatable)")
     parser.add_argument("--limit", type=int, default=5)
     args = parser.parse_args()
@@ -34,6 +35,9 @@ def main() -> int:
         return 2
     with tempfile.TemporaryDirectory(prefix="vulcan-selftest-") as tmp:
         config = Config(data_dir=Path(tmp) / "data", watch=False, autostart=False, thumbnails=not args.no_thumbs, data_dir_configured=True)
+        if args.workers:
+            config.scan_workers = max(1, args.workers)
+        print(f"workers: {config.scan_workers}")
         services = Services(config)
         services.worker.start()
         try:
@@ -49,7 +53,8 @@ def main() -> int:
             elapsed = time.time() - started
             counts = services.stats.counts()
             per_file = elapsed / max(1, progress["files_total"])
-            print(f"scanned {counts['models']} models in {elapsed:.1f}s ({per_file * 1000:.0f} ms/file): "
+            rate = progress["rate"] or 0.0
+            print(f"scanned {counts['models']} models in {elapsed:.1f}s ({per_file * 1000:.0f} ms/file, {rate:.2f} parsed files/s): "
                   f"{progress['files_changed']} parsed, {progress['thumbs_rendered']} thumbnails, {progress['files_skipped']} skipped, {progress['error_count']} errors")
             print(f"  {counts['triangles']:,} triangles · {counts['bytes'] / 1e6:.1f} MB · watertight {counts['watertight']} / open {counts['not_watertight']} · "
                   f"duplicates {counts['duplicates']} · odd units {counts['odd_units']}")

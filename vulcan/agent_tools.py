@@ -14,7 +14,7 @@ AGENT_INSTRUCTIONS = """Vulcan's Hoard is the user's own library of 3D-printable
 Describe a model only from what the geometry data and the user say: dimensions, number of parts, watertightness, file format, folder and the user's own notes and tags. Never invent features, materials, history or use cases that are not in the data or in the conversation; ask the user when the listing needs them.
 Start with models_search or models_recent to find the model, then model_info for everything about it (including its listing and duplicates). Report the model id back so later calls are unambiguous.
 When asked for a listing ("genera la ficha"), write it in the user's voice and language (Spanish unless told otherwise), then save it with model_listing_set (source=assistant). Tags are lower-case, short, without duplicates. Saving the same listing twice is harmless.
-model_tag, model_note, model_listing_set, models_add_root and models_rescan change data: call them only when the user asks. Scanning runs in the background: models_stats shows the queue; a just-added folder has no models until the scan finishes."""
+model_tag, model_note, model_listing_set, models_add_root and models_rescan change data: call them only when the user asks. Scanning runs in the background: models_stats shows progress (files done / total, files per second, ETA). A folder with thousands of files takes minutes; answer with the partial numbers and say the scan is still running, or wait briefly and call models_stats again. Never read Vulcan's data folder, database or thumbnails directly with the shell or file tools: everything the app knows is available through these tools, and its database has a single writer."""
 
 
 class Empty(BaseModel):
@@ -77,6 +77,8 @@ class AddRootArgs(BaseModel):
     path: str = Field(..., min_length=1, max_length=2000, description="Absolute folder path on the user's PC; it must exist.")
     name: str = Field("", max_length=200, description="Display name (defaults to the folder name).")
     watch: bool = Field(False, description="Rescan automatically when files change.")
+    thumbnails: str = Field("all", pattern="^(all|top-level|none)$", description="all (default), top-level (only the root folder and its immediate subfolders get thumbnails) or none.")
+    skip_small_bytes: int | None = Field(None, ge=0, description="Do not list files smaller than this many bytes (e.g. auto-exported layer meshes); omit for the server default.")
 
 
 class RescanArgs(BaseModel):
@@ -173,7 +175,9 @@ def run_stats(services: Services, _: Empty) -> dict:
     worker = status["worker"]
     return {"counts": status["counts"], "by_format": counts["by_format"], "roots": counts["by_root"], "collections": counts["by_collection"][:100],
             "albums": counts["albums"], "scanning": worker["busy"], "current_root": worker["current"], "queue": worker["queued"],
-            "watching": status["watching"], "thumbnails": status["thumbnails"]}
+            "progress": {k: {f: p[f] for f in ("phase", "files_done", "files_total", "jobs_done", "jobs_total", "rate", "eta_s", "error_count", "workers")} for k, p in worker["progress"].items()},
+            "watching": status["watching"], "thumbnails": status["thumbnails"], "scan_workers": status["scan_workers"],
+            "note": "Counts are cached for 5 s while a scan runs." if worker["busy"] else None}
 
 
 def run_dupes(services: Services, args: DupesArgs) -> dict:
@@ -183,7 +187,7 @@ def run_dupes(services: Services, args: DupesArgs) -> dict:
 
 
 def run_add_root(services: Services, args: AddRootArgs) -> dict:
-    root = services.add_root(args.name, args.path, None, None, args.watch)
+    root = services.add_root(args.name, args.path, None, None, args.watch, args.thumbnails, args.skip_small_bytes)
     return {"ok": True, "root": root.to_dict(), "note": "Scanning has started in the background; models_stats shows progress."}
 
 
@@ -211,9 +215,9 @@ TOOLS: list[Tool] = [
     Tool("model_listing_set", "Write the marketplace listing of a model (write): title, description (markdown), tags, category, price_hint, language. Fields left out keep their value; source is recorded as assistant. Idempotent: saving the same text twice changes nothing but the timestamp. Describe only what the geometry and the user say.\nSinónimos: genera la ficha, escribe la descripción para la tienda, ficha del modelo, título y descripción, etiquetas para la tienda, categoría, precio, redactar.", ListingSetArgs, _ann(False, False, True), run_listing_set),
     Tool("model_tag", "Add and/or remove tags on a model (write). Tags are lower-cased and de-duplicated; adding an existing tag is a no-op.\nSinónimos: etiquetar, añadir etiqueta, quitar etiqueta, etiquetas, tags, marcar, clasificar modelo.", TagArgs, _ann(False, False, True), run_tag),
     Tool("model_note", "Replace or append the user's notes on a model (write).\nSinónimos: nota, apuntar, anotar, notas del modelo, recordar sobre este modelo, comentario.", NoteArgs, _ann(False, False, False), run_note),
-    Tool("models_stats", "Library statistics: models, bytes and triangles by format and by root folder, collections, listings, duplicates, errors, skipped files, scan queue and folder watching.\nSinónimos: estadísticas, cuántos modelos, cuántos STL, tamaño de la biblioteca, carpetas de modelos, está escaneando, progreso, resumen.", Empty, _ann(True), run_stats),
+    Tool("models_stats", "Library statistics: models, bytes and triangles by format and by root folder, collections, listings, duplicates, errors, skipped files, scan queue with files/second and ETA per root, and folder watching. Cheap to call repeatedly (cached 5 s during a scan).\nSinónimos: estadísticas, cuántos modelos, cuántos STL, tamaño de la biblioteca, carpetas de modelos, está escaneando, progreso, resumen.", Empty, _ann(True), run_stats),
     Tool("models_dupes", "Duplicate groups: exact (identical files, same sha256) or near (same triangle count, volume and bounding box within 1 %; suggestions to review). Each group lists id, name, path, size and dimensions.\nSinónimos: duplicados, repetidos, archivos iguales, copias, modelos parecidos, limpiar duplicados, mismo STL.", DupesArgs, _ann(True), run_dupes),
-    Tool("models_add_root", "Add a folder of models to the library (write). The path must exist on the user's PC; adding the same folder twice returns the existing root without rescanning. Scanning (metrics + thumbnails) starts in the background. Only when the user asks.\nSinónimos: añadir carpeta, carpeta de modelos, escanear carpeta, indexar mis STL, nueva carpeta, agregar modelos.", AddRootArgs, _ann(False, False, True), run_add_root),
+    Tool("models_add_root", "Add a folder of models to the library (write). The path must exist on the user's PC; adding the same folder twice returns the existing root without rescanning. Options: thumbnails=all|top-level|none and skip_small_bytes to ignore tiny auto-generated meshes; exclude globs can be edited in the app (Carpetas). Scanning (metrics + thumbnails) starts in the background, in parallel worker processes. Only when the user asks.\nSinónimos: añadir carpeta, carpeta de modelos, escanear carpeta, indexar mis STL, nueva carpeta, agregar modelos.", AddRootArgs, _ann(False, False, True), run_add_root),
     Tool("models_rescan", "Queue a non-destructive rescan of one root or of every enabled root: only new or changed files are parsed again; deleted files are purged. Only when the user asks.\nSinónimos: reescanear, volver a escanear, actualizar biblioteca, refrescar carpeta, escanear de nuevo, reindexar.", RescanArgs, _ann(False, False, True), run_rescan),
     Tool("models_recent", "The n newest models by file modification date, with id, name, format, bbox, triangles, tags, has_listing and thumb_url.\nSinónimos: recientes, últimos modelos, lo último que he modelado, novedades, qué he añadido, modelos nuevos.", RecentArgs, _ann(True), run_recent),
 ]

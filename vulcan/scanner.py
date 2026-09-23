@@ -1,17 +1,23 @@
-"""Walk a root folder, parse changed files with trimesh, render thumbnails, store. Incremental by size+mtime, then sha256."""
+"""Walk a root folder, parse changed files with trimesh, render thumbnails, store. Incremental by size+mtime, then sha256.
+
+Hashing, parsing and rendering run in a ProcessPoolExecutor (`scan_workers` processes; 1 = inline); the
+scan thread only walks, decides what changed and writes results to SQLite, so there is a single DB writer.
+"""
 
 from __future__ import annotations
 
 import hashlib
 import logging
+import multiprocessing
 import os
 import re
 import threading
 import time
+from concurrent.futures import FIRST_COMPLETED, Future, ProcessPoolExecutor, wait
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .geometry import format_for, inspect_file
+from .geometry import MeshInfo, format_for, inspect_file
 from .store import ModelStore, Root, RootStore
 from .thumbnail import render_to_file
 
@@ -31,11 +37,28 @@ class Progress:
     current_file: str = ""
     errors: list[dict] = field(default_factory=list)
     started_at: float | None = None
+    parsing_started_at: float | None = None
     finished_at: float | None = None
     message: str = ""
+    workers: int = 1
+    jobs_total: int = 0  # files that actually need hashing/parsing this run (the rest pass the cheap size+mtime check)
+    jobs_done: int = 0
+
+    def rate(self) -> float | None:
+        """Parsed files per second since parsing started (None until there is something to measure)."""
+        if not self.parsing_started_at or not self.jobs_done:
+            return None
+        elapsed = (self.finished_at or time.time()) - self.parsing_started_at
+        return self.jobs_done / elapsed if elapsed > 0 else None
+
+    def eta_s(self) -> float | None:
+        rate = self.rate()
+        if rate is None or self.phase not in ("scanning", "parsing"):
+            return None
+        return max(0.0, (self.jobs_total - self.jobs_done) / rate)
 
     def to_dict(self) -> dict:
-        return {**self.__dict__, "errors": list(self.errors[-200:]), "error_count": len(self.errors)}
+        return {**self.__dict__, "errors": list(self.errors[-200:]), "error_count": len(self.errors), "rate": self.rate(), "eta_s": self.eta_s()}
 
 
 def glob_to_regex(pattern: str) -> re.Pattern:
@@ -91,7 +114,7 @@ def file_hash(path: Path) -> str:
 
 
 def walk(root: Root) -> list[tuple[str, Path]]:
-    """(rel_path, abs_path) of every model file under the root, sorted."""
+    """(rel_path, abs_path) of every model file under the root, sorted. Files under root.skip_small_bytes are not listed."""
     base = Path(root.path)
     matcher = Matcher(root.include, root.exclude)
     found: list[tuple[str, Path]] = []
@@ -104,6 +127,12 @@ def walk(root: Root) -> list[tuple[str, Path]]:
             path = Path(dirpath) / name
             if format_for(path) is None or not matcher.accepts(rel):
                 continue
+            if root.skip_small_bytes > 0:
+                try:
+                    if path.stat().st_size < root.skip_small_bytes:
+                        continue
+                except OSError:
+                    continue
             found.append((rel, path))
     return found
 
@@ -114,27 +143,73 @@ def collection_for(root: Root, rel: str) -> str:
     return parent.rsplit("/", 1)[-1] if parent else root.name
 
 
+def wants_thumb(root: Root, rel: str, enabled: bool) -> bool:
+    """Per-root thumbnail policy: all files, only the root folder and its immediate subfolders (top-level), or none."""
+    if not enabled or root.thumbnails == "none":
+        return False
+    if root.thumbnails == "top-level":
+        return rel.count("/") <= 1
+    return True
+
+
 def _stat(path: Path) -> dict:
     st = path.stat()
     created = getattr(st, "st_birthtime", None) or st.st_ctime
     return {"size": st.st_size, "mtime": st.st_mtime, "modified": st.st_mtime, "created": created}
 
 
+def scan_task(path: str, known_sha: str | None, thumbs_dir: str | None, thumb_size: int) -> dict:
+    """Hash, parse and render one file. Runs in a pool process (module-level, picklable arguments and result only).
+
+    thumbs_dir=None means no thumbnail. When the hash matches `known_sha` the mesh is only parsed again if its
+    thumbnail is missing (the thumbs folder was emptied)."""
+    result = {"path": path, "sha256": None, "unchanged": False, "info": None, "thumb_path": None, "thumb_rendered": False, "error": None, "thumb_error": None}
+    try:
+        file = Path(path)
+        digest = file_hash(file)
+        result["sha256"] = digest
+        target = Path(thumbs_dir) / f"{digest}.webp" if thumbs_dir else None
+        if target is not None and target.is_file():
+            result["thumb_path"] = str(target)
+            target = None  # already rendered (identical file elsewhere, or an earlier scan)
+        if known_sha == digest:
+            result["unchanged"] = True
+            if target is None:
+                return result
+        info = inspect_file(file)
+        result["info"] = info.to_dict()
+        if target is not None:
+            try:
+                mesh = info.geometry
+                cull = bool(info.watertight and mesh.is_winding_consistent)  # back faces of a closed, consistent mesh are never visible
+                render_to_file(mesh.vertices, mesh.faces, target, thumb_size, cull=cull)
+                result["thumb_path"] = str(target)
+                result["thumb_rendered"] = True
+            except Exception as error:  # a failed thumbnail is not a failed model
+                result["thumb_error"] = f"{type(error).__name__}: {error}"[:300]
+    except Exception as error:
+        result["error"] = f"{type(error).__name__}: {error}"[:500]
+    return result
+
+
 class Scanner:
     def __init__(self, roots: RootStore, models: ModelStore, thumbs_dir: Path, *, thumbnails: bool = True, thumb_size: int = 512,
-                 max_file_mb: int = 300, on_change=None):
+                 max_file_mb: int = 300, workers: int = 1, on_change=None):
         self.roots = roots
         self.models = models
         self.thumbs_dir = thumbs_dir
         self.thumbnails = thumbnails
         self.thumb_size = thumb_size
         self.max_file_bytes = max_file_mb * 1024 * 1024
+        self.workers = max(1, int(workers))
         self.on_change = on_change or (lambda: None)
 
+    # ---------- one root ----------
     def scan_root(self, root: Root, progress: Progress, cancel: threading.Event | None = None) -> Progress:
         cancel = cancel or threading.Event()
         progress.phase = "scanning"
         progress.started_at = time.time()
+        progress.workers = self.workers
         try:
             if not Path(root.path).is_dir():
                 raise FileNotFoundError(f"Folder not found: {root.path}")
@@ -147,18 +222,15 @@ class Scanner:
                     self.models.remove(model_id)
                     progress.files_removed += 1
             progress.phase = "parsing"
-            for rel, path in files:
-                if cancel.is_set():
-                    progress.phase = "cancelled"
-                    return progress
-                progress.current_file = rel
-                try:
-                    self._scan_file(root, rel, path, known.get(rel), progress)
-                except Exception as error:  # one bad file must not stop the run
-                    log.warning("%s: %s", path, error)
-                    progress.errors.append({"path": rel, "error": f"{type(error).__name__}: {error}"[:500]})
-                progress.files_done += 1
+            jobs = self._plan(root, files, known, progress)
+            progress.jobs_total = len(jobs)
+            progress.parsing_started_at = time.time()
+            if not cancel.is_set():
+                self._run_jobs(root, jobs, progress, cancel)
             progress.current_file = ""
+            if cancel.is_set():
+                progress.phase = "cancelled"
+                return progress
             self.models.refresh_dupes()
             self.roots.mark_scanned(root.id)
             progress.phase = "done"
@@ -171,59 +243,87 @@ class Scanner:
             self.on_change()
         return progress
 
-    def _scan_file(self, root: Root, rel: str, path: Path, known: tuple | None, progress: Progress) -> None:
-        stat_info = _stat(path)
-        size, mtime = stat_info["size"], stat_info["mtime"]
-        current = bool(known) and known[4] in ("ok", "skipped")
-        if current and known[1] == size and abs(known[2] - mtime) < 1e-6:
-            if known[4] == "ok" and self.thumbnails and known[3] and not self._thumb_path(known[3]).is_file():
-                self._render_missing_thumb(known[0], path, known[3], progress)
-            return  # unchanged (cheap check, no read)
-        digest = file_hash(path)
-        if current and known[3] == digest:
-            self.models.touch(known[0], size, mtime, stat_info["modified"])
-            return  # touched but identical
-        collection = collection_for(root, rel)
-        if size > self.max_file_bytes:
-            note = f"file too large to parse ({size // (1024 * 1024)} MB > {self.max_file_bytes // (1024 * 1024)} MB)"
-            self.models.upsert(root.id, rel, path, stat_info, digest, None, status="skipped", error=note, collection=collection)
-            progress.files_skipped += 1
+    def _plan(self, root: Root, files: list[tuple[str, Path]], known: dict, progress: Progress) -> list[tuple]:
+        """Cheap checks in the scan thread: unchanged files are counted done; oversized files are recorded as skipped.
+        Returns the jobs (rel, path, stat_info, model_id, known_sha, want_thumb) that need hashing/parsing in a worker."""
+        jobs = []
+        for rel, path in files:
+            try:
+                stat_info = _stat(path)
+            except OSError as error:
+                progress.errors.append({"path": rel, "error": f"{type(error).__name__}: {error}"[:500]})
+                progress.files_done += 1
+                continue
+            record = known.get(rel)
+            current = bool(record) and record[4] in ("ok", "skipped")
+            want_thumb = wants_thumb(root, rel, self.thumbnails)
+            if current and record[1] == stat_info["size"] and abs(record[2] - stat_info["mtime"]) < 1e-6:
+                thumb_missing = record[4] == "ok" and want_thumb and record[3] and not (self.thumbs_dir / f"{record[3]}.webp").is_file()
+                if not thumb_missing:
+                    progress.files_done += 1
+                    continue  # unchanged (cheap check, no read)
+            if stat_info["size"] > self.max_file_bytes:
+                note = f"file too large to parse ({stat_info['size'] // (1024 * 1024)} MB > {self.max_file_bytes // (1024 * 1024)} MB)"
+                self.models.upsert(root.id, rel, path, stat_info, "", None, status="skipped", error=note, collection=collection_for(root, rel))
+                progress.files_skipped += 1
+                progress.files_done += 1
+                continue
+            jobs.append((rel, path, stat_info, record[0] if current else None, record[3] if current else None, want_thumb))
+        return jobs
+
+    def _run_jobs(self, root: Root, jobs: list[tuple], progress: Progress, cancel: threading.Event) -> None:
+        thumbs = str(self.thumbs_dir) if self.thumbnails else None
+        if self.workers == 1:
+            for rel, path, stat_info, model_id, known_sha, want_thumb in jobs:
+                if cancel.is_set():
+                    return
+                progress.current_file = rel
+                self._apply(root, rel, path, stat_info, model_id, scan_task(str(path), known_sha, thumbs if want_thumb else None, self.thumb_size), progress)
             return
-        try:
-            info = inspect_file(path)
-        except Exception as error:
-            self.models.upsert(root.id, rel, path, stat_info, digest, None, status="error", error=f"{type(error).__name__}: {error}", collection=collection)
-            raise
-        thumb = None
-        if self.thumbnails:
-            thumb = self._render(info.geometry, digest, progress)
-        self.models.upsert(root.id, rel, path, stat_info, digest, info, thumb_path=thumb, collection=collection)
+        window = self.workers * 4
+        pending: dict[Future, tuple] = {}
+        queue = list(jobs)
+        context = multiprocessing.get_context("spawn")  # same behaviour on Windows and Linux; workers re-import this module
+        with ProcessPoolExecutor(max_workers=self.workers, mp_context=context) as pool:
+            try:
+                while queue or pending:
+                    while queue and len(pending) < window and not cancel.is_set():
+                        rel, path, stat_info, model_id, known_sha, want_thumb = queue.pop(0)
+                        future = pool.submit(scan_task, str(path), known_sha, thumbs if want_thumb else None, self.thumb_size)
+                        pending[future] = (rel, path, stat_info, model_id)
+                    if not pending:
+                        break
+                    done, _ = wait(list(pending), timeout=0.5, return_when=FIRST_COMPLETED)
+                    for future in done:
+                        rel, path, stat_info, model_id = pending.pop(future)
+                        progress.current_file = rel
+                        self._apply(root, rel, path, stat_info, model_id, future.result(), progress)
+                    if cancel.is_set():
+                        break
+            finally:
+                if cancel.is_set():
+                    for future in pending:
+                        future.cancel()
+                    pool.shutdown(wait=False, cancel_futures=True)
+
+    def _apply(self, root: Root, rel: str, path: Path, stat_info: dict, model_id: int | None, result: dict, progress: Progress) -> None:
+        """Write one worker result to the database (the only writer) and update the progress."""
+        progress.files_done += 1
+        progress.jobs_done += 1
+        if result["thumb_error"]:
+            progress.errors.append({"path": f"thumb {rel}", "error": result["thumb_error"]})
+        if result["thumb_rendered"]:
+            progress.thumbs_rendered += 1
+        collection = collection_for(root, rel)
+        if result["error"]:
+            log.warning("%s: %s", path, result["error"])
+            progress.errors.append({"path": rel, "error": result["error"]})
+            self.models.upsert(root.id, rel, path, stat_info, result["sha256"] or "", None, status="error", error=result["error"], collection=collection)
+            return
+        if result["unchanged"] and model_id is not None:
+            self.models.touch(model_id, stat_info["size"], stat_info["mtime"], stat_info["modified"], result["thumb_path"] if result["thumb_rendered"] else None)
+            return
+        info = MeshInfo.from_dict(result["info"])
+        self.models.upsert(root.id, rel, path, stat_info, result["sha256"], info, thumb_path=result["thumb_path"], collection=collection)
         progress.files_changed += 1
         self.on_change()
-
-    def _thumb_path(self, digest: str) -> Path:
-        return self.thumbs_dir / f"{digest}.webp"
-
-    def _render(self, mesh, digest: str, progress: Progress) -> str | None:
-        target = self._thumb_path(digest)
-        if target.is_file():
-            return str(target)
-        try:
-            render_to_file(mesh.vertices, mesh.faces, target, self.thumb_size)
-            progress.thumbs_rendered += 1
-            return str(target)
-        except Exception as error:  # a failed thumbnail is not a failed model
-            log.warning("thumbnail for %s failed: %s", digest[:12], error)
-            progress.errors.append({"path": f"thumb {digest[:12]}", "error": f"{type(error).__name__}: {error}"[:300]})
-            return None
-
-    def _render_missing_thumb(self, model_id: int, path: Path, digest: str, progress: Progress) -> None:
-        """The thumbs folder was emptied: re-render without re-parsing the metrics."""
-        try:
-            info = inspect_file(path)
-        except Exception:
-            return
-        thumb = self._render(info.geometry, digest, progress)
-        if thumb:
-            with self.models.db.transaction() as conn:
-                conn.execute("UPDATE models SET thumb_path = ? WHERE id = ?", (thumb, model_id))

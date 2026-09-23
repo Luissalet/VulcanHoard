@@ -35,6 +35,13 @@ function useHashRoute() {
   return route;
 }
 
+function scanLine(status) {
+  const running = Object.values(status.worker.progress || {}).find((p) => p.phase === "parsing");
+  if (!running) return "escaneando…";
+  const rate = running.rate ? ` · ${running.rate >= 10 ? Math.round(running.rate) : running.rate.toFixed(1)}/s` : "";
+  return `${running.files_done}/${running.files_total}${rate}`;
+}
+
 function Icon({ d }) {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -108,7 +115,7 @@ export default function App() {
               <div className="help text-[11px]">Biblioteca</div>
               <div className="text-[13px]"><span className="num font-semibold">{num(status.counts.models)}</span> modelos · <span className="num">{num(status.counts.listings)}</span> fichas</div>
               <div className="help mt-2 text-[11px]">Escáner</div>
-              <div className="text-[13px]">{busy ? "escaneando…" : "en reposo"}</div>
+              <div className="text-[13px]">{busy ? scanLine(status) : "en reposo"}</div>
               {status.counts.duplicates > 0 && <div className="help mt-2 text-[11px]"><a className="btn-link" href="#/galeria?dupes=1">{status.counts.duplicates} duplicados</a></div>}
             </div>
           )}

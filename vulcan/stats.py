@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import shutil
+import threading
+import time
 from pathlib import Path
+from typing import Callable
 
 from .db import Database
 
@@ -15,11 +18,30 @@ def folder_bytes(folder: Path) -> int:
         return 0
 
 
+CACHE_TTL_S = 5.0
+
+
 class Stats:
-    def __init__(self, db: Database):
+    """Aggregates over the models table. While a scan is running (`busy()` true) counts are cached for 5 s so
+    polling clients and the assistant do not add a full-table aggregate per call on top of the writer."""
+
+    def __init__(self, db: Database, busy: Callable[[], bool] | None = None):
         self.db = db
+        self.busy = busy or (lambda: False)
+        self._cache: tuple[float, dict] | None = None
+        self._cache_lock = threading.Lock()
 
     def counts(self) -> dict:
+        if self.busy():
+            with self._cache_lock:
+                if self._cache and time.time() - self._cache[0] < CACHE_TTL_S:
+                    return self._cache[1]
+        result = self._counts()
+        with self._cache_lock:
+            self._cache = (time.time(), result)
+        return result
+
+    def _counts(self) -> dict:
         with self.db.lock:
             c = self.db.conn
             totals = c.execute(

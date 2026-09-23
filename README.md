@@ -9,9 +9,10 @@ Part of the Hoard family (see `faustus-plugin.json`).
 ## What it does
 
 - **Roots** = folders you choose, with include/exclude globs (default `**/*.stl, **/*.3mf, **/*.obj`; `.git`, `node_modules`, hidden folders excluded), enable/disable and optional folder watching (rescan on change, debounced).
-- **Scanning** is incremental: size + mtime first, then SHA-256; only changed files are parsed; deleted files are purged; a touched-but-identical file is not re-read. Runs in a background worker with a queue and live progress (files done/total, current file, per-file errors). Files over `VULCAN_MAX_FILE_MB` (300) are listed as `skipped` with a note instead of being loaded into memory.
+- **Scanning** is incremental: size + mtime first, then SHA-256; only changed files are parsed; deleted files are purged; a touched-but-identical file is not re-read. Hashing, parsing and thumbnail rendering run in a `ProcessPoolExecutor` (`VULCAN_SCAN_WORKERS`, default `cpu_count − 2`, spawn context so Windows and Linux behave the same); the scan thread only walks the folder, decides what changed and writes results, so SQLite keeps a single writer. Live progress per root: files done/total, parsed files per second, ETA, current file, per-file errors. Files over `VULCAN_MAX_FILE_MB` (300) are listed as `skipped` with a note instead of being loaded into memory.
+- **Per-root options** for big generated trees (a slicer or a photogrammetry job that exports thousands of layer meshes): `thumbnails` = `all` | `top-level` (only files in the root folder and its immediate subfolders get a thumbnail) | `none`; `skip_small_bytes` (files under that size are not listed at all; default `VULCAN_SKIP_SMALL_BYTES` = 0); and the exclude globs, which are the right tool for skipping a generated folder by name — e.g. `**/export_job_*/**` or `**/normal_registered/**` — one pattern per folder, `**` on both sides.
 - **Geometry** with `trimesh`: triangles, unique vertices, bounding box in mm, volume (cm³), surface (cm²), watertight, body count (connected components), and a `units_guess` flag when the size makes millimetres unlikely (`inches` under 5 mm, `meters` under 1 mm, `large` over 1.5 m). 3MF units are converted to mm; a 3MF with several objects is measured as one mesh with N bodies.
-- **Thumbnails** in pure Python (numpy + Pillow, no OpenGL, so they work on any Windows box without a GPU driver): orthographic camera from the front-right at 30° elevation with Z up (print orientation), flat shading from one fixed light, per-pixel depth resolution over triangles sorted far-to-near, 2× supersampling, 512 px WebP with transparent background, stored as `<DATA_DIR>/thumbs/<sha256>.webp` (identical files share one). A 300k-triangle scan renders in about 1.5 s; a deleted thumbs folder is regenerated on the next rescan without re-measuring.
+- **Thumbnails** in pure Python (numpy + Pillow, no OpenGL, so they work on any Windows box without a GPU driver): orthographic camera from the front-right at 30° elevation with Z up (print orientation), flat shading from one fixed light, per-pixel depth resolution over triangles sorted far-to-near, rasterised in numpy batches sized by the triangles' exact screen footprint. Meshes under 5 000 triangles come out at 384 px with 1.5× supersampling, bigger ones at 512 px with 2×; meshes over 300 000 triangles are decimated for the thumbnail only (quadric decimation through `fast_simplification` when installed, else a deterministic face subsample); closed, consistently wound meshes skip their back faces. WebP with transparent background, stored as `<DATA_DIR>/thumbs/<sha256>.webp` (identical files share one). A 300-triangle layer mesh renders in ~60 ms, a 300k-triangle scan in ~0.9 s; a deleted thumbs folder is regenerated on the next rescan without re-measuring.
 - **Names**: the file stem, prettified (`dragon_bust-v2` → `Dragon bust v2`), editable. **Collection** = the immediate folder name by default, editable. **Tags** (lower-case, de-duplicated) and **notes** per model survive rescans.
 - **Listings**: title, description (markdown), tags, category, price hint, language, with `listing_source` (`manual` | `assistant`) and `listing_updated_at`. The UI has a "Copiar ficha" button that produces the plain text to paste into a marketplace form (title, description, dimensions, category, tags, price hint).
 - **Search** (SQLite FTS5, diacritics-insensitive, prefix match on every word) over name, tags, notes, collection and listing text, with filters by root, format, tag, collection, album, watertight, has listing, duplicates only, status, size range, bbox range (largest extent) and triangle range; sort by name, date, size, triangles or relevance. Paginated.
@@ -53,6 +54,8 @@ Open http://127.0.0.1:5186, go to **Carpetas** and add a folder. The first scan 
 | `VULCAN_THUMBS` | `1` | `0` skips thumbnail rendering (metrics only). |
 | `VULCAN_THUMB_SIZE` | `512` | Thumbnail side in pixels (64–2048). |
 | `VULCAN_MAX_FILE_MB` | `300` | Bigger files are listed as `skipped` and never loaded. |
+| `VULCAN_SCAN_WORKERS` | `cpu_count − 2` (≥ 1) | Worker processes that hash, parse and render; `1` runs everything inline in the scan thread. |
+| `VULCAN_SKIP_SMALL_BYTES` | `0` | Default minimum file size for new roots (0 = list everything). |
 | `VULCAN_WATCH` | `1` | `0` disables folder watching. |
 | `VULCAN_AUTOSTART` | `1` | `0` skips the rescan of every enabled root at startup. |
 
@@ -66,7 +69,7 @@ All JSON; errors are `{ "error": "..." }`.
 
 - `GET /api/health` → `{ service: "vulcan-hoard", version, dataDirConfigured }`
 - `GET /api/status` → counts, worker queue and progress, watching, disk; `GET /api/stats` → totals, by format, by root, by collection, largest models, disk
-- `GET/POST /api/roots`, `GET/PATCH/DELETE /api/roots/{id}`, `POST /api/roots/{id}/rescan`, `GET /api/roots/{id}/progress`
+- `GET/POST /api/roots` (POST: path, name, include, exclude, watch, `thumbnails` all|top-level|none, `skip_small_bytes`), `GET/PATCH/DELETE /api/roots/{id}`, `POST /api/roots/{id}/rescan`, `GET /api/roots/{id}/progress` (files done/total, `jobs_done`/`jobs_total`, `rate` files/s, `eta_s`, workers, errors)
 - `GET /api/models?q&root&format&tag&collection&album&watertight&has_listing&dupes&status&size_min&size_max&bbox_min&bbox_max&triangles_min&triangles_max&sort&limit&offset` (paginated: `models`, `total`); `GET /api/search` is the same with relevance sort when `q` is given; `GET /api/models/facets`
 - `GET /api/models/{id}` (everything + `listing`, `dupes`, `albums`), `PATCH /api/models/{id}` (name, tags, notes, collection)
 - `GET /api/models/{id}/thumb` (WebP, 204 when none), `GET /api/models/{id}/file` (the original, `Range` supported, for the viewer and downloads)
@@ -88,9 +91,9 @@ All JSON; errors are `{ "error": "..." }`.
 | `model_listing_set` | Write the listing (title, description, tags, category, price_hint, language); source = assistant; fields left out keep their value; idempotent (write). |
 | `model_tag` | Add/remove tags, lower-cased and de-duplicated (write). |
 | `model_note` | Replace or append the notes (write). |
-| `models_stats` | Counts by format and root, collections, listings, duplicates, errors, scan queue. |
+| `models_stats` | Counts by format and root, collections, listings, duplicates, errors, scan queue with files/s and ETA per root; cached 5 s while a scan runs. |
 | `models_dupes` | Exact or near duplicate groups. |
-| `models_add_root` | Add a folder that must exist; idempotent by path; scanning starts in the background (write). |
+| `models_add_root` | Add a folder that must exist (options `thumbnails`, `skip_small_bytes`); idempotent by path; scanning starts in the background (write). |
 | `models_rescan` | Queue a non-destructive rescan of one root or all (write). |
 | `models_recent` | The n newest models by file modification date. |
 
@@ -102,7 +105,7 @@ The instructions shipped with the tools tell the assistant to describe a model o
 venv\Scripts\python -m pytest -q
 ```
 
-Covers geometry extraction on generated meshes (cube, sphere, open box, two-body file; binary and ASCII STL, OBJ, 3MF), thumbnail rendering (non-blank, deterministic, transparent, degenerate input, timing), incremental scan with dedupe and near-dupes, FTS search and filters, listings/tags/notes/albums, the API via TestClient, agent auth, the folder watcher, the request guard, and a subprocess end-to-end test that boots the app and talks to it through the MCP stdio bridge.
+Covers geometry extraction on generated meshes (cube, sphere, open box, two-body file; binary and ASCII STL, OBJ, 3MF), thumbnail rendering (non-blank, deterministic, transparent, adaptive size, decimation, back-face culling, degenerate input, timing), incremental scan with dedupe and near-dupes, the process-pool path with two workers, rate/ETA, thumbnail policy and minimum size, FTS search and filters, listings/tags/notes/albums, the API via TestClient, agent auth, the folder watcher, the request guard, and a subprocess end-to-end test that boots the app and talks to it through the MCP stdio bridge.
 
 ## Limits (v1)
 
@@ -110,7 +113,8 @@ Covers geometry extraction on generated meshes (cube, sphere, open box, two-body
 - Volume of an open (non-watertight) mesh is the signed-volume estimate; treat it as approximate when `watertight` is false.
 - Near-duplicate detection compares triangle count, volume and bounding box; it cannot tell a re-meshed copy from a different model with the same numbers, hence "suggested".
 - `file_created_at` is the filesystem birth time where available (Windows, macOS) and the inode change time elsewhere.
-- The thumbnail renderer keeps all triangles in memory; a 300 MB STL (~6 M triangles) needs a few hundred MB of RAM for a few seconds.
+- The thumbnail renderer keeps all triangles in memory; a 300 MB STL (~6 M triangles) needs a few hundred MB of RAM for a few seconds, per worker process.
+- Two workers can render the thumbnail of the same duplicated file at the same time; the second result is discarded, nothing breaks.
 
 ## License
 

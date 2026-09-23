@@ -85,6 +85,11 @@ MIGRATIONS: list[str] = [
     );
     CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
     """,
+    # 2: per-root scan options: which files get a thumbnail, minimum file size to list
+    """
+    ALTER TABLE roots ADD COLUMN thumbnails TEXT NOT NULL DEFAULT 'all';
+    ALTER TABLE roots ADD COLUMN skip_small_bytes INTEGER NOT NULL DEFAULT 0;
+    """,
 ]
 
 

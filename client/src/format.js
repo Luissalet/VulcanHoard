@@ -78,3 +78,18 @@ export function listingText(listing, model) {
   if (listing.price_hint) parts.push(`Precio orientativo: ${listing.price_hint}`);
   return parts.join("\n");
 }
+
+export function duration(seconds) {
+  if (seconds == null || !isFinite(seconds)) return "—";
+  const s = Math.max(0, Math.round(seconds));
+  if (s < 60) return `${s} s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m} min ${String(s % 60).padStart(2, "0")} s`;
+  return `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, "0")} min`;
+}
+
+export const THUMB_MODES = [
+  { value: "all", label: "Todos los archivos" },
+  { value: "top-level", label: "Solo carpeta raíz y primer nivel" },
+  { value: "none", label: "Sin miniaturas" },
+];

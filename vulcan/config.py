@@ -14,6 +14,10 @@ DEFAULT_MAX_FILE_MB = 300
 DEFAULT_THUMB_SIZE = 512
 
 
+def default_workers() -> int:
+    return max(1, (os.cpu_count() or 2) - 2)
+
+
 def _env(name: str, default: str = "") -> str:
     return os.environ.get(name, default).strip()
 
@@ -38,6 +42,8 @@ class Config:
     thumbnails: bool = True  # render thumbnails while scanning
     thumb_size: int = DEFAULT_THUMB_SIZE
     max_file_mb: int = DEFAULT_MAX_FILE_MB  # bigger files are listed but not parsed
+    scan_workers: int = field(default_factory=default_workers)  # processes that hash/parse/render; 1 = inline
+    skip_small_bytes: int = 0  # default for new roots: files under this size are not listed at all
     allowed_hosts: tuple[str, ...] = ()  # extra Host values (exact or *.suffix) besides localhost
     data_dir_configured: bool = False
 
@@ -66,6 +72,8 @@ class Config:
             thumbnails=_env("VULCAN_THUMBS", "1") != "0",
             thumb_size=_int(_env("VULCAN_THUMB_SIZE", str(DEFAULT_THUMB_SIZE)), DEFAULT_THUMB_SIZE, 64, 2048),
             max_file_mb=_int(_env("VULCAN_MAX_FILE_MB", str(DEFAULT_MAX_FILE_MB)), DEFAULT_MAX_FILE_MB, 1, 100000),
+            scan_workers=_int(_env("VULCAN_SCAN_WORKERS", str(default_workers())), default_workers(), 1, 64),
+            skip_small_bytes=_int(_env("VULCAN_SKIP_SMALL_BYTES", "0"), 0, 0, 10**12),
             allowed_hosts=parse_allowed_hosts(_env("VULCAN_ALLOWED_HOSTS")),
             data_dir_configured=bool(raw_dir),
         )

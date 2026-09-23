@@ -4,7 +4,7 @@ import numpy as np
 from fixtures import cube, multi_body, open_box, sphere
 from PIL import Image
 
-from vulcan.thumbnail import camera_basis, project, render, render_to_file
+from vulcan.thumbnail import SMALL_FACES, camera_basis, choose_quality, project, render, render_to_file, thumb_mesh
 
 
 def alpha_coverage(image: Image.Image) -> float:
@@ -13,7 +13,7 @@ def alpha_coverage(image: Image.Image) -> float:
 
 def test_render_cube_is_square_and_not_blank():
     mesh = cube()
-    image = render(mesh.vertices, mesh.faces, size=256)
+    image = render(mesh.vertices, mesh.faces, size=256, adaptive=False)
     assert image.size == (256, 256) and image.mode == "RGBA"
     coverage = alpha_coverage(image)
     assert 0.15 < coverage < 0.8  # something drawn, background still visible
@@ -36,7 +36,7 @@ def test_render_to_webp_file(tmp_path):
     path = render_to_file(mesh.vertices, mesh.faces, tmp_path / "thumbs" / "abc.webp", size=200)
     assert path.is_file() and path.suffix == ".webp"
     with Image.open(path) as image:
-        assert image.size == (200, 200)
+        assert image.size == (150, 150)  # 332 triangles < SMALL_FACES → 3/4 of the requested size
         assert alpha_coverage(image.convert("RGBA")) > 0.05
 
 
@@ -71,3 +71,37 @@ def test_large_mesh_renders_in_reasonable_time():
     image = render(mesh.vertices, mesh.faces, size=512)
     assert time.time() - started < 20
     assert alpha_coverage(image) > 0.3
+
+
+def test_adaptive_quality_small_vs_detailed():
+    assert choose_quality(12, 512) == (384, 1.5)
+    assert choose_quality(SMALL_FACES, 512) == (512, 2.0)
+    small = render(*_vf(cube()), size=512)
+    detailed = render(*_vf(sphere(radius=10, subdivisions=5)), size=512)  # 20 480 triangles
+    assert small.size == (384, 384) and detailed.size == (512, 512)
+
+
+def _vf(mesh):
+    return mesh.vertices, mesh.faces
+
+
+def test_decimation_for_huge_meshes():
+    mesh = sphere(radius=10, subdivisions=5)  # 20 480 triangles
+    v, f = thumb_mesh(mesh.vertices, mesh.faces, max_faces=4000)
+    assert len(f) <= 4000 and len(f) > 0
+    same_v, same_f = thumb_mesh(mesh.vertices, mesh.faces, max_faces=100000)
+    assert same_f is mesh.faces  # under the cap: untouched
+    image = render(mesh.vertices, mesh.faces, size=128, max_faces=4000)
+    assert alpha_coverage(image) > 0.3  # decimated sphere still fills the frame
+    a = np.asarray(render(mesh.vertices, mesh.faces, size=96, max_faces=4000))
+    b = np.asarray(render(mesh.vertices, mesh.faces, size=96, max_faces=4000))
+    assert np.array_equal(a, b)  # decimation is deterministic
+
+
+def test_backface_culling_gives_the_same_image_for_closed_meshes():
+    mesh = sphere(radius=10, subdivisions=3)
+    plain = np.asarray(render(mesh.vertices, mesh.faces, size=128))
+    culled = np.asarray(render(mesh.vertices, mesh.faces, size=128, cull=True))
+    assert np.array_equal(plain, culled)  # hidden faces never win the depth test, so dropping them changes nothing
+    box = open_box()
+    assert alpha_coverage(render(box.vertices, box.faces, size=96, cull=True)) > 0.2  # still renders, just not used for open meshes

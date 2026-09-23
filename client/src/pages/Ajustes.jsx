@@ -41,6 +41,8 @@ export default function Ajustes() {
           <Row name="VULCAN_DATA_DIR" value={<code>{status.data_dir}</code>} help="Base de datos, token del asistente y miniaturas." />
           <Row name="VULCAN_THUMBS" value={status.thumbnails ? "1 (se generan)" : "0 (desactivadas)"} help={`Miniaturas en ${status.thumbs_dir} · ${bytes(status.thumbs_bytes)}`} />
           <Row name="VULCAN_MAX_FILE_MB" value={`${status.max_file_mb} MB`} help="Los archivos más grandes se listan pero no se analizan." />
+          <Row name="VULCAN_SCAN_WORKERS" value={`${status.scan_workers} proceso${status.scan_workers === 1 ? "" : "s"}`} help="Procesos que leen, miden y renderizan en paralelo (por defecto: núcleos − 2). La base de datos la escribe siempre un solo hilo." />
+          <Row name="VULCAN_SKIP_SMALL_BYTES" value={status.skip_small_bytes ? bytes(status.skip_small_bytes) : "0 (se listan todos)"} help="Tamaño mínimo por defecto para las carpetas nuevas; cada carpeta puede cambiarlo." />
           <Row name="VULCAN_WATCH" value={status.watching.length ? `vigilando ${status.watching.length} carpeta(s)` : "sin carpetas vigiladas"} help={status.watch_error ? `Aviso: ${status.watch_error}` : "Se activa por carpeta en Carpetas."} />
           <Row name="VULCAN_ALLOWED_HOSTS" value="ver README" help="Nombres de host adicionales para entrar desde el móvil a través de un túnel." />
         </div>

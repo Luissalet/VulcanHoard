@@ -27,6 +27,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
+thumbs = ["fast-simplification>=0.2"]  # quadric decimation for thumbnails of huge meshes; a face subsample is used without it
 
 [project.scripts]
 vulcan-hoard = "vulcan.__main__:main"

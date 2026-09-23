@@ -31,6 +31,12 @@ class MeshInfo:
     units_guess: str  # mm | inches | meters | large
     geometry: object = field(default=None, repr=False)  # the trimesh mesh for the thumbnail (not stored)
 
+    @classmethod
+    def from_dict(cls, data: dict) -> "MeshInfo":
+        return cls(triangles=data["triangles"], vertices=data["vertices"], bbox=(data["bbox_x"], data["bbox_y"], data["bbox_z"]),
+                   volume_cm3=data["volume_cm3"], surface_cm2=data["surface_cm2"], watertight=bool(data["watertight"]),
+                   bodies=data["bodies"], units_guess=data["units_guess"])
+
     def to_dict(self) -> dict:
         return {
             "triangles": self.triangles, "vertices": self.vertices,

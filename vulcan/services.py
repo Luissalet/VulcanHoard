@@ -46,9 +46,10 @@ class Services:
         self.albums = AlbumStore(self.db)
         self.search = Search(self.db)
         self.dupes = Dupes(self.db)
-        self.stats = Stats(self.db)
-        self.scanner = Scanner(self.roots, self.models, config.thumbs_dir, thumbnails=config.thumbnails, thumb_size=config.thumb_size, max_file_mb=config.max_file_mb)
+        self.scanner = Scanner(self.roots, self.models, config.thumbs_dir, thumbnails=config.thumbnails, thumb_size=config.thumb_size,
+                               max_file_mb=config.max_file_mb, workers=config.scan_workers)
         self.worker = ScanWorker(self.scanner, self.roots)
+        self.stats = Stats(self.db, busy=lambda: self.worker.status()["busy"])
         self.watcher = Watcher(self.worker.enqueue)
 
     # ---------- lifecycle ----------
@@ -65,8 +66,10 @@ class Services:
         self.db.close()
 
     # ---------- roots ----------
-    def add_root(self, name: str, path: str, include: list[str] | None, exclude: list[str] | None, watch: bool):
-        root, created = self.roots.add(name, path, include, exclude, watch)
+    def add_root(self, name: str, path: str, include: list[str] | None, exclude: list[str] | None, watch: bool,
+                 thumbnails: str = "all", skip_small_bytes: int | None = None):
+        skip = self.config.skip_small_bytes if skip_small_bytes is None else skip_small_bytes
+        root, created = self.roots.add(name, path, include, exclude, watch, thumbnails, skip)
         if created:
             self.worker.enqueue(root.id)
         if self.config.watch:
@@ -79,7 +82,7 @@ class Services:
             return None
         if self.config.watch:
             self.watcher.sync(self.roots.list())
-        if root.enabled and any(patch.get(k) is not None for k in ("include", "exclude")):
+        if root.enabled and any(patch.get(k) is not None for k in ("include", "exclude", "thumbnails", "skip_small_bytes")):
             self.worker.enqueue(root.id)
         return root
 
@@ -107,6 +110,8 @@ class Services:
             "thumbs_dir": str(self.config.thumbs_dir),
             "thumbnails": self.config.thumbnails,
             "max_file_mb": self.config.max_file_mb,
+            "scan_workers": self.config.scan_workers,
+            "skip_small_bytes": self.config.skip_small_bytes,
             **self.stats.disk(self.config.data_dir, self.config.db_path, self.config.thumbs_dir),
             "worker": self.worker.status(),
             "watching": self.watcher.watching(),
