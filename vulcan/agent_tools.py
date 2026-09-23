@@ -32,7 +32,7 @@ class SearchArgs(BaseModel):
     dupes_only: bool = Field(False, description="Only models that are part of an exact-duplicate group.")
     bbox_min: float | None = Field(None, ge=0, description="Largest extent at least this many mm.")
     bbox_max: float | None = Field(None, ge=0, description="Largest extent at most this many mm.")
-    sort: str = Field("relevance", description=f"One of {', '.join(SORT_NAMES)} (prefix - for descending).")
+    sort: str = Field("relevance", description=f"One of {', '.join(SORT_NAMES)} (prefix - for descending). 'size' is file bytes; the biggest model in millimetres is sort='-extent' (largest side), the bulkiest is '-volume'.")
     limit: int = Field(20, ge=1, le=200)
     offset: int = Field(0, ge=0)
 

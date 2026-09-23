@@ -17,6 +17,11 @@ SORTS = {
     "-size": "m.size_bytes DESC, m.id DESC",
     "triangles": "m.triangles ASC, m.id ASC",
     "-triangles": "m.triangles DESC, m.id DESC",
+    # physical size: the largest extent in mm ("el más grande"), then volume
+    "extent": "MAX(m.bbox_x, m.bbox_y, m.bbox_z) ASC, m.id ASC",
+    "-extent": "MAX(m.bbox_x, m.bbox_y, m.bbox_z) DESC, m.id DESC",
+    "volume": "m.volume_cm3 ASC, m.id ASC",
+    "-volume": "m.volume_cm3 DESC, m.id DESC",
     "relevance": "rank ASC, m.id ASC",
 }
 SORT_NAMES = tuple(SORTS)

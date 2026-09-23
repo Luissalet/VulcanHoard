@@ -64,6 +64,11 @@ def test_sorting_and_pagination(scanned):
     assert by_tri == sorted(by_tri, reverse=True)
     by_size = [m["size_bytes"] for m in services.search.query(Filters(sort="size", limit=100))["models"]]
     assert by_size == sorted(by_size)
+    # "el más grande" is millimetres, not bytes: the largest side first
+    by_extent = [max(m["bbox"] or [0, 0, 0]) for m in services.search.query(Filters(sort="-extent", limit=100))["models"]]
+    assert by_extent == sorted(by_extent, reverse=True) and by_extent[0] > 0
+    by_volume = [m["volume_cm3"] or 0 for m in services.search.query(Filters(sort="-volume", limit=100))["models"]]
+    assert by_volume == sorted(by_volume, reverse=True)
     page1 = services.search.query(Filters(sort="name", limit=4, offset=0))
     page2 = services.search.query(Filters(sort="name", limit=4, offset=4))
     assert page1["total"] == EXPECTED_MODELS and len(page1["models"]) == 4 and len(page2["models"]) == 4
