@@ -1,0 +1,14 @@
+{
+  "name": "Vulcan's Hoard",
+  "short_name": "Vulcan",
+  "description": "Biblioteca personal de modelos para impresión 3D",
+  "start_url": "/#/galeria",
+  "display": "standalone",
+  "background_color": "#fbf9f6",
+  "theme_color": "#b4471f",
+  "lang": "es",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

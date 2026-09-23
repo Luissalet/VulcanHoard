@@ -1,0 +1,30 @@
+{
+  "name": "vulcan-hoard",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Biblioteca personal local de modelos para impresión 3D: escanea carpetas de STL, 3MF y OBJ, calcula medidas y miniaturas y redacta fichas para la tienda con asistentes por MCP.",
+  "scripts": {
+    "client": "vite",
+    "build": "vite build",
+    "dev": "python scripts/dev.py",
+    "start": "python -m vulcan",
+    "open": "python scripts/launch.py",
+    "test": "python -m pytest -q",
+    "mcp": "python mcp_server.py"
+  },
+  "dependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "three": "^0.180.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.0",
+    "@vitejs/plugin-react": "^4.4.0",
+    "tailwindcss": "^4.1.0",
+    "vite": "^6.3.0"
+  },
+  "engines": {
+    "node": ">=22.13"
+  }
+}
