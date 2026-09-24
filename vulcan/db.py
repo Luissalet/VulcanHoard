@@ -90,6 +90,23 @@ MIGRATIONS: list[str] = [
     ALTER TABLE roots ADD COLUMN thumbnails TEXT NOT NULL DEFAULT 'all';
     ALTER TABLE roots ADD COLUMN skip_small_bytes INTEGER NOT NULL DEFAULT 0;
     """,
+    # 3: per-folder marketplace listings (cults3d.json), one row per folder that has models
+    """
+    CREATE TABLE folder_listings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      root_id INTEGER NOT NULL REFERENCES roots(id) ON DELETE CASCADE,
+      rel_path TEXT NOT NULL,
+      title TEXT NOT NULL DEFAULT '',
+      description TEXT NOT NULL DEFAULT '',
+      tags TEXT NOT NULL DEFAULT '[]',
+      status TEXT NOT NULL DEFAULT 'none',
+      issues TEXT NOT NULL DEFAULT '[]',
+      checked_at REAL,
+      updated_at REAL NOT NULL,
+      UNIQUE(root_id, rel_path)
+    );
+    CREATE INDEX folder_listings_root ON folder_listings(root_id, status);
+    """,
 ]
 
 

@@ -10,7 +10,10 @@ from . import __version__
 from .config import Config
 from .db import Database
 from .dupes import Dupes
+from .folder_listings import DraftWorker, FolderListingStore
+from .hoard_link import Link
 from .listings import AlbumStore, ListingStore
+from .model_backend import load_link_config
 from .scanner import Scanner
 from .search import Search
 from .stats import Stats
@@ -46,8 +49,11 @@ class Services:
         self.albums = AlbumStore(self.db)
         self.search = Search(self.db)
         self.dupes = Dupes(self.db)
+        self.folder_listings = FolderListingStore(self.db, self.roots, config.data_dir / "exports")
+        self.link = Link(load_link_config(config.data_dir))
+        self.draft_worker = DraftWorker(self.folder_listings, link_factory=lambda: self.link)
         self.scanner = Scanner(self.roots, self.models, config.thumbs_dir, thumbnails=config.thumbnails, thumb_size=config.thumb_size,
-                               max_file_mb=config.max_file_mb, workers=config.scan_workers)
+                               max_file_mb=config.max_file_mb, workers=config.scan_workers, on_done=self.folder_listings.sync_from_scan)
         self.worker = ScanWorker(self.scanner, self.roots)
         self.stats = Stats(self.db, busy=lambda: self.worker.status()["busy"])
         self.watcher = Watcher(self.worker.enqueue)
@@ -63,6 +69,10 @@ class Services:
     def stop(self) -> None:
         self.watcher.stop()
         self.worker.stop()
+        try:
+            self.link.sync.close()
+        except Exception:
+            pass
         self.db.close()
 
     # ---------- roots ----------

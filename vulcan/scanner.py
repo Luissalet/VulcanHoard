@@ -194,7 +194,7 @@ def scan_task(path: str, known_sha: str | None, thumbs_dir: str | None, thumb_si
 
 class Scanner:
     def __init__(self, roots: RootStore, models: ModelStore, thumbs_dir: Path, *, thumbnails: bool = True, thumb_size: int = 512,
-                 max_file_mb: int = 300, workers: int = 1, on_change=None):
+                 max_file_mb: int = 300, workers: int = 1, on_change=None, on_done=None):
         self.roots = roots
         self.models = models
         self.thumbs_dir = thumbs_dir
@@ -203,6 +203,7 @@ class Scanner:
         self.max_file_bytes = max_file_mb * 1024 * 1024
         self.workers = max(1, int(workers))
         self.on_change = on_change or (lambda: None)
+        self.on_done = on_done or (lambda root: None)  # called with the Root after a successful scan (folder listings sync)
 
     # ---------- one root ----------
     def scan_root(self, root: Root, progress: Progress, cancel: threading.Event | None = None) -> Progress:
@@ -233,6 +234,10 @@ class Scanner:
                 return progress
             self.models.refresh_dupes()
             self.roots.mark_scanned(root.id)
+            try:
+                self.on_done(root)
+            except Exception:
+                log.exception("folder listing sync failed for %s", root.path)
             progress.phase = "done"
         except Exception as error:
             progress.phase = "error"

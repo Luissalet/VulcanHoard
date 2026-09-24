@@ -15,10 +15,11 @@ Part of the Hoard family (see `faustus-plugin.json`).
 - **Thumbnails** in pure Python (numpy + Pillow, no OpenGL, so they work on any Windows box without a GPU driver): orthographic camera from the front-right at 30° elevation with Z up (print orientation), flat shading from one fixed light, per-pixel depth resolution over triangles sorted far-to-near, rasterised in numpy batches sized by the triangles' exact screen footprint. Meshes under 5 000 triangles come out at 384 px with 1.5× supersampling, bigger ones at 512 px with 2×; meshes over 300 000 triangles are decimated for the thumbnail only (quadric decimation through `fast_simplification` when installed, else a deterministic face subsample); closed, consistently wound meshes skip their back faces. WebP with transparent background, stored as `<DATA_DIR>/thumbs/<sha256>.webp` (identical files share one). A 300-triangle layer mesh renders in ~60 ms, a 300k-triangle scan in ~0.9 s; a deleted thumbs folder is regenerated on the next rescan without re-measuring.
 - **Names**: the file stem, prettified (`dragon_bust-v2` → `Dragon bust v2`), editable. **Collection** = the immediate folder name by default, editable. **Tags** (lower-case, de-duplicated) and **notes** per model survive rescans.
 - **Listings**: title, description (markdown), tags, category, price hint, language, with `listing_source` (`manual` | `assistant`) and `listing_updated_at`. The UI has a "Copiar ficha" button that produces the plain text to paste into a marketplace form (title, description, dimensions, category, tags, price hint).
+- **Folder listings**: the marketplace convention where each *product* is a whole folder of models (e.g. `Contornos pokemon/1-3`), not one model. Its listing lives in that folder as `cults3d.json` (`{title, description, tags}`, exactly 20 tags, English description of 200+ characters) and is imported on every scan; an optional `cults3d_template.json` at the root (naming grammar, required/forbidden words, title patterns, base tags — every key optional) drives validation and drafting. Statuses: `none` → `draft` → `checked` → `approved`. Writing a folder listing (from the UI, the REST API or an MCP tool) writes both the database row and `cults3d.json` (atomic, one-time `.bak` of whatever was there before). Drafting uses the shared local model through Hoard Link (vendorized in `vulcan/hoard_link/`, same as every other Hoard app): folder name, file names/sizes/extents, the template and up to 3 already-approved listings from the same root, in the background with progress, one folder at a time; with no model backend reachable the tool returns the assembled material instead of failing, so the assistant can draft it and save with `folder_listing_set`. Export to CSV/Markdown/JSON in `data/exports/`.
 - **Search** (SQLite FTS5, diacritics-insensitive, prefix match on every word) over name, tags, notes, collection and listing text, with filters by root, format, tag, collection, album, watertight, has listing, duplicates only, status, size range, bbox range (largest extent) and triangle range; sort by name, date, file size, largest extent in mm, volume, triangles or relevance. Paginated.
 - **Duplicates**: exact = same SHA-256 (every copy gets `dupe_of` = the first id); near = same triangle count, volume within 1 % and bounding-box extents within 1 % (an ASCII and a binary export of the same mesh, a rescaled copy, the same model saved in two formats), grouped by union-find and offered as suggestions.
 - **Collections**: folder-derived groupings (read-only, from the scan) plus **albums** you build by hand (name + model ids).
-- **UI (Spanish)**: Galería (thumbnail grid with dimensions and format chips, filter sidebar, search box, sort, "ver más" pagination), Modelo (three.js viewer with orbit controls, auto-fit and a build-plate grid; geometry table; tags/notes/collection editing; listing editor with "Copiar ficha"; exact and near duplicates), Colecciones (albums + folders), Carpetas (roots with progress, rescan, errors, watch), Estadísticas, Ajustes (values in use, maintenance actions, MCP notes). Works at phone width and installs as a PWA.
+- **UI (Spanish)**: Galería (thumbnail grid with dimensions and format chips, filter sidebar, search box, sort, "ver más" pagination), Modelo (three.js viewer with orbit controls, auto-fit and a build-plate grid; geometry table; tags/notes/collection editing; listing editor with "Copiar ficha"; exact and near duplicates), Colecciones (albums + folders), **Fichas** (folder listings: status table, draft/check/export buttons, title/description/20-tag editor), Carpetas (roots with progress, rescan, errors, watch), Estadísticas, Ajustes (values in use, maintenance actions, MCP notes). Works at phone width and installs as a PWA.
 
 ## Requirements
 
@@ -59,6 +60,10 @@ Open http://127.0.0.1:5186, go to **Carpetas** and add a folder. The first scan 
 | `VULCAN_WATCH` | `1` | `0` disables folder watching. |
 | `VULCAN_AUTOSTART` | `1` | `0` skips the rescan of every enabled root at startup. |
 
+### Drafting folder listings with a local model
+
+`folder_listing_draft` and the "Redactar" buttons in **Fichas** need a local model reachable through [Hoard Link](https://github.com/Luissalet/HoardLink) (vendored in `vulcan/hoard_link/`, see `VENDORED.txt`): Faustus's model registry, or a loopback llama.cpp/Ollama server, are found automatically. Nothing is configured by default. To pin an explicit server or model, or to point at a different Faustus, create `<DATA_DIR>/backend.json` (see `hoard_link/config.py` for the full schema) or set `HOARD_LLM_URL` / `HOARD_LLM_MODEL` / `HOARD_FAUSTUS_URL` / `HOARD_FAUSTUS_TOKEN`. Without any backend, `folder_listing_draft` never fails silently: it returns the assembled material (folder name, file names/sizes, template, examples) so the assistant can write the listing itself and save it with `folder_listing_set`.
+
 ### Access from your phone (behind a tunnel)
 
 The server binds 127.0.0.1 and only answers requests whose `Host` is `localhost`, `127.0.0.1` or `[::1]`. To reach it from your phone through a tunnel that fronts the app (a private mesh network, a reverse proxy), list the extra host names in `VULCAN_ALLOWED_HOSTS`, comma-separated, exact names or `*.suffix`: `VULCAN_ALLOWED_HOSTS=my-pc.example,*.ts.net`. Port and letter case are ignored, and the `Origin` of API calls must resolve to one of those hosts too (any scheme or port). Cross-site *fetches* are still refused; opening the app from another page (a link, a bookmarklet, the share sheet) is a normal navigation and works.
@@ -76,6 +81,7 @@ All JSON; errors are `{ "error": "..." }`.
 - `GET/PUT/DELETE /api/models/{id}/listing` (PUT merges fields; `source` = manual | assistant)
 - `GET /api/dupes?kind=exact|near`
 - `GET /api/collections` (folders + albums), `POST /api/collections` (album: name, model_ids; idempotent by name), `GET/PATCH/DELETE /api/collections/{id}` (PATCH: name, add, remove)
+- `GET /api/folder-listings?root_id&status` (missing listings first), `GET/PUT /api/folder-listings/{root_id}/{path}` (PUT: title, description, tags, status; writes the DB and `cults3d.json`), `POST /api/folder-listings/{root_id}/{path}/check` and `POST /api/folder-listings/check-all?root_id`, `POST /api/folder-listings/draft` (root_id, path pattern, limit, overwrite — background job), `GET /api/folder-listings/draft/progress`, `GET /api/folder-listings/export?root_id&format=csv|md|json&status`
 - `POST /api/maintenance/rescan-all | rebuild-fts | refresh-dupes`
 - `GET /api/agent/tools` (catalog + instructions), `POST /api/agent/call` (Bearer token from `data/mcp-token`)
 
@@ -96,8 +102,14 @@ All JSON; errors are `{ "error": "..." }`.
 | `models_add_root` | Add a folder that must exist (options `thumbnails`, `skip_small_bytes`); idempotent by path; scanning starts in the background (write). |
 | `models_rescan` | Queue a non-destructive rescan of one root or all (write). |
 | `models_recent` | The n newest models by file modification date. |
+| `folder_listings` | List folder listings (one per product folder), filtered by status, folders missing one first. |
+| `folder_listing_get` | The listing of one folder (title, description, 20 tags, status, issues) by root+path or an absolute path. |
+| `folder_listing_set` | Write a folder's listing; saves the DB and `cults3d.json` (write). |
+| `folder_listing_check` | Validate one or every folder listing against the format rules and the root's template. |
+| `folder_listing_draft` | Draft folder listings with the local model in the background; returns the assembled material when no backend is available (write). |
+| `folder_listings_export` | Export a root's folder listings to CSV/Markdown/JSON in `data/exports/` (write). |
 
-The instructions shipped with the tools tell the assistant to describe a model only from the geometry data and what the user says (never to invent features), to write listings in the user's voice when asked, to keep tags lower-case without duplicates, and to report the model id back.
+The instructions shipped with the tools tell the assistant to describe a model only from the geometry data and what the user says (never to invent features), to write listings in the user's voice when asked, to keep tags lower-case without duplicates, to report the model id back, and to use the `folder_listing_*` tools (never `model_listing_set`) whenever the user asks for "la ficha de la carpeta X" or "las fichas que faltan" — the marketplace convention where a product is a folder, not a single model.
 
 ## Tests
 
@@ -105,7 +117,7 @@ The instructions shipped with the tools tell the assistant to describe a model o
 venv\Scripts\python -m pytest -q
 ```
 
-Covers geometry extraction on generated meshes (cube, sphere, open box, two-body file; binary and ASCII STL, OBJ, 3MF), thumbnail rendering (non-blank, deterministic, transparent, adaptive size, decimation, back-face culling, degenerate input, timing), incremental scan with dedupe and near-dupes, the process-pool path with two workers, rate/ETA, thumbnail policy and minimum size, FTS search and filters, listings/tags/notes/albums, the API via TestClient, agent auth, the folder watcher, the request guard, and a subprocess end-to-end test that boots the app and talks to it through the MCP stdio bridge.
+Covers geometry extraction on generated meshes (cube, sphere, open box, two-body file; binary and ASCII STL, OBJ, 3MF), thumbnail rendering (non-blank, deterministic, transparent, adaptive size, decimation, back-face culling, degenerate input, timing), incremental scan with dedupe and near-dupes, the process-pool path with two workers, rate/ETA, thumbnail policy and minimum size, FTS search and filters, listings/tags/notes/albums, folder listings (validator, import/write-back round trip, drafting with a fake model backend, export, tools, API), the API via TestClient, agent auth, the folder watcher, the request guard, and a subprocess end-to-end test that boots the app and talks to it through the MCP stdio bridge.
 
 ## Limits (v1)
 

@@ -6,12 +6,14 @@ import Galeria from "./pages/Galeria.jsx";
 import Modelo from "./pages/Modelo.jsx";
 import Colecciones from "./pages/Colecciones.jsx";
 import Carpetas from "./pages/Carpetas.jsx";
+import Fichas from "./pages/Fichas.jsx";
 import Estadisticas from "./pages/Estadisticas.jsx";
 import Ajustes from "./pages/Ajustes.jsx";
 
 const PAGES = [
   { path: "galeria", label: "Galería", icon: "M4 5h6v6H4zM14 5h6v6h-6zM4 15h6v6H4zM14 15h6v6h-6z", component: Galeria },
   { path: "colecciones", label: "Colecciones", icon: "M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2z", component: Colecciones },
+  { path: "fichas", label: "Fichas", icon: "M7 3h7l4 4v14a1 1 0 01-1 1H7a1 1 0 01-1-1V4a1 1 0 011-1zM13 3v5h5M9 12h6M9 16h6M9 8h1", component: Fichas },
   { path: "carpetas", label: "Carpetas", icon: "M4 20V10m5 10V6m5 14v-9m5 9V4M3 20h18", component: Carpetas },
   { path: "estadisticas", label: "Estadísticas", icon: "M4 20V10m5 10V4m5 16v-8m5 8V7", component: Estadisticas },
   { path: "ajustes", label: "Ajustes", icon: "M12 15a3 3 0 100-6 3 3 0 000 6zM19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z", component: Ajustes },

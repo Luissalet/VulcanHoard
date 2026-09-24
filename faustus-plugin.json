@@ -3,7 +3,7 @@
   "id": "vulcan",
   "name": "Vulcan's Hoard",
   "purpose": "The user's personal library of 3D-printable models: folders of STL, 3MF and OBJ files scanned locally (dimensions, triangles, watertightness, thumbnails, duplicates) so the assistant can find models and write their marketplace listings.",
-  "capabilities": ["3d-models", "stl", "3mf", "obj", "mesh-metrics", "thumbnails", "duplicates", "near-duplicates", "listings", "tags", "notes", "collections", "albums", "folder-scan", "folder-watch", "fts-search", "stats"],
+  "capabilities": ["3d-models", "stl", "3mf", "obj", "mesh-metrics", "thumbnails", "duplicates", "near-duplicates", "listings", "tags", "notes", "collections", "albums", "folder-scan", "folder-watch", "fts-search", "stats", "folder-listings", "cults3d", "listing-validator", "listing-drafting", "listing-export"],
   "placeholders": ["VULCAN_DIR", "APP_URL", "TOKEN_FILE", "PYTHON"],
   "defaults": {
     "APP_URL": "http://127.0.0.1:5186",

@@ -1,0 +1,15 @@
+Vendored from HoardLink (repo HoardLink, package hoard_link), version 0.3.0.
+HOARD_LINK_VERSION = 0.3.0
+
+Do not edit; replace the whole folder with a byte-identical copy of the
+package's root-level modules to update (this excludes the optional
+hoard_link.hub subpackage, the desktop launcher for the app family, which
+Vulcan's Hoard does not use).
+
+Vulcan's Hoard talks to Hoard Link only through vulcan/model_backend.py,
+which loads data/backend.json + environment into a LinkConfig for this app
+and builds the folder-listing drafting prompt, without editing any vendored
+file. When re-vendoring a later HoardLink version, drop in the new files
+here and re-run `python -m pytest tests/test_folder_listings.py` to confirm
+the wrapper still lines up with the public API (Link, LinkConfig,
+CapabilityConfig, Resolution, Unavailable, BackendError).

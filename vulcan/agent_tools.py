@@ -14,7 +14,9 @@ AGENT_INSTRUCTIONS = """Vulcan's Hoard is the user's own library of 3D-printable
 Describe a model only from what the geometry data and the user say: dimensions, number of parts, watertightness, file format, folder and the user's own notes and tags. Never invent features, materials, history or use cases that are not in the data or in the conversation; ask the user when the listing needs them.
 Start with models_search or models_recent to find the model, then model_info for everything about it (including its listing and duplicates). Report the model id back so later calls are unambiguous.
 When asked for a listing ("genera la ficha"), write it in the user's voice and language (Spanish unless told otherwise), then save it with model_listing_set (source=assistant). Tags are lower-case, short, without duplicates. Saving the same listing twice is harmless.
-model_tag, model_note, model_listing_set, models_add_root and models_rescan change data: call them only when the user asks. Scanning runs in the background: models_stats shows progress (files done / total, files per second, ETA). A folder with thousands of files takes minutes; answer with the partial numbers and say the scan is still running, or wait briefly and call models_stats again. Never read Vulcan's data folder, database or thumbnails directly with the shell or file tools: everything the app knows is available through these tools, and its database has a single writer."""
+model_tag, model_note, model_listing_set, models_add_root and models_rescan change data: call them only when the user asks. Scanning runs in the background: models_stats shows progress (files done / total, files per second, ETA). A folder with thousands of files takes minutes; answer with the partial numbers and say the scan is still running, or wait briefly and call models_stats again. Never read Vulcan's data folder, database or thumbnails directly with the shell or file tools: everything the app knows is available through these tools, and its database has a single writer.
+
+The user also sells these models on a marketplace in a different convention: each PRODUCT is a FOLDER of models (not one model), and its listing (title in English, an English description of 200+ characters, exactly 20 unique lower-case tags) lives in that folder as cults3d.json. "ficha/listing para la carpeta X" or "ficha de X" means folder_listing_get/folder_listing_set on that folder, never model_listing_set. "fichas que faltan" or "qué carpetas no tienen ficha" means folder_listings(status=none). Draft one or several with folder_listing_draft (it runs in the background with a local model and returns progress; if no model backend is available it returns the assembled material instead so you can write the listing yourself and save it with folder_listing_set). Always run folder_listing_check after writing or importing a listing by hand before calling it approved. folder_listings_export produces a CSV/Markdown/JSON file in data/exports for uploading to the marketplace."""
 
 
 class Empty(BaseModel):
@@ -87,6 +89,44 @@ class RescanArgs(BaseModel):
 
 class RecentArgs(BaseModel):
     n: int = Field(10, ge=1, le=200, description="How many of the newest models (by file modification date).")
+
+
+class FolderListingsArgs(BaseModel):
+    root_id: int | None = Field(None, ge=1, description="Restrict to one root; omit to list across every root.")
+    status: str | None = Field(None, pattern="^(none|draft|checked|approved)$", description="Only listings in this status.")
+    limit: int = Field(100, ge=1, le=1000)
+
+
+class FolderPathArgs(BaseModel):
+    root_id: int | None = Field(None, ge=1, description="Root id; omit when path is an absolute folder path.")
+    path: str = Field("", max_length=2000, description="Folder path relative to the root (empty string for the root itself), or an absolute path.")
+
+
+class FolderListingSetArgs(BaseModel):
+    root_id: int | None = Field(None, ge=1, description="Root id; omit when path is an absolute folder path.")
+    path: str = Field("", max_length=2000, description="Folder path relative to the root (empty string for the root itself), or an absolute path.")
+    title: str | None = Field(None, max_length=120, description="English, non-empty, at most 120 characters.")
+    description: str | None = Field(None, max_length=20000, description="English, at least 200 characters, no markdown.")
+    tags: list[str] | None = Field(None, max_length=40, description="Exactly 20 unique lower-case tags when finalising the listing.")
+    status: str = Field("draft", pattern="^(draft|checked|approved)$", description="Workflow status to record; run folder_listing_check before approving.")
+
+
+class FolderListingCheckArgs(BaseModel):
+    root_id: int | None = Field(None, ge=1, description="Root id; omit to check across every root (with path omitted too).")
+    path: str | None = Field(None, max_length=2000, description="One folder; omit to check every folder listing (in root_id, or every root).")
+
+
+class FolderListingDraftArgs(BaseModel):
+    root_id: int | None = Field(None, ge=1, description="Restrict to one root; omit to match across every root.")
+    path: str = Field("", max_length=2000, description="Exact folder path or a glob pattern (e.g. 'Contornos pokemon/*'); empty matches folders still missing a listing.")
+    limit: int = Field(20, ge=1, le=200, description="Maximum number of folders to draft in this batch.")
+    overwrite: bool = Field(False, description="Redraft folders that already have a draft/checked/approved listing.")
+
+
+class FolderListingsExportArgs(BaseModel):
+    root_id: int = Field(..., ge=1)
+    format: str = Field("csv", pattern="^(csv|md|json)$")
+    status: str | None = Field(None, pattern="^(none|draft|checked|approved)$", description="Only export listings in this status.")
 
 
 @dataclass(frozen=True)
@@ -204,6 +244,72 @@ def run_recent(services: Services, args: RecentArgs) -> dict:
     return {"hits": [{**_hit(m), "file_modified_at": m["file_modified_at"]} for m in result["models"]], "count": len(result["models"])}
 
 
+def _resolve_folder(services: Services, root_id: int | None, path: str) -> tuple[int, str]:
+    """(root_id, rel_path) from an explicit root_id + relative path, or from an absolute folder path alone."""
+    from pathlib import Path
+
+    path = (path or "").strip().replace("\\", "/")
+    if root_id is not None:
+        if services.roots.get(root_id) is None:
+            raise LookupError(f"Root {root_id} does not exist.")
+        return root_id, path.strip("/")
+    if not path:
+        raise ValueError("Give root_id + path (relative to the root), or an absolute folder path under a known root.")
+    resolved = Path(path).expanduser().resolve()
+    for root in services.roots.list():
+        try:
+            rel = resolved.relative_to(Path(root.path)).as_posix()
+        except ValueError:
+            continue
+        return root.id, ("" if rel == "." else rel)
+    raise ValueError("Give root_id + path (relative to the root), or an absolute folder path under a known root.")
+
+
+def run_folder_listings(services: Services, args: FolderListingsArgs) -> dict:
+    rows = services.folder_listings.list(root_id=args.root_id, status=args.status, missing_first=True)[: args.limit]
+    return {"listings": rows, "count": len(rows)}
+
+
+def run_folder_listing_get(services: Services, args: FolderPathArgs) -> dict:
+    root_id, rel = _resolve_folder(services, args.root_id, args.path)
+    listing = services.folder_listings.get(root_id, rel)
+    if listing is None:
+        raise LookupError(f"No folder listing at '{rel or '(root)'}'. Call folder_listing_set or folder_listing_draft to create one.")
+    return {"listing": listing}
+
+
+def run_folder_listing_set(services: Services, args: FolderListingSetArgs) -> dict:
+    root_id, rel = _resolve_folder(services, args.root_id, args.path)
+    listing = services.folder_listings.set(root_id, rel, {"title": args.title, "description": args.description, "tags": args.tags}, status=args.status)
+    return {"ok": True, "listing": listing}
+
+
+def run_folder_listing_check(services: Services, args: FolderListingCheckArgs) -> dict:
+    if args.path is not None:
+        root_id, rel = _resolve_folder(services, args.root_id, args.path)
+        listing = services.folder_listings.check(root_id, rel)
+        return {"listing": listing, "ok": not listing["issues"]}
+    results = services.folder_listings.check_all(root_id=args.root_id)
+    bad = [r for r in results if r["issues"]]
+    return {"checked": len(results), "with_issues": len(bad), "listings": results}
+
+
+def run_folder_listing_draft(services: Services, args: FolderListingDraftArgs) -> dict:
+    targets = services.folder_listings.match_targets(args.root_id, args.path, args.limit, args.overwrite)
+    if not targets:
+        return {"ok": True, "queued": 0, "note": "No matching folder needs a draft (everything already has a listing; pass overwrite=true to redraft)."}
+    try:
+        progress = services.draft_worker.start(targets, args.overwrite)
+    except RuntimeError as error:
+        raise ValueError(str(error)) from error
+    return {"ok": True, "queued": len(targets), "progress": progress, "note": "Drafting in the background; poll models_stats-style with folder_listings(status='draft') or the app's UI."}
+
+
+def run_folder_listings_export(services: Services, args: FolderListingsExportArgs) -> dict:
+    result = services.folder_listings.export(args.root_id, args.format, args.status)
+    return {"ok": True, **result}
+
+
 def _ann(read_only: bool, destructive: bool = False, idempotent: bool | None = None) -> dict[str, bool]:
     return {"readOnlyHint": read_only, "destructiveHint": destructive, "idempotentHint": read_only if idempotent is None else idempotent, "openWorldHint": False}
 
@@ -220,6 +326,12 @@ TOOLS: list[Tool] = [
     Tool("models_add_root", "Add a folder of models to the library (write). The path must exist on the user's PC; adding the same folder twice returns the existing root without rescanning. Options: thumbnails=all|top-level|none and skip_small_bytes to ignore tiny auto-generated meshes; exclude globs can be edited in the app (Carpetas). Scanning (metrics + thumbnails) starts in the background, in parallel worker processes. Only when the user asks.\nSinónimos: añadir carpeta, carpeta de modelos, escanear carpeta, indexar mis STL, nueva carpeta, agregar modelos.", AddRootArgs, _ann(False, False, True), run_add_root),
     Tool("models_rescan", "Queue a non-destructive rescan of one root or of every enabled root: only new or changed files are parsed again; deleted files are purged. Only when the user asks.\nSinónimos: reescanear, volver a escanear, actualizar biblioteca, refrescar carpeta, escanear de nuevo, reindexar.", RescanArgs, _ann(False, False, True), run_rescan),
     Tool("models_recent", "The n newest models by file modification date, with id, name, format, bbox, triangles, tags, has_listing and thumb_url.\nSinónimos: recientes, últimos modelos, lo último que he modelado, novedades, qué he añadido, modelos nuevos.", RecentArgs, _ann(True), run_recent),
+    Tool("folder_listings", "List folder listings (one per product folder) filtered by status; folders missing one come first.\nSinónimos: fichas, listados de carpeta, qué fichas faltan, estado de las fichas, carpetas sin ficha, cults3d.", FolderListingsArgs, _ann(True), run_folder_listings),
+    Tool("folder_listing_get", "The marketplace listing of one folder (title, description, 20 tags, status, issues), by root+path.\nSinónimos: ficha de la carpeta, título y descripción de la carpeta, etiquetas, cults3d.json, estado de la ficha.", FolderPathArgs, _ann(True), run_folder_listing_get),
+    Tool("folder_listing_set", "Write a folder's listing (write): title, description (English), 20 tags; saves the DB and cults3d.json.\nSinónimos: genera la ficha de la carpeta, guarda el título y la descripción, escribe las 20 etiquetas, cults3d.json.", FolderListingSetArgs, _ann(False, False, True), run_folder_listing_set),
+    Tool("folder_listing_check", "Validate one or every folder listing (format, lengths, 20 unique tags, template rules, duplicate titles).\nSinónimos: comprobar ficha, validar ficha, revisar carpeta, está bien la ficha, errores de la ficha.", FolderListingCheckArgs, _ann(True), run_folder_listing_check),
+    Tool("folder_listing_draft", "Draft folder listings with the local model in the background (write): title, description, 20 tags.\nSinónimos: redactar fichas, generar ficha con IA, borrador de ficha, rellenar fichas que faltan, redacción automática.", FolderListingDraftArgs, _ann(False, False, False), run_folder_listing_draft),
+    Tool("folder_listings_export", "Export folder listings of a root to CSV, Markdown or JSON in data/exports (write, returns the path).\nSinónimos: exportar fichas, exportar catálogo, csv de fichas, listado para subir a la tienda, exportar cults3d.", FolderListingsExportArgs, _ann(False, False, False), run_folder_listings_export),
 ]
 
 TOOLS_BY_NAME = {tool.name: tool for tool in TOOLS}

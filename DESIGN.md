@@ -183,7 +183,9 @@ Etiqueta encima, ayuda debajo. El buscador de la galería es más grande (16px, 
 
 ### Navigation
 
-Cinco secciones: Galería, Colecciones, Carpetas, Estadísticas, Ajustes. Rutas por hash (`#/galeria?format=stl`, `#/modelo/12`). La activa usa `aria-current` con fondo `nav-active`. Los filtros de la galería viven en la URL para poder compartir o volver atrás.
+Seis secciones: Galería, Colecciones, Fichas, Carpetas, Estadísticas, Ajustes. Rutas por hash (`#/galeria?format=stl`, `#/modelo/12`). La activa usa `aria-current` con fondo `nav-active`. Los filtros de la galería viven en la URL para poder compartir o volver atrás.
+
+**Fichas** (fichas por carpeta, convención de la tienda: cada carpeta de modelos es un producto): tabla con chip de estado (`sin ficha` neutro, `borrador` `accent-soft`, `revisada` neutro con incidencias en la fila, `aprobada` `ok`), botones «Redactar»/«Redactar de nuevo», «Revisar todas» y exportar CSV/Markdown; al elegir una fila se abre debajo el mismo patrón de editor que la ficha de modelo (título, descripción, etiquetas) con un contador «N/20» sobre las etiquetas y la lista de incidencias del validador sobre fondo `danger` cuando las hay.
 
 ### Chips
 

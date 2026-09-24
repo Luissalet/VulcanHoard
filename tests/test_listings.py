@@ -72,7 +72,8 @@ def test_albums(scanned):
 def test_agent_tools_catalog_and_calls(scanned):
     services, root = scanned
     names = [t.name for t in TOOLS]
-    assert names == ["models_search", "model_info", "model_listing_get", "model_listing_set", "model_tag", "model_note", "models_stats", "models_dupes", "models_add_root", "models_rescan", "models_recent"]
+    assert names == ["models_search", "model_info", "model_listing_get", "model_listing_set", "model_tag", "model_note", "models_stats", "models_dupes", "models_add_root", "models_rescan", "models_recent",
+                      "folder_listings", "folder_listing_get", "folder_listing_set", "folder_listing_check", "folder_listing_draft", "folder_listings_export"]
     for tool in TOOLS:
         assert "Sinónimos:" in tool.description and set(tool.annotations) == {"readOnlyHint", "destructiveHint", "idempotentHint", "openWorldHint"}
     hits = call_tool(services, "models_search", {"q": "cubo", "format": "stl"})
