@@ -37,6 +37,7 @@ class SearchArgs(BaseModel):
     sort: str = Field("relevance", description=f"One of {', '.join(SORT_NAMES)} (prefix - for descending). 'size' is file bytes; the biggest model in millimetres is sort='-extent' (largest side), the bulkiest is '-volume'.")
     limit: int = Field(20, ge=1, le=200)
     offset: int = Field(0, ge=0)
+    distinct: bool | None = Field(None, description="Fold exact duplicates (same file content) into one hit with a 'copies' count. Default: on when sorting by size, extent, volume, triangles or date (a 'top N' question), off for relevance and name.")
 
 
 class InfoArgs(BaseModel):
@@ -147,15 +148,48 @@ def _hit(model: dict) -> dict:
     return hit
 
 
+RANKING_SORTS = ("size", "extent", "volume", "triangles", "date")
+FOLD_SCAN_MAX = 2000  # rows read to fill one folded page
+
+
 def run_search(services: Services, args: SearchArgs) -> dict:
     sort = args.sort if args.sort in SORT_NAMES else "relevance"
-    filters = Filters(q=args.q, root_id=args.root_id, format=args.format, tag=args.tag, collection=args.collection, watertight=args.watertight,
-                      has_listing=args.has_listing, dupes_only=args.dupes_only, bbox_min=args.bbox_min, bbox_max=args.bbox_max,
-                      sort=sort, limit=args.limit, offset=args.offset)
-    result = services.search.query(filters)
-    hits = [_hit(m) for m in result["models"]]
+    distinct = args.distinct if args.distinct is not None else sort.lstrip("-") in RANKING_SORTS
+    common = dict(q=args.q, root_id=args.root_id, format=args.format, tag=args.tag, collection=args.collection, watertight=args.watertight,
+                  has_listing=args.has_listing, dupes_only=args.dupes_only, bbox_min=args.bbox_min, bbox_max=args.bbox_max, sort=sort)
+    if not distinct:
+        result = services.search.query(Filters(**common, limit=args.limit, offset=args.offset))
+        hits = [_hit(m) for m in result["models"]]
+        note = None if hits else "No model matches. Try fewer words, another tag, or models_stats to see which folders are scanned."
+        return {"hits": hits, "count": len(hits), "total": result["total"], "offset": args.offset, "note": note}
+
+    # «The three biggest» should be three different models, not one file copied three times:
+    # read in sort order, keep the first copy of each content hash, count the rest.
+    wanted = args.offset + args.limit
+    groups: dict[str, dict] = {}
+    order: list[str] = []
+    total = 0
+    page, read = 200, 0
+    while len(order) < wanted and read < FOLD_SCAN_MAX:
+        result = services.search.query(Filters(**common, limit=page, offset=read))
+        total = result["total"]
+        rows = result["models"]
+        if not rows:
+            break
+        for m in rows:
+            key = m.get("sha256") or f"id:{m['id']}"
+            if key in groups:
+                groups[key]["copies"] += 1
+                continue
+            groups[key] = {**_hit(m), "copies": 1}
+            order.append(key)
+        read += len(rows)
+        if read >= total:
+            break
+    hits = [groups[k] for k in order[args.offset:wanted]]
     note = None if hits else "No model matches. Try fewer words, another tag, or models_stats to see which folders are scanned."
-    return {"hits": hits, "count": len(hits), "total": result["total"], "offset": args.offset, "note": note}
+    return {"hits": hits, "count": len(hits), "total": total, "offset": args.offset, "distinct": True,
+            "note": note or "Exact duplicates folded: 'copies' counts the identical files behind each hit (distinct=false lists every file)."}
 
 
 def _find(services: Services, args: InfoArgs) -> dict:
@@ -315,7 +349,7 @@ def _ann(read_only: bool, destructive: bool = False, idempotent: bool | None = N
 
 
 TOOLS: list[Tool] = [
-    Tool("models_search", "Search the 3D model library by words and filters. Keywords: buscar modelo, encuentra mi STL, figura de.\nSearch the user's 3D model library by words (name, tags, notes, folder, listing text) with filters: format, tag, collection, watertight, has_listing, duplicates, size in mm. Returns id, name, format, bbox (mm), triangles, tags, has_listing and thumb_url per hit, paginated. First step for 'find my model of X'.\nSinónimos: buscar modelo, modelo 3D, STL, 3MF, OBJ, impresión 3D, archivo, figura, pieza, buscar en mis modelos, cuál era, carpeta de modelos, etiquetas, tamaño en mm, miniatura.", SearchArgs, _ann(True), run_search),
+    Tool("models_search", "Search the 3D model library by words and filters. Keywords: buscar modelo, encuentra mi STL, figura de.\nSearch the user's 3D model library by words (name, tags, notes, folder, listing text) with filters: format, tag, collection, watertight, has_listing, duplicates, size in mm. Returns id, name, format, bbox (mm), triangles, tags, has_listing and thumb_url per hit, paginated. Ranking sorts (-extent, -volume, -size, -triangles, -date) fold identical files into one hit with a 'copies' count, so 'the three biggest' are three different models. First step for 'find my model of X'.\nSinónimos: buscar modelo, modelo 3D, STL, 3MF, OBJ, impresión 3D, archivo, figura, pieza, buscar en mis modelos, cuál era, carpeta de modelos, etiquetas, tamaño en mm, miniatura.", SearchArgs, _ann(True), run_search),
     Tool("model_info", "Everything about one model: size in mm, triangles, tags, listing, duplicates. Keywords: ficha, dimensiones.\nEverything about one model (by id or path): dimensions in mm, triangles, vertices, volume, surface, watertight, bodies (parts), units guess, folder, tags, notes, listing, exact and near duplicates, albums, thumb_url.\nSinónimos: modelo 3D, ficha, detalles, cuántos triángulos, tamaño en mm, medidas, volumen, es estanco, cuántas piezas, duplicados, STL, ruta del archivo, miniatura.", InfoArgs, _ann(True), run_info),
     Tool("model_listing_get", "The marketplace listing of a model, or none. Keywords: ver ficha de tienda, descripción, tags.\nThe marketplace listing of a model (title, description, tags, category, price hint, language, source, updated_at), or none.\nSinónimos: ficha, descripción para la tienda, texto de la tienda, título, etiquetas, categoría, precio, ficha del modelo.", IdArgs, _ann(True), run_listing_get),
     Tool("model_listing_set", "Write a model's marketplace listing: title, description, tags (write). Keywords: escribe la ficha, publicar.\nWrite the marketplace listing of a model (write): title, description (markdown), tags, category, price_hint, language. Fields left out keep their value; source is recorded as assistant. Idempotent: saving the same text twice changes nothing but the timestamp. Describe only what the geometry and the user say.\nSinónimos: genera la ficha, escribe la descripción para la tienda, ficha del modelo, título y descripción, etiquetas para la tienda, categoría, precio, redactar.", ListingSetArgs, _ann(False, False, True), run_listing_set),
