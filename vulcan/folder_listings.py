@@ -359,7 +359,8 @@ class FolderListingStore:
         from .model_backend import DRAFT_MAX_TOKENS, build_draft_messages, parse_draft_json
 
         try:
-            result = link.sync.chat(build_draft_messages(material), max_tokens=DRAFT_MAX_TOKENS, response_format={"type": "json_object"})
+            result = link.sync.chat(build_draft_messages(material), max_tokens=DRAFT_MAX_TOKENS,
+                                    response_format={"type": "json_object"}, effort="medium")
             data = parse_draft_json(result.text)
         except Exception as error:  # Unavailable, BackendError, bad JSON — never fail silently
             return {"ok": False, "material": material,
