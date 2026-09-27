@@ -28,6 +28,19 @@ function DupeRow({ m }) {
   );
 }
 
+function SimilarRow({ match }) {
+  return (
+    <a className="row row-link" href={`#/modelo/${match.model.id}`}>
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-[13px] font-semibold">{match.model.name}</div>
+        <div className="help truncate text-[12px]">{match.model.path}</div>
+      </div>
+      <span className="num text-[12px] font-semibold">{Math.round(match.score * 100)} %</span>
+      <FormatChip format={match.model.format} />
+    </a>
+  );
+}
+
 export default function Modelo({ param }) {
   const id = Number(param);
   const { act, notify } = useApp();
@@ -37,6 +50,10 @@ export default function Modelo({ param }) {
   const [notes, setNotes] = useState("");
   const [name, setName] = useState("");
   const [saved, setSaved] = useState("");
+  const [similar, setSimilar] = useState(null);
+  const [similarBusy, setSimilarBusy] = useState(false);
+  const [similarError, setSimilarError] = useState("");
+  const similarRequest = useRef(0);
 
   const load = () =>
     api.model(id)
@@ -49,6 +66,10 @@ export default function Modelo({ param }) {
       })
       .catch((e) => setError(e.message));
   useEffect(() => {
+    similarRequest.current += 1;
+    setSimilar(null);
+    setSimilarError("");
+    setSimilarBusy(false);
     load();
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -78,6 +99,19 @@ export default function Modelo({ param }) {
       notify("Ficha copiada al portapapeles.");
     } catch {
       notify("No se pudo copiar; selecciona el texto a mano.");
+    }
+  };
+  const findSimilar = async () => {
+    const requestId = ++similarRequest.current;
+    setSimilarBusy(true);
+    setSimilarError("");
+    try {
+      const result = await api.similarModels(id);
+      if (requestId === similarRequest.current) setSimilar(result.matches);
+    } catch (e) {
+      if (requestId === similarRequest.current) setSimilarError(e.message);
+    } finally {
+      if (requestId === similarRequest.current) setSimilarBusy(false);
     }
   };
 
@@ -181,7 +215,7 @@ export default function Modelo({ param }) {
 
           <section className="panel-white">
             <h2 className="text-[16px] font-semibold">Duplicados</h2>
-            {dupes.exact.length === 0 && dupes.near.length === 0 && <p className="help mt-2">No hay copias ni modelos parecidos.</p>}
+            {dupes.exact.length === 0 && dupes.near.length === 0 && <p className="help mt-2">No hay copias exactas ni coincidencias por medidas y triángulos.</p>}
             {dupes.exact.length > 0 && (
               <div className="mt-2">
                 <div className="help text-[11px] font-semibold uppercase tracking-wide">Copias exactas ({dupes.exact.length})</div>
@@ -194,6 +228,19 @@ export default function Modelo({ param }) {
                 <div className="mt-1 rounded-md border" style={{ borderColor: "var(--line)" }}>{dupes.near.map((m) => <DupeRow key={m.id} m={m} />)}</div>
               </div>
             )}
+          </section>
+
+          <section className="panel-white">
+            <h2 className="text-[16px] font-semibold">Formas parecidas</h2>
+            <p className="help mt-1">Busca piezas con geometría similar aunque cambie el número de triángulos, la escala o la orientación. Son sugerencias, no copias confirmadas.</p>
+            {model.watertight ? (
+              <button type="button" className="btn btn-sm mt-3" disabled={similarBusy} onClick={findSimilar}>
+                {similarBusy ? "Comparando formas…" : "Buscar formas parecidas"}
+              </button>
+            ) : <p className="help mt-2">La comparación de formas necesita una malla cerrada.</p>}
+            {similarError && <p className="mt-2 text-[12px]" role="alert" style={{ color: "var(--danger-ink)" }}>{similarError}</p>}
+            {similar?.length === 0 && <p className="help mt-2">No se encontraron formas suficientemente parecidas.</p>}
+            {similar?.length > 0 && <div className="mt-3 rounded-md border" style={{ borderColor: "var(--line)" }}>{similar.map((match) => <SimilarRow key={match.model.id} match={match} />)}</div>}
           </section>
         </div>
       </div>

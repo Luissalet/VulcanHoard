@@ -31,6 +31,7 @@ export const api = {
   models: (params) => request("GET", "/api/models", { params }),
   facets: () => request("GET", "/api/models/facets"),
   model: (id) => request("GET", `/api/models/${id}`),
+  similarModels: (id) => request("GET", `/api/models/${id}/similar`),
   updateModel: (id, patch) => request("PATCH", `/api/models/${id}`, { body: patch }),
   listing: (id) => request("GET", `/api/models/${id}/listing`),
   saveListing: (id, body) => request("PUT", `/api/models/${id}/listing`, { body }),

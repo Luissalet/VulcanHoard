@@ -93,6 +93,16 @@ def get_model(request: Request, model_id: int):
     return {**model, "listing": svc.listings.get(model_id), "dupes": svc.dupes.for_model(model), "albums": svc.albums.for_model(model_id)}
 
 
+@router.get("/models/{model_id}/similar")
+def similar_models(request: Request, model_id: int, limit: int = Query(10, ge=1, le=50),
+                   minimum_score: float = Query(0.75, ge=0.5, le=1.0)):
+    svc = services(request)
+    model = _model_or_404(svc, model_id)
+    matches = svc.dupes.similar_shapes(model, limit=limit, minimum_score=minimum_score)
+    return {"model_id": model_id, "matches": matches, "count": len(matches),
+            "note": "Only closed meshes can be compared by filled shape; scores suggest similarity, not duplicate status."}
+
+
 @router.patch("/models/{model_id}")
 def patch_model(request: Request, model_id: int, body: ModelPatch):
     svc = services(request)

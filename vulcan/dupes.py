@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from collections import OrderedDict
+
 from .db import Database
 from .store import model_to_dict
+from .shape_search import descriptor, similarity
 
 NEAR_TOLERANCE = 0.01
 BRIEF = ("id", "name", "format", "path", "rel_path", "root_id", "size_bytes", "triangles", "bbox", "volume_cm3", "file_modified_at")
@@ -38,6 +41,61 @@ def _groups(parent: dict[int, int]) -> list[list[int]]:
 class Dupes:
     def __init__(self, db: Database):
         self.db = db
+        self._shape_cache: OrderedDict[str, object] = OrderedDict()
+
+    def _shape_descriptor(self, model: dict):
+        sha = model.get("sha256") or model["path"]
+        if sha in self._shape_cache:
+            self._shape_cache.move_to_end(sha)
+            return self._shape_cache[sha]
+        value = descriptor(model["path"])
+        self._shape_cache[sha] = value
+        if len(self._shape_cache) > 128:
+            self._shape_cache.popitem(last=False)
+        return value
+
+    def similar_shapes(self, model: dict, limit: int = 10, minimum_score: float = 0.75) -> list[dict]:
+        """Find related solids after remeshing, rotation or uniform scaling.
+
+        This is deliberately separate from exact/near duplicate groups: a
+        shape match is a suggestion, not evidence that files are copies.
+        """
+        if model.get("status") != "ok" or not model.get("watertight"):
+            return []
+        source_bbox = model.get("bbox") or []
+        if len(source_bbox) != 3 or max(source_bbox) <= 0:
+            return []
+        source_ratios = [side / max(source_bbox) for side in sorted(source_bbox)]
+        with self.db.lock:
+            rows = self.db.conn.execute(
+                "SELECT m.*, 0 AS has_listing FROM models m "
+                "WHERE m.status = 'ok' AND m.watertight = 1 AND m.dupe_of IS NULL "
+                "AND m.id != ? AND m.sha256 != ? ORDER BY m.id",
+                (model["id"], model.get("sha256") or ""),
+            ).fetchall()
+        candidates = []
+        for row in rows:
+            item = model_to_dict(row)
+            bbox = item.get("bbox") or []
+            if len(bbox) != 3 or max(bbox) <= 0:
+                continue
+            ratios = [side / max(bbox) for side in sorted(bbox)]
+            distance = sum(abs(a - b) for a, b in zip(source_ratios, ratios))
+            if distance <= 0.25:
+                candidates.append((distance, item))
+        candidates.sort(key=lambda pair: pair[0])
+        source = self._shape_descriptor(model)
+        if source is None:
+            return []
+        matches = []
+        for _, item in candidates[:200]:
+            other = self._shape_descriptor(item)
+            if other is None:
+                continue
+            score = similarity(source, other)
+            if score >= minimum_score:
+                matches.append({"score": score, "model": _brief(item)})
+        return sorted(matches, key=lambda match: (-match["score"], match["model"]["id"]))[:limit]
 
     def exact(self, limit: int = 200) -> list[dict]:
         with self.db.lock:

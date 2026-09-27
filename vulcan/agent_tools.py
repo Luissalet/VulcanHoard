@@ -13,6 +13,7 @@ from .services import Services
 AGENT_INSTRUCTIONS = """Vulcan's Hoard is the user's own library of 3D-printable models (STL, 3MF, OBJ files in folders on their PC), scanned locally: for every file it knows the size in mm, triangles, volume, whether the mesh is watertight, how many bodies it has, a thumbnail, tags, notes and an optional marketplace listing (title, description, tags, category).
 Describe a model only from what the geometry data and the user say: dimensions, number of parts, watertightness, file format, folder and the user's own notes and tags. Never invent features, materials, history or use cases that are not in the data or in the conversation; ask the user when the listing needs them.
 Start with models_search or models_recent to find the model, then model_info for everything about it (including its listing and duplicates). Report the model id back so later calls are unambiguous.
+For "models with a similar shape" use models_similar with that id. It compares closed geometry even after remeshing or rotation; its scores are suggestions, never proof of duplicates.
 When asked for a listing ("genera la ficha"), write it in the user's voice and language (Spanish unless told otherwise), then save it with model_listing_set (source=assistant). Tags are lower-case, short, without duplicates. Saving the same listing twice is harmless.
 model_tag, model_note, model_listing_set, models_add_root and models_rescan change data: call them only when the user asks. Scanning runs in the background: models_stats shows progress (files done / total, files per second, ETA). A folder with thousands of files takes minutes; answer with the partial numbers and say the scan is still running, or wait briefly and call models_stats again. Never read Vulcan's data folder, database or thumbnails directly with the shell or file tools: everything the app knows is available through these tools, and its database has a single writer.
 
@@ -47,6 +48,11 @@ class InfoArgs(BaseModel):
 
 class IdArgs(BaseModel):
     id: int = Field(..., ge=1, description="Model id.")
+
+
+class SimilarArgs(IdArgs):
+    limit: int = Field(10, ge=1, le=50)
+    minimum_score: float = Field(0.75, ge=0.5, le=1.0)
 
 
 class ListingSetArgs(BaseModel):
@@ -260,6 +266,15 @@ def run_dupes(services: Services, args: DupesArgs) -> dict:
             "note": None if groups else ("No exact duplicates." if args.kind == "exact" else "No near-duplicates suggested.")}
 
 
+def run_similar(services: Services, args: SimilarArgs) -> dict:
+    model = services.models.get(args.id)
+    if model is None:
+        raise LookupError(f"Model {args.id} does not exist.")
+    matches = services.dupes.similar_shapes(model, args.limit, args.minimum_score)
+    return {"model_id": args.id, "matches": matches, "count": len(matches),
+            "note": "Filled-shape comparison supports closed meshes only. Scores suggest resemblance, not duplicate status."}
+
+
 def run_add_root(services: Services, args: AddRootArgs) -> dict:
     root = services.add_root(args.name, args.path, None, None, args.watch, args.thumbnails, args.skip_small_bytes)
     return {"ok": True, "root": root.to_dict(), "note": "Scanning has started in the background; models_stats shows progress."}
@@ -357,6 +372,7 @@ TOOLS: list[Tool] = [
     Tool("model_note", "Replace or append the user's notes on a model (write).\nSinónimos: nota, apuntar, anotar, notas del modelo, recordar sobre este modelo, comentario.", NoteArgs, _ann(False, False, False), run_note),
     Tool("models_stats", "Library statistics: counts, sizes, duplicates, scan queue and ETA. Keywords: cuántos modelos, estadísticas.\nLibrary statistics: models, bytes and triangles by format and by root folder, collections, listings, duplicates, errors, skipped files, scan queue with files/second and ETA per root, and folder watching. Cheap to call repeatedly (cached 5 s during a scan).\nSinónimos: estadísticas, cuántos modelos, cuántos STL, tamaño de la biblioteca, carpetas de modelos, está escaneando, progreso, resumen.", Empty, _ann(True), run_stats),
     Tool("models_dupes", "Duplicate groups, exact or near. Keywords: duplicados, repetidos, modelos iguales.\nDuplicate groups: exact (identical files, same sha256) or near (same triangle count, volume and bounding box within 1 %; suggestions to review). Each group lists id, name, path, size and dimensions.\nSinónimos: duplicados, repetidos, archivos iguales, copias, modelos parecidos, limpiar duplicados, mismo STL.", DupesArgs, _ann(True), run_dupes),
+    Tool("models_similar", "Find models with a similar 3D shape to one model id. Keywords: misma forma, remallado, geometría parecida.\nCompares filled closed meshes on a normalized voxel grid across right-angle rotations. Finds related models despite different triangle counts or uniform scale. Returns ranked scores and model ids; never labels them as duplicates.\nSinónimos: piezas parecidas, modelos con forma similar, geometría similar, mismo objeto remallado, versiones de esta pieza, busca modelos parecidos.", SimilarArgs, _ann(True), run_similar),
     Tool("models_add_root", "Add a folder of models to the library and scan it (only when asked). Keywords: añadir carpeta, escanear.\nAdd a folder of models to the library (write). The path must exist on the user's PC; adding the same folder twice returns the existing root without rescanning. Options: thumbnails=all|top-level|none and skip_small_bytes to ignore tiny auto-generated meshes; exclude globs can be edited in the app (Carpetas). Scanning (metrics + thumbnails) starts in the background, in parallel worker processes. Only when the user asks.\nSinónimos: añadir carpeta, carpeta de modelos, escanear carpeta, indexar mis STL, nueva carpeta, agregar modelos.", AddRootArgs, _ann(False, False, True), run_add_root),
     Tool("models_rescan", "Rescan a root or every root for new or changed files (only when asked). Keywords: reescanear, actualizar.\nQueue a non-destructive rescan of one root or of every enabled root: only new or changed files are parsed again; deleted files are purged. Only when the user asks.\nSinónimos: reescanear, volver a escanear, actualizar biblioteca, refrescar carpeta, escanear de nuevo, reindexar.", RescanArgs, _ann(False, False, True), run_rescan),
     Tool("models_recent", "The newest models by file date. Keywords: modelos recientes, últimos añadidos, nuevos.\nThe n newest models by file modification date, with id, name, format, bbox, triangles, tags, has_listing and thumb_url.\nSinónimos: recientes, últimos modelos, lo último que he modelado, novedades, qué he añadido, modelos nuevos.", RecentArgs, _ann(True), run_recent),
