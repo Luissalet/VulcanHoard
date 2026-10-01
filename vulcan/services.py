@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import secrets
 import time
 
@@ -14,6 +15,7 @@ from .folder_listings import DraftWorker, FolderListingStore
 from .hoard_link import Link
 from .listings import AlbumStore, ListingStore
 from .model_backend import load_link_config
+from .organize import Organizer
 from .scanner import Scanner
 from .search import Search
 from .stats import Stats
@@ -50,6 +52,7 @@ class Services:
         self.search = Search(self.db)
         self.dupes = Dupes(self.db)
         self.folder_listings = FolderListingStore(self.db, self.roots, config.data_dir / "exports")
+        self.organizer = Organizer(config.data_dir / "organize")
         self.link = Link(load_link_config(config.data_dir))
         self.draft_worker = DraftWorker(self.folder_listings, link_factory=lambda: self.link)
         self.scanner = Scanner(self.roots, self.models, config.thumbs_dir, thumbnails=config.thumbnails, thumb_size=config.thumb_size,
@@ -109,6 +112,19 @@ class Services:
         if self.roots.get(root_id) is None:
             raise LookupError("Root not found.")
         return self.worker.enqueue(root_id)
+
+    def rescan_covering(self, folder: str) -> list[int]:
+        """Queue a rescan of every enabled root that contains `folder` or sits inside it (after files were moved there)."""
+        from pathlib import Path
+
+        target = os.path.normcase(str(Path(folder).resolve()))
+        queued: list[int] = []
+        for root in self.roots.list():
+            current = os.path.normcase(str(Path(root.path).resolve()))
+            related = current == target or target.startswith(current + os.sep) or current.startswith(target + os.sep)
+            if related and root.enabled and self.worker.enqueue(root.id):
+                queued.append(root.id)
+        return queued
 
     # ---------- status ----------
     def status(self) -> dict:

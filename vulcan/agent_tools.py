@@ -5,8 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
+from .organize import plan_view
 from .search import SORT_NAMES, Filters
 from .services import Services
 
@@ -17,7 +18,8 @@ For "models with a similar shape" use models_similar with that id. It compares c
 When asked for a listing ("genera la ficha"), write it in the user's voice and language (Spanish unless told otherwise), then save it with model_listing_set (source=assistant). Tags are lower-case, short, without duplicates. Saving the same listing twice is harmless.
 model_tag, model_note, model_listing_set, models_add_root and models_rescan change data: call them only when the user asks. Scanning runs in the background: models_stats shows progress (files done / total, files per second, ETA). A folder with thousands of files takes minutes; answer with the partial numbers and say the scan is still running, or wait briefly and call models_stats again. Never read Vulcan's data folder, database or thumbnails directly with the shell or file tools: everything the app knows is available through these tools, and its database has a single writer.
 
-The user also sells these models on a marketplace in a different convention: each PRODUCT is a FOLDER of models (not one model), and its listing (title in English, an English description of 200+ characters, exactly 20 unique lower-case tags) lives in that folder as cults3d.json. "ficha/listing para la carpeta X" or "ficha de X" means folder_listing_get/folder_listing_set on that folder, never model_listing_set. "fichas que faltan" or "qué carpetas no tienen ficha" means folder_listings(status=none). Draft one or several with folder_listing_draft (it runs in the background with a local model and returns progress; if no model backend is available it returns the assembled material instead so you can write the listing yourself and save it with folder_listing_set). Always run folder_listing_check after writing or importing a listing by hand before calling it approved. folder_listings_export produces a CSV/Markdown/JSON file in data/exports for uploading to the marketplace."""
+The user also sells these models on a marketplace in a different convention: each PRODUCT is a FOLDER of models (not one model), and its listing (title in English, an English description of 200+ characters, exactly 20 unique lower-case tags) lives in that folder as cults3d.json. "ficha/listing para la carpeta X" or "ficha de X" means folder_listing_get/folder_listing_set on that folder, never model_listing_set. "fichas que faltan" or "qué carpetas no tienen ficha" means folder_listings(status=none). Draft one or several with folder_listing_draft (it runs in the background with a local model and returns progress; if no model backend is available it returns the assembled material instead so you can write the listing yourself and save it with folder_listing_set). Always run folder_listing_check after writing or importing a listing by hand before calling it approved. folder_listings_export produces a CSV/Markdown/JSON file in data/exports for uploading to the marketplace.
+To organise a folder of loose files and folders into one folder per group from a list the user pasted (\"una carpeta por línea evolutiva\", \"agrupa estos por serie\"), never move files one by one with the shell: call collection_plan with the folder and the pasted list, show the user the summary (groups, to_move, unmatched, ambiguous, conflicts), fix what they point out (aliases, a different target_template, the list itself) and plan again, and only after they agree call collection_apply(plan_id). It never deletes or overwrites; collection_undo reverts the last apply. After an apply the root is rescanned in the background: wait for models_stats to show it idle. Then \"fichas de todas\" / \"crea las fichas de todas las carpetas\" is one call: sheets_batch (default mode skeleton needs no model; use dry_run first on a big root); refine the drafts afterwards with folder_listing_set and check them with folder_listing_check. Use sheets_batch mode=model only when the user asks for the local model to write them."""
 
 
 class Empty(BaseModel):
@@ -135,6 +137,48 @@ class FolderListingsExportArgs(BaseModel):
     format: str = Field("csv", pattern="^(csv|md|json)$")
     status: str | None = Field(None, pattern="^(none|draft|checked|approved)$", description="Only export listings in this status.")
 
+
+class MatchArgs(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    case_insensitive: bool = Field(True, description="Ignore upper/lower case.")
+    accent_insensitive: bool = Field(True, description="Ignore accents (Pokémon = pokemon).")
+    ignore_separators: bool = Field(True, description="Ignore punctuation, underscores, hyphens, dots and spaces (Mr. Mime = mr_mime = MrMime).")
+    ignore_number_prefix: bool = Field(True, description="Ignore a leading number in item names ('0001_bulbasaur' matches 'Bulbasaur').")
+    allow_contains: bool = Field(True, description="Also match whole-word occurrences inside a longer name ('Bulbasaur outline v2'); the longest member wins, equal ones are reported as ambiguous.")
+    include_files: bool = Field(True, description="Sort loose files.")
+    include_folders: bool = Field(True, description="Sort sub-folders.")
+    aliases: dict[str, str] = Field(default_factory=dict, description="{alias as it appears in a name: member name in the list}, for spellings the rules cannot bridge.")
+
+
+class CollectionPlanArgs(BaseModel):
+    root: str = Field(..., min_length=1, max_length=2000, description="Absolute path of the folder whose immediate children (files and folders) are sorted.")
+    reference: str = Field(..., min_length=1, max_length=400000, description="The list pasted by the user, one group per line, members separated by >, ->, → , or ' - ', optionally with numbers: '001 Bulbasaur > Ivysaur > Venusaur'. 'Name: a > b' names the group explicitly (default: the first member). Or CSV with header group,member,number. Or the path of such a .txt/.csv file.")
+    reference_format: str = Field("auto", pattern="^(auto|lines|csv)$", description="auto detects a CSV header (group,member); force lines or csv when needed (a headerless CSV needs csv).")
+    target_template: str = Field("{number} {group}", max_length=200, description="Name of each group folder. Placeholders: {number} (zero-padded to the width used in the list), {group}, {first}, {last}, {count}, {index}.")
+    match: MatchArgs = Field(default_factory=MatchArgs, description="How names are compared.")
+    number_width: int | None = Field(None, ge=1, le=12, description="Force the zero-padding width of {number}; default = the widest number written in the list.")
+
+
+class CollectionApplyArgs(BaseModel):
+    plan_id: str = Field(..., min_length=4, max_length=64, description="Id returned by collection_plan.")
+
+
+class CollectionUndoArgs(BaseModel):
+    apply_id: str | None = Field(None, max_length=64, description="Id returned by collection_apply; omit to undo the most recent apply that is not undone yet.")
+    remove_created_folders: bool = Field(True, description="After moving the items back, remove the group folders that the apply created if they are empty again (never a folder with anything inside).")
+
+
+class SheetsBatchArgs(BaseModel):
+    root_id: int | None = Field(None, ge=1, description="Root id; omit when path is an absolute folder under a known root.")
+    path: str = Field("", max_length=2000, description="Only folders (or models) under this relative path or glob (e.g. 'Contornos pokemon/*'); absolute folder path allowed when root_id is omitted; empty = the whole root.")
+    scope: str = Field("folders", pattern="^(folders|models)$", description="folders = one marketplace sheet per folder (cults3d.json); models = one listing per model file.")
+    mode: str = Field("skeleton", pattern="^(skeleton|model)$", description="skeleton (default) = deterministic draft from the scanned data, no language model; model = queue the background local-model drafting (folders only).")
+    refresh: bool = Field(False, description="Also rewrite sheets that are still drafts (skeleton listings written by the assistant for models).")
+    overwrite: bool = Field(False, description="Also replace checked/approved folder sheets and manual model listings. Off by default.")
+    dry_run: bool = Field(False, description="Report what would be created, refreshed or skipped without writing anything.")
+    limit: int = Field(1000, ge=1, le=5000, description="Maximum sheets written in this call.")
+    language: str = Field("en", pattern="^(en|es)$", description="Language of skeleton model listings (folder sheets are always English, the marketplace convention).")
 
 @dataclass(frozen=True)
 class Tool:
@@ -359,6 +403,40 @@ def run_folder_listings_export(services: Services, args: FolderListingsExportArg
     return {"ok": True, **result}
 
 
+def run_collection_plan(services: Services, args: CollectionPlanArgs) -> dict:
+    plan = services.organizer.plan(args.root, args.reference, args.target_template, args.match.model_dump(), args.reference_format, args.number_width)
+    view = plan_view(plan, 300)
+    view["note"] = ("Nothing was moved. Review unmatched, ambiguous and conflicts (fix the list or add aliases and plan again), "
+                    "then collection_apply(plan_id) when the user agrees; collection_undo reverts it.")
+    return view
+
+
+def _rescan_note(queued: list[int]) -> str:
+    return (f"Rescan queued for root(s) {queued}; wait until models_stats shows it idle before sheets_batch or folder_listing_*." if queued
+            else "The folder is not inside a scanned root, so nothing was rescanned.")
+
+
+def run_collection_apply(services: Services, args: CollectionApplyArgs) -> dict:
+    journal = services.organizer.apply(args.plan_id)
+    queued = services.rescan_covering(journal["root"]) if journal["moves"] else []
+    return {"ok": True, "apply_id": journal["id"], "plan_id": args.plan_id, "root": journal["root"], "counts": journal["counts"],
+            "created_folders": len(journal["created_dirs"]), "skipped": journal["skipped"][:200], "errors": journal["errors"][:50],
+            "rescan_queued": queued, "note": f"{_rescan_note(queued)} Nothing was deleted or overwritten; collection_undo(apply_id) reverts it."}
+
+
+def run_collection_undo(services: Services, args: CollectionUndoArgs) -> dict:
+    result = services.organizer.undo(args.apply_id, args.remove_created_folders)
+    queued = services.rescan_covering(result["root"]) if result["restored"] else []
+    return {"ok": True, **result, "rescan_queued": queued, "note": _rescan_note(queued)}
+
+
+def run_sheets_batch(services: Services, args: SheetsBatchArgs) -> dict:
+    from .sheets_batch import run_sheets_batch as batch
+
+    root_id, rel = _resolve_folder(services, args.root_id, args.path)
+    return batch(services, root_id, rel, args.scope, args.mode, args.refresh, args.overwrite,
+                 args.dry_run, args.limit, args.language)
+
 def _ann(read_only: bool, destructive: bool = False, idempotent: bool | None = None) -> dict[str, bool]:
     return {"readOnlyHint": read_only, "destructiveHint": destructive, "idempotentHint": read_only if idempotent is None else idempotent, "openWorldHint": False}
 
@@ -382,7 +460,10 @@ TOOLS: list[Tool] = [
     Tool("folder_listing_check", "Validate one or every folder listing (format, lengths, 20 unique tags, template rules, duplicate titles).\nSinónimos: comprobar ficha, validar ficha, revisar carpeta, está bien la ficha, errores de la ficha.", FolderListingCheckArgs, _ann(True), run_folder_listing_check),
     Tool("folder_listing_draft", "Draft folder listings with the local model in the background (write): title, description, 20 tags.\nSinónimos: redactar fichas, generar ficha con IA, borrador de ficha, rellenar fichas que faltan, redacción automática.", FolderListingDraftArgs, _ann(False, False, False), run_folder_listing_draft),
     Tool("folder_listings_export", "Export folder listings of a root to CSV, Markdown or JSON in data/exports (write, returns the path).\nSinónimos: exportar fichas, exportar catálogo, csv de fichas, listado para subir a la tienda, exportar cults3d.", FolderListingsExportArgs, _ann(False, False, False), run_folder_listings_export),
-]
+    Tool("collection_plan", "Plan sorting a folder's items into group folders from a pasted list (read-only). Keywords: organizar.\nRead-only plan, no model: scans the immediate children of a folder and matches each to a member of the user's list (one group per line, members separated by >, ->, → or ','; or CSV group,member,number), ignoring case, accents, separators and number prefixes like 0001_. Returns the target folder per group with the items moving into it, items already in place, unmatched items, ambiguous items (several members) and conflicts (target exists as a file, name already taken), plus a plan_id for collection_apply. Nothing is moved.\nSinónimos: organizar colección, agrupar carpetas, una carpeta por línea evolutiva, ordenar por lista, clasificar archivos, meter en carpetas, plan de organización, carpeta por grupo, números con ceros.", CollectionPlanArgs, _ann(True), run_collection_plan),
+    Tool("collection_apply", "Apply a stored collection plan: create group folders and move the items in (write). Keywords: aplicar plan.\nCarries out a plan from collection_plan by id: creates the group folders and moves the matched items into them. Never deletes and never overwrites (a collision is skipped and reported), re-checks the disk at apply time, writes an undo journal and queues a rescan of the affected root. Only when the user agrees to the plan.\nSinónimos: aplicar plan, mover a carpetas, ejecutar la organización, crear carpetas por grupo, ordenar de verdad.", CollectionApplyArgs, _ann(False, False, False), run_collection_apply),
+    Tool("collection_undo", "Undo the last collection_apply (or a given one) by moving every item back (write). Keywords: deshacer.\nReverses an apply from its journal: moves each item back to where it was, never overwriting anything (an occupied original location is skipped and reported), then removes the group folders the apply created if they are empty again. Defaults to the most recent apply that is not undone. Queues a rescan.\nSinónimos: deshacer organización, revertir, volver atrás, devolver los archivos a su sitio, deshacer el último cambio.", CollectionUndoArgs, _ann(False, False, False), run_collection_undo),
+    Tool("sheets_batch", "Create or refresh sheet drafts for every folder or model of a root in one call (write). Keywords: fichas.\nOne call for all the sheets: for every folder of models (cults3d.json sheets, English) or every model (listings) under a root creates a deterministic skeleton draft from the scanned data and the root's template, without any language model. Drafts stay in status draft; existing drafts are rewritten only with refresh=true, checked/approved sheets only with overwrite=true. dry_run reports counts without writing. mode=model queues the background local-model drafting instead (folders only). Returns created, refreshed and skipped counts with reasons.\nSinónimos: fichas de todas las carpetas, crear todas las fichas, borradores de fichas en lote, rellenar fichas que faltan, ficha esqueleto, generar fichas de golpe, fichas para toda la colección.", SheetsBatchArgs, _ann(False, False, False), run_sheets_batch),]
 
 TOOLS_BY_NAME = {tool.name: tool for tool in TOOLS}
 
