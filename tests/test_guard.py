@@ -1,12 +1,18 @@
-"""Request guard: host allow-list, Origin rule and Fetch Metadata rules."""
+"""Request guard (the shared `hoard_link.guard`): host allow-list, Origin rule and Fetch Metadata rules, as Vulcan uses them."""
 
 import pytest
 from conftest import make_config
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from vulcan.guard import check_request, host_of, install_guard, is_allowed_host, parse_allowed_hosts
+from vulcan.hoard_link.guard import check_request as _check, host_of, install_guard, is_allowed_host, parse_allowed_hosts
 from vulcan.main import create_app
+
+def check_request(method, headers, allowed=()):
+    """None when allowed, else the message (the library answers (403, message))."""
+    verdict = _check(method, headers, 5186, allowed)
+    return verdict[1] if verdict else None
+
 
 NAV = {"sec-fetch-site": "cross-site", "sec-fetch-mode": "navigate", "sec-fetch-dest": "document"}
 CORS = {"sec-fetch-site": "cross-site", "sec-fetch-mode": "cors", "sec-fetch-dest": "empty"}
@@ -21,17 +27,18 @@ def test_host_of_strips_scheme_path_port_and_case():
 
 
 def test_parse_allowed_hosts():
-    assert parse_allowed_hosts(" pc.example , *.TS.net,, pc2.example:8443") == ("pc.example", "*.ts.net", "pc2.example")
+    # an entry with a port is pinned to that port (the shared guard's rule); the old copy dropped the port
+    assert parse_allowed_hosts(" pc.example , *.TS.net,, pc2.example:8443") == ("pc.example", "*.ts.net", "pc2.example:8443")
     assert parse_allowed_hosts(None) == () and parse_allowed_hosts("*.") == ()
 
 
 def test_is_allowed_host_exact_wildcard_unknown():
     allowed = parse_allowed_hosts("pc.example,*.ts.net")
     for host in ("localhost", "127.0.0.1", "[::1]", "pc.example", "my-pc.ts.net", "a.b.ts.net"):
-        assert is_allowed_host(host, allowed), host
+        assert is_allowed_host(host, 5186, allowed), host
     for host in ("ts.net", "evil.example", "pc.example.evil", "", None):
-        assert not is_allowed_host(host, allowed), host
-    assert not is_allowed_host("my-pc.ts.net", ())
+        assert not is_allowed_host(host, 5186, allowed), host
+    assert not is_allowed_host("my-pc.ts.net", 5186, ())
 
 
 def test_check_request_fetch_metadata_rules():
@@ -60,7 +67,7 @@ def test_check_request_origin_by_host_not_exact_string():
 
 def test_middleware_navigation_reaches_root_but_not_embeds_or_fetches():
     app = FastAPI()
-    install_guard(app, parse_allowed_hosts("*.ts.net"))
+    install_guard(app, port_getter=lambda: 5186, allowed_hosts="*.ts.net")
 
     @app.get("/")
     def home():
@@ -83,17 +90,14 @@ def guarded(tmp_path):
 
 def test_app_host_origin_and_cross_site_rules(guarded):
     get = lambda **headers: guarded.get("/api/health", headers=headers).status_code  # noqa: E731
-    # Host rule: local, exact, wildcard; unknown rejected; case and port ignored.
     assert get() == 200
     assert get(host="pc.example") == 200
     assert get(host="My-PC.ts.net:8443") == 200
     assert get(host="evil.example") == 403
     assert get(host="ts.net") == 403
-    # Origin rule: allowed host with any scheme/port; anything else 403.
     assert get(origin="https://my-pc.ts.net:8443") == 200
     assert get(origin="http://localhost:5173") == 200
     assert get(origin="https://evil.example") == 403
-    # Fetch Metadata: navigation ok, cross-site fetch / iframe / form post rejected.
     assert get(**NAV) == 200
     assert get(**CORS) == 403
     assert get(**IFRAME) == 403
@@ -106,3 +110,18 @@ def test_app_host_origin_and_cross_site_rules(guarded):
 def test_app_without_allowed_hosts_is_local_only(client):
     assert client.get("/api/health", headers={"host": "my-pc.ts.net"}).status_code == 403
     assert client.get("/api/health", headers={"host": "[::1]:5186"}).status_code == 200
+
+
+def test_websocket_upgrades_are_guarded_too(guarded):
+    """The old copies only guarded HTTP; the shared guard closes a WebSocket with a foreign Host before it is accepted."""
+    from starlette.websockets import WebSocketDisconnect
+
+    app = guarded.app
+
+    @app.websocket("/ws-probe")
+    async def probe(websocket):  # pragma: no cover - never accepted when the guard works
+        await websocket.accept()
+
+    with pytest.raises(WebSocketDisconnect):
+        with guarded.websocket_connect("/ws-probe", headers={"host": "evil.example"}):
+            pass

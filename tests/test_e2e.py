@@ -12,7 +12,7 @@ import httpx
 import pytest
 from fixtures import EXPECTED_MODELS
 
-from vulcan.port import free_port
+from vulcan.hoard_link.net import free_port
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -64,7 +64,7 @@ def test_subprocess_http_and_mcp_bridge(app_process, library):
     assert [t["name"] for t in tools][:2] == ["models_search", "model_info"]
 
     token = (data_dir / "mcp-token").read_text().strip()
-    assert len(token) == 64
+    assert len(token) >= 32
     assert httpx.post(f"{url}/api/agent/call", json={"name": "models_stats"}).status_code == 401
     auth = {"Authorization": f"Bearer {token}"}
     added = httpx.post(f"{url}/api/agent/call", json={"name": "models_add_root", "arguments": {"path": str(library), "name": "E2E"}}, headers=auth).json()

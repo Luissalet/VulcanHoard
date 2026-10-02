@@ -4,15 +4,16 @@ from __future__ import annotations
 
 import logging
 import os
-import secrets
 import time
+from pathlib import Path
 
 from . import __version__
 from .config import Config
 from .db import Database
 from .dupes import Dupes
 from .folder_listings import DraftWorker, FolderListingStore
-from .hoard_link import Link
+from .hoard_link import Link, paths
+from .hoard_link.tokens import read_or_create_token
 from .listings import AlbumStore, ListingStore
 from .model_backend import load_link_config
 from .organize import Organizer
@@ -26,24 +27,13 @@ from .worker import ScanWorker
 log = logging.getLogger("vulcan")
 
 
-def write_token(config: Config) -> str:
-    config.data_dir.mkdir(parents=True, exist_ok=True)
-    token = secrets.token_hex(32)
-    config.token_path.write_text(token, encoding="utf-8")
-    try:
-        config.token_path.chmod(0o600)
-    except OSError:
-        pass
-    return token
-
-
 class Services:
     def __init__(self, config: Config):
         self.config = config
         self.started_at = time.time()
         config.data_dir.mkdir(parents=True, exist_ok=True)
         config.thumbs_dir.mkdir(parents=True, exist_ok=True)
-        self.token = write_token(config)
+        self.token = read_or_create_token(config.token_path)  # stable across restarts: a second instance must not rotate it
         self.db = Database(config.db_path)
         self.roots = RootStore(self.db)
         self.models = ModelStore(self.db)
@@ -82,6 +72,11 @@ class Services:
     def add_root(self, name: str, path: str, include: list[str] | None, exclude: list[str] | None, watch: bool,
                  thumbnails: str = "all", skip_small_bytes: int | None = None):
         skip = self.config.skip_small_bytes if skip_small_bytes is None else skip_small_bytes
+        path = paths.clean_user_path(path)  # Explorer's "Copy as path" arrives quoted
+        if Path(path).is_dir():  # a missing folder keeps the store's own message
+            problem = paths.unsafe_folder(path, data_dir=self.config.data_dir, lang="en")
+            if problem:
+                raise ValueError(f"This folder cannot be indexed: {problem}.")
         root, created = self.roots.add(name, path, include, exclude, watch, thumbnails, skip)
         if created:
             self.worker.enqueue(root.id)

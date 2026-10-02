@@ -154,5 +154,5 @@ def test_agent_endpoints_and_auth(client, library):
 
 def test_token_file_written_at_startup(client):
     token_path = client.services.config.token_path
-    assert token_path.is_file() and token_path.read_text().strip() == client.services.token and len(client.services.token) == 64
+    assert token_path.is_file() and token_path.read_text().strip() == client.services.token and len(client.services.token) >= 32
     assert time.time() - token_path.stat().st_mtime < 600

@@ -6,7 +6,8 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .guard import parse_allowed_hosts
+from .hoard_link.appconfig import env_flag, env_int, env_str
+from .hoard_link.guard import parse_allowed_hosts
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_PORT = 5186
@@ -18,16 +19,10 @@ def default_workers() -> int:
     return max(1, (os.cpu_count() or 2) - 2)
 
 
-def _env(name: str, default: str = "") -> str:
-    return os.environ.get(name, default).strip()
-
-
-def _int(raw: str, default: int, low: int, high: int) -> int:
-    try:
-        value = int(raw)
-    except ValueError:
-        return default
-    return value if low <= value <= high else default
+def _int(names: tuple[str, ...], default: int, low: int, high: int) -> int:
+    """The first variable that holds an integer; a value outside low..high means the default (not a clamp)."""
+    value = env_int(*names)
+    return default if value is None or not low <= value <= high else value
 
 
 @dataclass
@@ -61,19 +56,19 @@ class Config:
 
     @classmethod
     def from_env(cls) -> "Config":
-        raw_dir = _env("VULCAN_DATA_DIR")
-        port = _int(_env("VULCAN_PORT") or _env("PORT") or str(DEFAULT_PORT), DEFAULT_PORT, 1, 65535)
+        raw_dir = env_str("VULCAN_DATA_DIR")
+        port = _int(("VULCAN_PORT", "PORT"), DEFAULT_PORT, 1, 65535)
         return cls(
             data_dir=Path(raw_dir).expanduser() if raw_dir else REPO_ROOT / "data",
             port=port,
-            port_strict=_env("PORT_STRICT") == "1",
-            watch=_env("VULCAN_WATCH", "1") != "0",
-            autostart=_env("VULCAN_AUTOSTART", "1") != "0",
-            thumbnails=_env("VULCAN_THUMBS", "1") != "0",
-            thumb_size=_int(_env("VULCAN_THUMB_SIZE", str(DEFAULT_THUMB_SIZE)), DEFAULT_THUMB_SIZE, 64, 2048),
-            max_file_mb=_int(_env("VULCAN_MAX_FILE_MB", str(DEFAULT_MAX_FILE_MB)), DEFAULT_MAX_FILE_MB, 1, 100000),
-            scan_workers=_int(_env("VULCAN_SCAN_WORKERS", str(default_workers())), default_workers(), 1, 64),
-            skip_small_bytes=_int(_env("VULCAN_SKIP_SMALL_BYTES", "0"), 0, 0, 10**12),
-            allowed_hosts=parse_allowed_hosts(_env("VULCAN_ALLOWED_HOSTS")),
+            port_strict=env_flag("PORT_STRICT"),
+            watch=env_flag("VULCAN_WATCH", True),
+            autostart=env_flag("VULCAN_AUTOSTART", True),
+            thumbnails=env_flag("VULCAN_THUMBS", True),
+            thumb_size=_int(("VULCAN_THUMB_SIZE",), DEFAULT_THUMB_SIZE, 64, 2048),
+            max_file_mb=_int(("VULCAN_MAX_FILE_MB",), DEFAULT_MAX_FILE_MB, 1, 100000),
+            scan_workers=_int(("VULCAN_SCAN_WORKERS",), default_workers(), 1, 64),
+            skip_small_bytes=_int(("VULCAN_SKIP_SMALL_BYTES",), 0, 0, 10**12),
+            allowed_hosts=parse_allowed_hosts(env_str("VULCAN_ALLOWED_HOSTS")),
             data_dir_configured=bool(raw_dir),
         )
