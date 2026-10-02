@@ -107,6 +107,11 @@ MIGRATIONS: list[str] = [
     );
     CREATE INDEX folder_listings_root ON folder_listings(root_id, status);
     """,
+    # 4: where a model came from (a hoard:// reference of another app) and roots made only to hold imported files
+    """
+    ALTER TABLE models ADD COLUMN source_ref TEXT;
+    ALTER TABLE roots ADD COLUMN imported INTEGER NOT NULL DEFAULT 0;
+    """,
 ]
 
 
