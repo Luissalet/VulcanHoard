@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass, field
 
 from .db import Database
+from .hoard_link.docs import textsearch
 from .store import model_to_dict
 
 SORTS = {
@@ -25,7 +25,6 @@ SORTS = {
     "relevance": "rank ASC, m.id ASC",
 }
 SORT_NAMES = tuple(SORTS)
-TOKEN = re.compile(r"[\w]+", re.UNICODE)
 
 
 @dataclass
@@ -53,11 +52,9 @@ class Filters:
 
 
 def fts_query(q: str) -> str:
-    """Every word must match as a prefix; the string is quoted so FTS syntax cannot break the query."""
-    words = [w for w in TOKEN.findall(q) if w.strip("_")]
-    if not words:
-        return ""
-    return " AND ".join(f'"{w.replace(chr(34), "")}"*' for w in words)
+    """Every content word must match (as a prefix of its stem, from 3 letters on); the shared Hoard Link builder
+    quotes the words, so FTS syntax in the text cannot break the query."""
+    return textsearch.fts_query(q, mode="prefix")
 
 
 def _where(filters: Filters, params: list) -> list[str]:

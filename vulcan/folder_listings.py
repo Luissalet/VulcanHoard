@@ -28,6 +28,7 @@ import time
 from pathlib import Path
 
 from .db import Database
+from .hoard_link import atomic
 from .store import Root, RootStore, normalise_tags
 
 LISTING_FILE = "cults3d.json"
@@ -257,9 +258,7 @@ class FolderListingStore:
         backup = folder / f"{LISTING_FILE}.bak"
         if path.is_file() and not backup.is_file():
             shutil.copyfile(path, backup)
-        tmp = folder / f".{LISTING_FILE}.tmp"
-        tmp.write_text(json.dumps(content, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-        tmp.replace(path)
+        atomic.write_json_atomic(path, content, indent=2)
 
     @staticmethod
     def _read_file(root: Root, rel: str) -> dict | None:

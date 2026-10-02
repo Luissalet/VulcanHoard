@@ -24,12 +24,13 @@ import io
 import json
 import os
 import re
-import secrets
 import threading
 import time
 import unicodedata
 from dataclasses import dataclass, field
 from pathlib import Path
+
+from .hoard_link import atomic, ids, paths
 
 DEFAULT_TEMPLATE = "{number} {group}"
 # Member separators: > -> => \u2192 , ; and a dash only when it has spaces around it (so Ho-Oh stays one name).
@@ -81,7 +82,7 @@ def load_reference_text(reference: str) -> tuple[str, str | None]:
     if not text:
         raise ValueError("The reference list is empty.")
     if "\n" not in text and len(text) < 600:
-        candidate = Path(text.strip('"').strip("'")).expanduser()
+        candidate = Path(paths.clean_user_path(text))
         looks_like_file = candidate.suffix.lower() in REFERENCE_SUFFIXES
         try:
             is_file = candidate.is_file()
@@ -495,14 +496,11 @@ def plan_view(plan: dict, cap: int = 300) -> dict:
 # ---------------------------------------------------------------- storage, apply, undo
 
 def _atomic_json(path: Path, data: dict) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(f".{path.name}.tmp")
-    tmp.write_text(json.dumps(data, indent=1, ensure_ascii=False), encoding="utf-8")
-    tmp.replace(path)
+    atomic.write_json_atomic(path, data, indent=1)
 
 
 def _new_id(prefix: str) -> str:
-    return f"{prefix}-{time.strftime('%Y%m%d-%H%M%S')}-{secrets.token_hex(3)}"
+    return ids.new_id(prefix)
 
 
 class Organizer:
