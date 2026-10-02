@@ -1,59 +1,28 @@
-"""/api/agent/* — the bridge used by mcp_server.py (Bearer token from <DATA_DIR>/mcp-token)."""
+"""/api/agent/* — the bridge used by mcp_server.py (Bearer token from <DATA_DIR>/mcp-token). The routes, the token check,
+the error envelope and the audit event are the shared agent kit; Vulcan only supplies its tools."""
 
 from __future__ import annotations
 
-import secrets
-import time
-from typing import Any
-
-from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel, Field, ValidationError
-
 from ..agent_tools import AGENT_INSTRUCTIONS, call_tool, tool_catalog
+from ..hoard_link.agentkit import AppError, make_agent_router
 from .deps import services
-from ..hoard_link import family
-
-router = APIRouter(prefix="/api/agent")
 
 
-class CallBody(BaseModel):
-    name: str = Field(..., min_length=1, max_length=100)
-    arguments: dict[str, Any] | None = None
-    caller: str | None = Field(default=None, max_length=80)  # who asks (the hub's proxy fills it)
-
-
-@router.get("/tools")
-def tools():
-    return {"instructions": AGENT_INSTRUCTIONS, "tools": tool_catalog()}
-
-
-@router.post("/call")
-def call(request: Request, body: CallBody):
-    svc = services(request)
-    header = request.headers.get("authorization", "")
-    given = header[7:].strip() if header.startswith("Bearer ") else ""
-    if not given or not secrets.compare_digest(given, svc.token):
-        raise HTTPException(401, "Invalid MCP token.")
-    t0 = time.monotonic()
-    outcome = {"ok": False, "error": ""}
+def run(name, arguments, request):
+    """One tool call. "Does not exist" (`LookupError`) is a 404 `not_found`, as it always was; the kit's own
+    handling covers the rest (`ValueError` 400, bad arguments 400 with `issues`, unknown tool 404)."""
     try:
-        result = call_tool(svc, body.name, body.arguments)
-        outcome["ok"] = True
-        return result
-    except KeyError as error:
-        outcome["error"] = str(error.args[0]) if error.args else str(error)
-        raise HTTPException(404, str(error.args[0])) from error
-    except ValidationError as error:
-        outcome["error"] = str(error.args[0]) if error.args else str(error)
-        issues = "; ".join(f"{'.'.join(str(p) for p in e['loc']) or 'input'}: {e['msg']}" for e in error.errors())
-        raise HTTPException(400, issues) from error
-    except (ValueError, LookupError) as error:
-        outcome["error"] = str(error.args[0]) if error.args else str(error)
-        raise HTTPException(400 if isinstance(error, ValueError) else 404, str(error)) from error
-    except Exception as error:  # noqa: BLE001 — recorded, then re-raised as before
-        outcome["error"] = f"{type(error).__name__}: {error}"
+        return call_tool(services(request), name, arguments)
+    except KeyError:
         raise
-    finally:
-        # One agent.call event per call on the family bus (the audit trail).
-        family.record_call(body.name, outcome["ok"], int((time.monotonic() - t0) * 1000),
-                           caller=body.caller or "", error=outcome["error"])
+    except LookupError as error:
+        raise AppError("not_found", str(error), status=404) from error
+
+
+router = make_agent_router(
+    tools_fn=tool_catalog,
+    call_fn=run,
+    token_fn=lambda request: services(request).token,
+    instructions=AGENT_INSTRUCTIONS,
+    app_name="vulcan",
+)
