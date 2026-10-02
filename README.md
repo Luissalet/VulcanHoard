@@ -68,11 +68,13 @@ Open http://127.0.0.1:5186, go to **Carpetas** and add a folder. The first scan 
 
 ### Access from your phone (behind a tunnel)
 
-The server binds 127.0.0.1 and only answers requests whose `Host` is `localhost`, `127.0.0.1` or `[::1]`. To reach it from your phone through a tunnel that fronts the app (a private mesh network, a reverse proxy), list the extra host names in `VULCAN_ALLOWED_HOSTS`, comma-separated, exact names or `*.suffix`: `VULCAN_ALLOWED_HOSTS=my-pc.example,*.ts.net`. Port and letter case are ignored, and the `Origin` of API calls must resolve to one of those hosts too (any scheme or port). Cross-site *fetches* are still refused; opening the app from another page (a link, a bookmarklet, the share sheet) is a normal navigation and works.
+The server binds 127.0.0.1 and only answers requests whose `Host` is `localhost`, `127.0.0.1` or `[::1]`. To reach it from your phone through a tunnel that fronts the app (a private mesh network, a reverse proxy), list the extra host names in `VULCAN_ALLOWED_HOSTS`, comma-separated, exact names or `*.suffix`: `VULCAN_ALLOWED_HOSTS=my-pc.example,*.ts.net`. Letter case is ignored and the port is ignored unless you write one (`my-pc.example:8443` accepts only that port), and the `Origin` of API calls must resolve to one of those hosts too (any scheme or port). Cross-site *fetches* are still refused; opening the app from another page (a link, a bookmarklet, the share sheet) is a normal navigation and works.
 
 ## API
 
-All JSON; errors are `{ "error": "..." }`.
+All JSON; errors are `{ "error": "..." }` (plus a machine-readable `code`, and `issues` for bad input). Agent-tool answers are capped at about 20 KB. The request guard, the error envelope, the single-page-app server (`index.html` is never cached), the MCP bridge, the agent routes, the database class, the folder policy, the atomic JSON writes, the ids and the search-query builder are the shared Hoard Link commons (`vulcan/hoard_link/`), not code of this app. A second `python -m vulcan` reports the running instance and exits without touching the token or the database; the token in `data/mcp-token` is created once and stays.
+
+Adding a folder (`POST /api/roots`, `models_add_root`) accepts a pasted path with its quotes and refuses a drive root, the user profile folder, system folders, configuration or secret folders (`.ssh`, `AppData`, ...) and Vulcan's own data folder. Search words go through the shared builder: glue words (`the`, `de`) and one-letter words are ignored and plural endings are stemmed, so `the dragons` finds `dragon`. New organiser plan and apply ids are `plan_<ULID>` / `apply_<ULID>`; ids written by earlier versions keep working.
 
 - `GET /api/health` → `{ service: "vulcan-hoard", version, dataDirConfigured }`
 - `GET /api/status` → counts, worker queue and progress, watching, disk; `GET /api/stats` → totals, by format, by root, by collection, largest models, disk
