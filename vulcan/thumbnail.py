@@ -15,6 +15,8 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
+from .hoard_link import atomic
+
 AZIMUTH_DEG = -50.0  # camera to the front-right
 ELEVATION_DEG = 30.0
 LIGHT_CAM = np.array([-0.35, 0.55, 0.75])  # in camera space: from the upper left, in front of the model
@@ -221,7 +223,7 @@ def render_to_file(vertices: np.ndarray, faces: np.ndarray, path: Path, size: in
     tmp = path.with_name(f"{path.stem}.{os.getpid()}.tmp.webp")  # per-process name: two workers may render the same sha at once
     image.save(tmp, "WEBP", quality=82, method=4)
     try:
-        tmp.replace(path)
+        atomic.replace_with_retry(tmp, path)
     except OSError:
         if not path.is_file():
             raise

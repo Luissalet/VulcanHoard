@@ -9,6 +9,7 @@ from pathlib import Path
 
 from .db import Database
 from .geometry import DEFAULT_INCLUDE, MeshInfo
+from .hoard_link import paths
 
 DEFAULT_EXCLUDE = ["**/node_modules/**", "**/.git/**", "**/__MACOSX/**", "**/.*", "**/~$*"]
 
@@ -90,7 +91,7 @@ class RootStore:
     def add(self, name: str, path: str, include: list[str] | None, exclude: list[str] | None, watch: bool,
             thumbnails: str = "all", skip_small_bytes: int = 0, imported: bool = False) -> tuple[Root, bool]:
         """Create a root; returns (root, created). Adding an existing folder returns it unchanged (idempotent)."""
-        resolved = str(Path(path).expanduser().resolve())
+        resolved = str(Path(paths.clean_user_path(path)).resolve())
         if not Path(resolved).is_dir():
             raise ValueError(f"The folder does not exist: {path}")
         existing = self.by_path(resolved)

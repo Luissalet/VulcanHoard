@@ -7,7 +7,9 @@ from vulcan.search import Filters, fts_query
 
 def test_fts_query_builder():
     assert fts_query("dragón cubo") == '"dragón"* AND "cubo"*'
-    assert fts_query('  "or" (x) ') == '"or"* AND "x"*'
+    assert fts_query('  "or" (x) ') == '"or" AND "x"'  # only stopwords and one-letter words: all of them are kept, whole-word
+    assert fts_query("the dragons of 3 rings") == '"dragon"* AND "ring"*'  # glue words and one-letter words dropped, light stemming
+    assert fts_query('dragon "cubo') == '"dragon"* AND "cubo"*'  # a stray quote cannot break the MATCH expression
     assert fts_query("") == "" and fts_query("--") == ""
 
 
