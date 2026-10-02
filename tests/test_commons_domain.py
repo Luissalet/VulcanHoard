@@ -1,6 +1,7 @@
 """The domain code that now comes from the Hoard Link commons: folder policy, atomic writes, ids, search words."""
 
 import json
+import os
 import re
 from pathlib import Path
 
@@ -14,6 +15,8 @@ from vulcan.services import Services
 
 from conftest import make_config
 
+SYSTEM_FOLDERS = [Path.home().anchor, os.environ.get("SystemRoot", r"C:\Windows"), os.environ.get("ProgramFiles", r"C:\Program Files")] if os.name == "nt" else ["/", "/etc", "/usr/lib"]
+
 LIST = "1 Bulbasaur\n2 Ivysaur\n"
 
 
@@ -25,7 +28,7 @@ def test_add_root_accepts_a_quoted_pasted_path(services, library):
     assert services.add_root("Again", f"'{library}'", None, None, False).id == root.id  # idempotent through the quotes
 
 
-@pytest.mark.parametrize("bad", ["/", "/etc", "/usr/lib"])
+@pytest.mark.parametrize("bad", SYSTEM_FOLDERS)
 def test_add_root_refuses_broad_and_system_folders(services, bad):
     with pytest.raises(ValueError, match="cannot be indexed"):
         services.add_root("Nope", bad, None, None, False)
@@ -48,7 +51,7 @@ def test_add_root_missing_folder_keeps_its_message(services, tmp_path):
 
 
 def test_add_root_policy_over_http(client, tmp_path):
-    refused = client.post("/api/roots", json={"path": "/etc"})
+    refused = client.post("/api/roots", json={"path": SYSTEM_FOLDERS[1]})
     assert refused.status_code == 400 and "cannot be indexed" in refused.text
     assert client.post("/api/roots", json={"path": str(client.services.config.data_dir)}).status_code == 400
 
