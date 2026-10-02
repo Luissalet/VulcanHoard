@@ -137,6 +137,34 @@ def walk(root: Root) -> list[tuple[str, Path]]:
     return found
 
 
+def rel_in_root(root: Root, path: Path) -> str | None:
+    """Posix path of `path` relative to the root folder, or None when it is not inside it."""
+    try:
+        rel = Path(path).resolve().relative_to(Path(root.path).resolve()).as_posix()
+    except (ValueError, OSError):
+        return None
+    return None if rel in ("", ".") else rel
+
+
+def accepted_by_root(root: Root, rel: str, path: Path) -> bool:
+    """True when a scan of the root would list this file (format, include/exclude globs, excluded folders, minimum size)."""
+    if format_for(path) is None:
+        return False
+    matcher = Matcher(root.include, root.exclude)
+    parts = rel.split("/")
+    for depth in range(1, len(parts)):
+        if matcher.excludes_dir("/".join(parts[:depth])):
+            return False
+    if not matcher.accepts(rel):
+        return False
+    if root.skip_small_bytes > 0:
+        try:
+            return path.stat().st_size >= root.skip_small_bytes
+        except OSError:
+            return False
+    return True
+
+
 def collection_for(root: Root, rel: str) -> str:
     """Folder-derived collection: the immediate parent folder, or the root name for files at the top level."""
     parent = rel.rsplit("/", 1)[0] if "/" in rel else ""
@@ -247,6 +275,36 @@ class Scanner:
             progress.finished_at = time.time()
             self.on_change()
         return progress
+
+    # ---------- one file ----------
+    def index_file(self, root: Root, rel: str, path: Path) -> dict:
+        """Index one file now, inline: hash, parse, thumbnail, store (what a scan does for a changed file).
+
+        Returns {model_id, created, changed, status, error}. A parse failure is stored as a model with status
+        "error", exactly as a scan would, and reported in `error`."""
+        path = Path(path)
+        stat_info = _stat(path)
+        before = self.models.fingerprint(root.id, rel)
+        current = before is not None and before[4] in ("ok", "skipped")
+        if current and before[1] == stat_info["size"] and abs(before[2] - stat_info["mtime"]) < 1e-6 and before[4] == "ok":
+            thumb_ok = not wants_thumb(root, rel, self.thumbnails) or (before[3] and (self.thumbs_dir / f"{before[3]}.webp").is_file())
+            if thumb_ok:
+                return {"model_id": before[0], "created": False, "changed": False, "status": before[4], "error": None}
+        progress = Progress(root_id=root.id)
+        if stat_info["size"] > self.max_file_bytes:
+            note = f"file too large to parse ({stat_info['size'] // (1024 * 1024)} MB > {self.max_file_bytes // (1024 * 1024)} MB)"
+            model_id = self.models.upsert(root.id, rel, path, stat_info, "", None, status="skipped", error=note, collection=collection_for(root, rel))
+            return {"model_id": model_id, "created": before is None, "changed": True, "status": "skipped", "error": note}
+        thumbs = str(self.thumbs_dir) if wants_thumb(root, rel, self.thumbnails) else None
+        result = scan_task(str(path), before[3] if current else None, thumbs, self.thumb_size)
+        self._apply(root, rel, path, stat_info, before[0] if current else None, result, progress)
+        after = self.models.fingerprint(root.id, rel)
+        if after is None:
+            raise RuntimeError("The model was not stored.")
+        changed = bool(result["error"]) or not result["unchanged"]
+        if changed:
+            self.models.refresh_dupes()
+        return {"model_id": after[0], "created": before is None, "changed": changed, "status": after[4], "error": result["error"]}
 
     def _plan(self, root: Root, files: list[tuple[str, Path]], known: dict, progress: Progress) -> list[tuple]:
         """Cheap checks in the scan thread: unchanged files are counted done; oversized files are recorded as skipped.

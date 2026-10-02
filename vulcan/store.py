@@ -15,7 +15,7 @@ DEFAULT_EXCLUDE = ["**/node_modules/**", "**/.git/**", "**/__MACOSX/**", "**/.*"
 MODEL_COLUMNS = (
     "id", "root_id", "rel_path", "path", "name", "format", "size_bytes", "sha256", "triangles", "vertices",
     "bbox_x", "bbox_y", "bbox_z", "volume_cm3", "surface_cm2", "watertight", "bodies", "units_guess", "thumb_path",
-    "file_created_at", "file_modified_at", "tags", "notes", "collection", "dupe_of", "status", "error", "scanned_at",
+    "file_created_at", "file_modified_at", "tags", "notes", "collection", "dupe_of", "status", "error", "scanned_at", "source_ref",
 )
 
 
@@ -32,11 +32,12 @@ class Root:
     last_scanned_at: float | None
     thumbnails: str = "all"  # all | top-level | none
     skip_small_bytes: int = 0  # files under this size are not listed
+    imported: bool = False  # made by model_import_file: its include list names exactly the files imported from this folder
 
     def to_dict(self) -> dict:
         return {"id": self.id, "name": self.name, "path": self.path, "include": self.include, "exclude": self.exclude,
                 "enabled": self.enabled, "watch": self.watch, "created_at": self.created_at, "last_scanned_at": self.last_scanned_at,
-                "thumbnails": self.thumbnails, "skip_small_bytes": self.skip_small_bytes}
+                "thumbnails": self.thumbnails, "skip_small_bytes": self.skip_small_bytes, "imported": self.imported}
 
 
 THUMB_MODES = ("all", "top-level", "none")
@@ -45,7 +46,7 @@ THUMB_MODES = ("all", "top-level", "none")
 def _root(row) -> Root:
     return Root(row["id"], row["name"], row["path"], json.loads(row["include"] or "[]"), json.loads(row["exclude"] or "[]"),
                 bool(row["enabled"]), bool(row["watch"]), row["created_at"], row["last_scanned_at"],
-                row["thumbnails"] or "all", row["skip_small_bytes"] or 0)
+                row["thumbnails"] or "all", row["skip_small_bytes"] or 0, bool(row["imported"]))
 
 
 def normalise_tags(tags) -> list[str]:
@@ -87,7 +88,7 @@ class RootStore:
         return _root(row) if row else None
 
     def add(self, name: str, path: str, include: list[str] | None, exclude: list[str] | None, watch: bool,
-            thumbnails: str = "all", skip_small_bytes: int = 0) -> tuple[Root, bool]:
+            thumbnails: str = "all", skip_small_bytes: int = 0, imported: bool = False) -> tuple[Root, bool]:
         """Create a root; returns (root, created). Adding an existing folder returns it unchanged (idempotent)."""
         resolved = str(Path(path).expanduser().resolve())
         if not Path(resolved).is_dir():
@@ -101,9 +102,9 @@ class RootStore:
             raise ValueError(f"thumbnails must be one of {', '.join(THUMB_MODES)}.")
         with self.db.transaction() as conn:
             cursor = conn.execute(
-                "INSERT INTO roots(name, path, include, exclude, enabled, watch, created_at, thumbnails, skip_small_bytes) VALUES (?,?,?,?,1,?,?,?,?)",
+                "INSERT INTO roots(name, path, include, exclude, enabled, watch, created_at, thumbnails, skip_small_bytes, imported) VALUES (?,?,?,?,1,?,?,?,?,?)",
                 (name.strip() or Path(resolved).name, resolved, json.dumps(include), json.dumps(exclude), int(watch), time.time(),
-                 thumbnails, max(0, int(skip_small_bytes or 0))),
+                 thumbnails, max(0, int(skip_small_bytes or 0)), int(imported)),
             )
             new_id = cursor.lastrowid
         return self.get(new_id), True
@@ -146,6 +147,16 @@ class ModelStore:
         with self.db.lock:
             rows = self.db.conn.execute("SELECT id, rel_path, size_bytes, mtime, sha256, status FROM models WHERE root_id = ?", (root_id,)).fetchall()
         return {r["rel_path"]: (r["id"], r["size_bytes"], r["mtime"], r["sha256"], r["status"]) for r in rows}
+
+    def fingerprint(self, root_id: int, rel_path: str) -> tuple[int, int, float, str, str] | None:
+        """(id, size, mtime, sha256, status) of one model, or None."""
+        with self.db.lock:
+            r = self.db.conn.execute("SELECT id, size_bytes, mtime, sha256, status FROM models WHERE root_id = ? AND rel_path = ?", (root_id, rel_path)).fetchone()
+        return (r["id"], r["size_bytes"], r["mtime"], r["sha256"], r["status"]) if r else None
+
+    def set_source_ref(self, model_id: int, source_ref: str) -> None:
+        with self.db.transaction() as conn:
+            conn.execute("UPDATE models SET source_ref = ? WHERE id = ?", (source_ref[:500], model_id))
 
     def touch(self, model_id: int, size: int, mtime: float, modified_at: float, thumb_path: str | None = None) -> None:
         """Refresh the fingerprint of an unchanged file (and its thumbnail path when one was just re-rendered)."""
