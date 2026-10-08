@@ -35,13 +35,12 @@ def test_nothing_answers_so_the_bridge_starts_the_app(monkeypatch, tmp_path):
     monkeypatch.setenv("VULCAN_DATA_DIR", str(tmp_path))
     started = []
 
-    class Child:
-        def poll(self):
-            return None
-
     answers = iter([False, False, True])
     monkeypatch.setattr(lib, "_healthy", lambda port, service, host="127.0.0.1": next(answers, True))
-    monkeypatch.setattr(lib.proc, "popen", lambda argv, **kw: started.append((argv, kw["env"])) or Child())
+    # The bridge starts the app as an orphan (so it outlives the MCP host): record the spawn instead of making one.
+    monkeypatch.setattr(lib.launch, "spawn_orphan", lambda argv, cwd, env, log_path: started.append((argv, env)) or 4242)
+    monkeypatch.setattr(lib.launch, "process_created", lambda pid: 1.0)
+    monkeypatch.setattr(lib.launch, "process_alive", lambda pid, created: True)
     lib._children.clear()
     assert bridge.start_app(wait_s=5) is True
     argv, env = started[0]
