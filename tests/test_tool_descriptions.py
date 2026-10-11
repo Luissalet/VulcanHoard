@@ -17,3 +17,10 @@ def test_every_tool_keeps_its_full_description_and_spanish_words():
     for tool in TOOLS:
         assert len(tool.description) > len(tool.description.split("\n", 1)[0]), tool.name
         assert re.search(r"[áéíóúñ¿]", tool.description), tool.name
+
+
+def test_descriptions_stay_under_250_tokens():
+    """Hosts pay for every token of every description on every turn: 750 characters is about 250 tokens with the
+    conservative chars/3 estimate. Argument details belong in the parameter descriptions."""
+    for tool in TOOLS:
+        assert len(tool.description) <= 750, (tool.name, len(tool.description))
