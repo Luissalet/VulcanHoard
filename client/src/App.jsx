@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import { api } from "./api.js";
 import { Toast } from "./components/ui.jsx";
 import { num } from "./format.js";
+import { useCopilotRefresh } from "./copilot-view.js";
 import Galeria from "./pages/Galeria.jsx";
 import Modelo from "./pages/Modelo.jsx";
 import Colecciones from "./pages/Colecciones.jsx";
@@ -73,6 +74,7 @@ export default function App() {
     const timer = setInterval(refresh, 4000);
     return () => clearInterval(timer);
   }, [refresh]);
+  useCopilotRefresh(refresh);
 
   const notify = useCallback((message) => setToast(message), []);
   const act = useCallback(

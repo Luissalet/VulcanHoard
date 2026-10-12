@@ -1,9 +1,22 @@
-import React, { Suspense, lazy, useEffect, useRef, useState } from "react";
+import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api.js";
 import { useApp } from "../App.jsx";
 import { Thumb } from "../components/ModelCard.jsx";
 import { FormatChip, TagEditor } from "../components/ui.jsx";
 import { FORMAT_LABEL, UNITS_LABEL, bytes, dims, listingText, num, when } from "../format.js";
+import { changedFields, rebaseForm } from "../copilot-context.js";
+import { useCopilotRefresh, useCopilotView } from "../copilot-view.js";
+
+const EMPTY_LISTING = { title: "", description: "", tags: [], category: "", price_hint: "", language: "es" };
+const LISTING_FIELDS = Object.keys(EMPTY_LISTING);
+
+// What the server holds for this model: the listing fields, the notes, the name and the folder, the baseline the forms are compared with.
+const baselineOf = (m) => ({
+  listing: Object.fromEntries(LISTING_FIELDS.map((k) => [k, m.listing?.[k] ?? EMPTY_LISTING[k]])),
+  notes: m.notes || "",
+  name: m.name || "",
+  collection: m.collection || "",
+});
 
 const Viewer = lazy(() => import("../components/Viewer.jsx")); // three.js loads only on the model page
 
@@ -49,6 +62,7 @@ export default function Modelo({ param }) {
   const [listing, setListing] = useState(null);
   const [notes, setNotes] = useState("");
   const [name, setName] = useState("");
+  const [collection, setCollection] = useState("");
   const [saved, setSaved] = useState("");
   const [similar, setSimilar] = useState(null);
   const [similarBusy, setSimilarBusy] = useState(false);
@@ -58,39 +72,81 @@ export default function Modelo({ param }) {
   const load = () =>
     api.model(id)
       .then((m) => {
+        const next = baselineOf(m);
         setModel(m);
-        setListing(m.listing || { title: "", description: "", tags: [], category: "", price_hint: "", language: "es" });
-        setNotes(m.notes || "");
-        setName(m.name || "");
+        setListing(next.listing);
+        setNotes(next.notes);
+        setName(next.name);
+        setCollection(next.collection);
         setError(null);
       })
       .catch((e) => setError(e.message));
+
+  // The saved values and what differs in the forms (the unsaved fields the assistant is told about).
+  const base = useMemo(() => (model ? baselineOf(model) : null), [model]);
+  const baseRef = useRef(base);
+  baseRef.current = base;
+  const listingRef = useRef(listing);
+  listingRef.current = listing;
+  const idRef = useRef(id);
+  idRef.current = id;
+  const listingChanges = base && listing ? changedFields(base.listing, listing) : {};
+  const modelChanges = base ? changedFields({ name: base.name, notes: base.notes, collection: base.collection }, { name, notes, collection }) : {};
+  useCopilotView("listing-form", model && Object.keys(listingChanges).length ? { id: model.id, fields: listingChanges } : null);
+  useCopilotView("model-form", model && Object.keys(modelChanges).length ? { id: model.id, fields: modelChanges } : null);
+  // After an assistant turn: read the model again; fields the user did not touch follow the new values, typed ones stay.
+  useCopilotRefresh(() =>
+    api.model(id)
+      .then((m) => {
+        const previous = baseRef.current;
+        const next = baselineOf(m);
+        setModel(m);
+        setListing((cur) => rebaseForm(previous?.listing, next.listing, cur || next.listing));
+        setNotes((cur) => (cur !== (previous?.notes ?? "") ? cur : next.notes));
+        setName((cur) => (cur !== (previous?.name ?? "") ? cur : next.name));
+        setCollection((cur) => (cur !== (previous?.collection ?? "") ? cur : next.collection));
+        setError(null);
+      })
+      .catch(() => {}));
   useEffect(() => {
     similarRequest.current += 1;
     setSimilar(null);
     setSimilarError("");
     setSimilarBusy(false);
+    // another model: nothing of the previous one (its saved values, its typed fields) may stay on screen or be reported
+    setModel(null);
+    setListing(null);
+    setNotes("");
+    setName("");
+    setCollection("");
     load();
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const patch = async (changes, message) => {
-    const updated = await act(() => api.updateModel(id, changes), message);
-    if (updated) setModel((m) => ({ ...m, ...updated }));
+    const forId = id;
+    const updated = await act(() => api.updateModel(forId, changes), message);
+    if (updated && idRef.current === forId) setModel((m) => ({ ...m, ...updated }));
   };
   const saveNotes = useDebouncedSave((value) => patch({ notes: value }).then(() => setSaved("Notas guardadas")));
   const saveName = useDebouncedSave((value) => value.trim() && patch({ name: value.trim() }));
-  const saveListing = useDebouncedSave((value) =>
-    act(() => api.saveListing(id, { ...value, source: "manual" })).then((r) => {
-      if (r) {
+  // Only the fields that differ from what the server holds are sent, so a field the assistant changed meanwhile is not overwritten.
+  // The form is read when the timer fires (not when the key was pressed), after a refresh has moved the untouched fields.
+  // If the user moved to another model before the timer fired, the edit of the model it was typed on is saved as it was typed.
+  const saveListing = useDebouncedSave(({ forId, forBase, next }) => {
+    const same = forId === idRef.current;
+    const changes = same ? changedFields(baseRef.current?.listing, listingRef.current) : changedFields(forBase, next);
+    if (Object.keys(changes).length === 0) return undefined;
+    return act(() => api.saveListing(forId, { ...changes, source: "manual" })).then((r) => {
+      if (r && forId === idRef.current) {
         setModel((m) => ({ ...m, has_listing: true, listing: r.listing }));
         setSaved("Ficha guardada");
       }
-    }),
-  );
+    });
+  });
   const editListing = (changes) => {
     const next = { ...listing, ...changes };
     setListing(next);
-    saveListing(next);
+    saveListing({ forId: id, forBase: baseRef.current?.listing, next });
   };
   const copy = async () => {
     const text = listingText(listing, model);
@@ -209,7 +265,7 @@ export default function Modelo({ param }) {
             <label className="label mt-3" htmlFor="notes">Notas</label>
             <textarea id="notes" className="field" value={notes} onChange={(e) => { setNotes(e.target.value); saveNotes(e.target.value); }} placeholder="Ajustes de impresión, soportes, dónde lo publicaste…" />
             <label className="label mt-3" htmlFor="collection">Colección (carpeta)</label>
-            <input id="collection" className="field" defaultValue={model.collection} onBlur={(e) => e.target.value !== model.collection && patch({ collection: e.target.value }, "Colección guardada.")} />
+            <input id="collection" className="field" value={collection} onChange={(e) => setCollection(e.target.value)} onBlur={() => collection !== (model.collection || "") && patch({ collection }, "Colección guardada.")} />
             {model.albums?.length > 0 && <p className="help mt-2">Álbumes: {model.albums.map((a) => <a key={a.id} className="btn-link" href={`#/galeria?album=${a.id}`}>{a.name}</a>).reduce((acc, el) => (acc.length ? [...acc, ", ", el] : [el]), [])}</p>}
           </section>
 

@@ -4,8 +4,19 @@ import { useApp } from "../App.jsx";
 import ModelCard from "../components/ModelCard.jsx";
 import { Empty, PageHeader } from "../components/ui.jsx";
 import { FORMAT_LABEL, SORT_OPTIONS, num } from "../format.js";
+import { useCopilotRefresh, useCopilotView } from "../copilot-view.js";
 
 const PAGE = 60;
+const TOP_FOR_ASSISTANT = 5;
+
+// The filters of the address as the API wants them.
+function apiParams(filters, limit, offset) {
+  const params = { ...filters, limit, offset };
+  if (params.watertight !== undefined) params.watertight = params.watertight === "1" ? "true" : "false";
+  if (params.has_listing !== undefined) params.has_listing = params.has_listing === "1" ? "true" : "false";
+  if (params.dupes) params.dupes = "true";
+  return params;
+}
 const KEYS = ["q", "root", "format", "tag", "collection", "album", "watertight", "has_listing", "dupes", "sort"];
 
 function readFilters(query) {
@@ -68,11 +79,7 @@ export default function Galeria({ query }) {
     if (offset > 0 && result?.key !== key) return undefined; // offset left over from the previous filters: the reset above re-runs this
     let cancelled = false;
     setLoading(true);
-    const params = { ...filters, limit: PAGE, offset };
-    if (params.watertight !== undefined) params.watertight = params.watertight === "1" ? "true" : "false";
-    if (params.has_listing !== undefined) params.has_listing = params.has_listing === "1" ? "true" : "false";
-    if (params.dupes) params.dupes = "true";
-    api.models(params)
+    api.models(apiParams(filters, PAGE, offset))
       .then((r) => {
         if (cancelled) return;
         setResult((prev) => ({ ...r, key, models: offset > 0 && prev ? [...prev.models, ...r.models] : r.models }));
@@ -83,6 +90,19 @@ export default function Galeria({ query }) {
       cancelled = true;
     };
   }, [key, offset, status?.counts?.models]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // What the assistant sees: the first models on screen and the search text typed but not yet submitted.
+  useCopilotView("galeria", {
+    total: result?.total,
+    models: (result?.models || []).slice(0, TOP_FOR_ASSISTANT).map((m) => ({ id: m.id, name: m.name, format: m.format, collection: m.collection, tags: m.tags, triangles: m.triangles, watertight: m.watertight, has_listing: m.has_listing })),
+  });
+  useCopilotView("gallery-search", q.trim() !== (filters.q || "") ? { fields: { q } } : null);
+  // After an assistant turn: reload the facets and the models already on screen (the same count, from the top), keep the typed search.
+  useCopilotRefresh(() => {
+    api.facets().then(setFacets).catch(() => {});
+    api.roots().then((r) => setRoots(r.roots)).catch(() => {});
+    api.models(apiParams(filters, Math.max(PAGE, result?.models?.length || 0), 0)).then((r) => setResult({ ...r, key })).catch(() => {});
+  });
 
   const set = (patch) => writeFilters({ ...filters, ...patch });
   const toggle = (key, value) => set({ [key]: filters[key] === String(value) ? undefined : value });

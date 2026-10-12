@@ -3,6 +3,10 @@ import { api } from "../api.js";
 import { useApp } from "../App.jsx";
 import { Empty, PageHeader } from "../components/ui.jsx";
 import { num, when } from "../format.js";
+import { changedFields } from "../copilot-context.js";
+import { useCopilotRefresh, useCopilotView } from "../copilot-view.js";
+
+const FORM_DEFAULTS = { root: "", reference: "", template: "{number} {group}", aliases: "", allow_contains: true, include_files: true, include_folders: true };
 
 const CONFLICT_LABEL = {
   target_is_file: "La carpeta destino es un archivo",
@@ -93,6 +97,15 @@ export default function Organizar() {
   useEffect(() => { if (plan) setStale(true); }, [root, reference, template, aliasText, contains, files, folders]);
 
   const lastApply = useMemo(() => applies.find((a) => !a.fully_undone && a.moved > 0), [applies]);
+
+  // What the assistant sees: the plan on screen (and whether the form changed since) and the form fields that are not at their defaults.
+  useCopilotView("organizar", { plan: plan ? { id: plan.id, summary: plan.summary, stale } : null });
+  const typedFields = changedFields(FORM_DEFAULTS, { root, reference, template, aliases: aliasText, allow_contains: contains, include_files: files, include_folders: folders });
+  useCopilotView("organize-form", Object.keys(typedFields).length ? { fields: typedFields } : null);
+  useCopilotRefresh(() => {
+    api.roots().then((r) => setRoots(r.roots)).catch(() => {});
+    loadApplies();
+  });
 
   const preview = async () => {
     const match = { allow_contains: contains, include_files: files, include_folders: folders, aliases: parseAliases(aliasText) };

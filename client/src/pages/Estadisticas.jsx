@@ -3,6 +3,7 @@ import { api } from "../api.js";
 import { useApp } from "../App.jsx";
 import { PageHeader } from "../components/ui.jsx";
 import { FORMAT_LABEL, PHASE_LABEL, bytes, num, when } from "../format.js";
+import { useCopilotRefresh, useCopilotView } from "../copilot-view.js";
 
 function Stat({ label, value, help }) {
   return (
@@ -28,6 +29,8 @@ export default function Estadisticas() {
   useEffect(() => {
     api.stats().then(setStats).catch(() => {});
   }, [status?.counts?.models, status?.worker?.busy]);
+  useCopilotRefresh(() => api.stats().then(setStats).catch(() => {}));
+  useCopilotView("estadisticas", stats ? { summary: { models: stats.models, listings: stats.listings, errors: stats.errors, duplicates: stats.duplicates, watertight: stats.watertight, not_watertight: stats.not_watertight, bytes: stats.bytes } } : null);
   if (!status || !stats) return <p className="help">Cargando…</p>;
   const w = status.worker;
   const maxFormat = Math.max(1, ...stats.by_format.map((f) => f.models));

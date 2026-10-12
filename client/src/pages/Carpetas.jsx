@@ -3,13 +3,16 @@ import { api } from "../api.js";
 import { useApp } from "../App.jsx";
 import { Empty, ErrorList, PageHeader, Progress, Switch } from "../components/ui.jsx";
 import { PHASE_LABEL, THUMB_MODES, bytes, duration, num, when } from "../format.js";
+import { changedFields } from "../copilot-context.js";
+import { useCopilotRefresh, useCopilotView } from "../copilot-view.js";
 
 const splitGlobs = (text) => text.split(/[\n,]/).map((s) => s.trim()).filter(Boolean);
+const EMPTY_FORM = { path: "", name: "", include: "", exclude: "", watch: false, thumbnails: "all", skip_small_bytes: "" };
 
 export default function Carpetas() {
   const { status, act } = useApp();
   const [roots, setRoots] = useState(null);
-  const [form, setForm] = useState({ path: "", name: "", include: "", exclude: "", watch: false, thumbnails: "all", skip_small_bytes: "" });
+  const [form, setForm] = useState(EMPTY_FORM);
   const [advanced, setAdvanced] = useState(false);
   const [errorsOpen, setErrorsOpen] = useState({});
 
@@ -17,6 +20,9 @@ export default function Carpetas() {
   useEffect(() => {
     load();
   }, [status]); // status polls every few seconds → progress bars follow
+  useCopilotRefresh(load);
+  const typedFields = changedFields(EMPTY_FORM, form);
+  useCopilotView("root-new", Object.keys(typedFields).length ? { fields: typedFields } : null);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -28,7 +34,7 @@ export default function Carpetas() {
     }
     const created = await act(() => api.addRoot(body), "Carpeta añadida: el escaneo ha empezado.");
     if (created) {
-      setForm({ path: "", name: "", include: "", exclude: "", watch: false, thumbnails: "all", skip_small_bytes: "" });
+      setForm(EMPTY_FORM);
       load();
     }
   };

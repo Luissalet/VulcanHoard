@@ -71,6 +71,35 @@ El servidor escucha en 127.0.0.1 y solo responde a peticiones cuyo `Host` sea `l
 
 Al añadir una carpeta (`POST /api/roots`, `models_add_root`) se acepta la ruta pegada con sus comillas y se rechaza la raíz de una unidad, la carpeta de usuario, las carpetas del sistema, las de configuración o secretos (`.ssh`, `AppData`, ...) y la carpeta de datos de Vulcan. La protección de peticiones, el formato de errores, el servidor de la interfaz (`index.html` nunca se guarda en caché), el puente MCP, las rutas del agente, la clase de base de datos, la política de carpetas, las escrituras JSON atómicas, los ids y el constructor de consultas de búsqueda son el código común de Hoard Link (`vulcan/hoard_link/`), no de esta app. Una segunda ejecución de `python -m vulcan` avisa de que ya hay una en marcha y termina sin tocar el token ni la base de datos; el token de `data/mcp-token` se crea una vez y se conserva. En la búsqueda se ignoran las palabras de relleno y las de una letra y se recortan los plurales. Los ids nuevos de plan y de aplicación son `plan_<ULID>` / `apply_<ULID>`; los anteriores siguen funcionando.
 
+## Panel del asistente Faustus
+
+Todas las páginas tienen un botón flotante **Faustus** (abajo a la derecha) que abre el asistente Faustus en un panel
+lateral, con una conversación que se conserva al recargar. La parte de servidor viene de Hoard Link (`install_spa` monta el
+relé y añade el lanzador al HTML: `GET /api/copilot/info`, `GET /api/copilot/panel.js`, `/api/copilot/proxy`,
+`GET /api/copilot/launcher.js`); la interfaz le cuenta al panel qué hay en pantalla con `window.hoardCopilot.context()`
+(`client/src/copilot-context.js`). Qué lleva cada turno, además de la ruta y el título:
+
+| Vista | Objetos reales enviados (`active_objects`) | Entrada sin guardar (`view.editor`) |
+|---|---|---|
+| Galería | los cinco primeros modelos en pantalla (`model`) y la carpeta raíz, el álbum o la carpeta filtrados (`root`, `album`, `collection`) | el texto de búsqueda escrito y sin enviar |
+| Modelo | el modelo (`model`: nombre, carpeta, formato, etiquetas, triángulos, volumen, estanco, duplicados) y su ficha de tienda (`listing`: título, categoría, idioma, etiquetas, longitud de la descripción) | los campos de la ficha, el nombre, las notas y la carpeta que difieren de lo guardado |
+| Colecciones | cada álbum (`album`: nombre, número de modelos) | el nombre del álbum nuevo, un álbum renombrado, un id de modelo pendiente de añadir |
+| Fichas | la ficha de carpeta en edición (`folder_listing`: estado, incidencias, número de etiquetas y de caracteres); el recuento por estado va en `view.counts` | el título, la descripción y las etiquetas que difieren de la ficha guardada |
+| Organizar | el plan en pantalla (`organize_plan`: grupos, elementos a mover, conflictos; `stale` si el formulario cambió después) y las carpetas raíz | cada campo del formulario que no está en su valor por defecto (carpeta, lista, plantilla, alias, interruptores) |
+| Carpetas | cada carpeta raíz (`root`) | el formulario «añadir carpeta» |
+| Estadísticas | ninguno; los totales van en `view.summary` | |
+| Ajustes | ninguno | |
+
+Los filtros de la galería van en `view.filters`. Cuando el asistente termina un turno, la vista abierta se recarga en el
+sitio (estado, los modelos que ya estaban en pantalla, el modelo y su ficha, álbumes, fichas de carpeta, carpetas raíz,
+estadísticas) sin tocar lo que estés escribiendo; los campos que no tocaste siguen los nuevos valores guardados. El
+formulario de la ficha del modelo, el de la ficha de carpeta y el renombrado de álbum envían solo los campos que cambió la
+persona (los puntos de acceso de fichas combinan los campos omitidos), así que un cambio del asistente entretanto no lo
+pisa el formulario.
+
+Se apaga con `HOARD_COPILOT=0` en el entorno (o `install_spa(app, STATIC_DIR, copilot=False)`); el manifiesto declara el
+panel en `x-family.copilot` de `faustus-plugin.json`.
+
 ## Conectar el asistente (MCP)
 
 `mcp_server.py` es un puente stdio: pide la lista de herramientas a la aplicación en marcha y reenvía cada llamada a `POST /api/agent/call` con el token de `data/mcp-token`. Nunca abre la base de datos. Faustus detecta la aplicación por `/api/health` y rellena la conexión con `faustus-plugin.json`.

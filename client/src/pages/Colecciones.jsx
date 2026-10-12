@@ -1,23 +1,36 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { api } from "../api.js";
 import { useApp } from "../App.jsx";
 import ModelCard from "../components/ModelCard.jsx";
 import { Empty, PageHeader } from "../components/ui.jsx";
 import { num } from "../format.js";
+import { useCopilotRefresh, useCopilotView } from "../copilot-view.js";
 
-function AlbumPanel({ album, onChange }) {
+function AlbumPanel({ album, open, onToggle, onChange }) {
   const { act } = useApp();
   const [models, setModels] = useState(null);
-  const [open, setOpen] = useState(false);
   const [addId, setAddId] = useState("");
+  const [nameDraft, setNameDraft] = useState(album.name);
+  const shownName = useRef(album.name);
 
+  const loadModels = () => api.models({ album: album.id, limit: 200 }).then((r) => setModels(r.models)).catch(() => {});
   useEffect(() => {
-    if (!open) return;
-    api.models({ album: album.id, limit: 200 }).then((r) => setModels(r.models)).catch(() => {});
-  }, [open, album.count, album.id]);
+    if (open) loadModels();
+  }, [open, album.count, album.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useCopilotRefresh(() => { if (open) loadModels(); });
 
-  const rename = (e) => {
-    const name = e.target.value.trim();
+  // A new name from outside (the assistant renamed it) is taken unless the user is typing another one.
+  useEffect(() => {
+    setNameDraft((cur) => (cur === shownName.current ? album.name : cur));
+    shownName.current = album.name;
+  }, [album.name]);
+  const typed = {};
+  if (nameDraft.trim() !== album.name) typed.name = nameDraft;
+  if (addId.trim()) typed.add_model_id = addId.trim();
+  useCopilotView(`album-field:${album.id}`, Object.keys(typed).length ? { id: album.id, fields: typed } : null);
+
+  const rename = () => {
+    const name = nameDraft.trim();
     if (name && name !== album.name) act(() => api.updateAlbum(album.id, { name }), "Álbum renombrado.").then(onChange);
   };
   const add = (e) => {
@@ -35,10 +48,10 @@ function AlbumPanel({ album, onChange }) {
   return (
     <section className="panel-white">
       <div className="flex flex-wrap items-center gap-3">
-        <input className="field w-auto min-w-[200px] flex-1 font-semibold" defaultValue={album.name} onBlur={rename} aria-label="Nombre del álbum" />
+        <input className="field w-auto min-w-[200px] flex-1 font-semibold" value={nameDraft} onChange={(e) => setNameDraft(e.target.value)} onBlur={rename} aria-label="Nombre del álbum" />
         <span className="help num">{num(album.count)} modelos</span>
         <a className="btn btn-sm" href={`#/galeria?album=${album.id}`}>Ver en la galería</a>
-        <button type="button" className="btn btn-sm" onClick={() => setOpen((v) => !v)}>{open ? "Ocultar" : "Mostrar"}</button>
+        <button type="button" className="btn btn-sm" onClick={onToggle}>{open ? "Ocultar" : "Mostrar"}</button>
         <button type="button" className="btn btn-sm btn-danger" onClick={destroy}>Eliminar</button>
       </div>
       {open && (
@@ -67,10 +80,14 @@ export default function Colecciones() {
   const { status, act } = useApp();
   const [data, setData] = useState(null);
   const [name, setName] = useState("");
+  const [openAlbum, setOpenAlbum] = useState(null);
   const load = () => api.collections().then(setData).catch(() => {});
   useEffect(() => {
     load();
   }, [status?.counts?.models]);
+  useCopilotView("colecciones", { open: openAlbum });
+  useCopilotView("album-new", name.trim() ? { fields: { name } } : null);
+  useCopilotRefresh(load);
 
   const create = async (e) => {
     e.preventDefault();
@@ -92,7 +109,7 @@ export default function Colecciones() {
           <button type="submit" className="btn btn-primary">Crear álbum</button>
         </form>
         {data && data.albums.length === 0 && <Empty title="Sin álbumes">Crea uno y añade modelos por su id desde aquí o desde el asistente.</Empty>}
-        <div className="space-y-3">{(data?.albums || []).map((a) => <AlbumPanel key={a.id} album={a} onChange={load} />)}</div>
+        <div className="space-y-3">{(data?.albums || []).map((a) => <AlbumPanel key={a.id} album={a} open={openAlbum === a.id} onToggle={() => setOpenAlbum(openAlbum === a.id ? null : a.id)} onChange={load} />)}</div>
       </section>
       <section>
         <h2 className="mb-2 text-[16px] font-semibold">Carpetas</h2>

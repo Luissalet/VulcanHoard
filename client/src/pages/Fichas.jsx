@@ -1,8 +1,12 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api.js";
 import { useApp } from "../App.jsx";
 import { Empty, PageHeader } from "../components/ui.jsx";
 import { splitTags } from "../format.js";
+import { changedFields } from "../copilot-context.js";
+import { useCopilotRefresh, useCopilotView } from "../copilot-view.js";
+
+const baseOf = (l) => ({ title: l.title || "", description: l.description || "", tags: l.tags || [] });
 
 const STATUS_LABEL = { none: "Sin ficha", draft: "Borrador", checked: "Revisada", approved: "Aprobada" };
 const STATUS_CLASS = { none: "chip", draft: "chip chip-accent", checked: "chip", approved: "chip chip-ok" };
@@ -17,15 +21,31 @@ function Editor({ root, listing, onSaved }) {
   const [description, setDescription] = useState(listing.description || "");
   const [tagsText, setTagsText] = useState((listing.tags || []).join(", "));
   const tags = useMemo(() => splitTags(tagsText), [tagsText]);
+  const base = useMemo(() => baseOf(listing), [listing]);
+  const previousBase = useRef(base);
 
   useEffect(() => {
     setTitle(listing.title || "");
     setDescription(listing.description || "");
     setTagsText((listing.tags || []).join(", "));
-  }, [listing.root_id, listing.rel_path]);
+    previousBase.current = base;
+  }, [listing.root_id, listing.rel_path]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // The saved sheet changed under the form (saved here, or the assistant edited it): fields the user did not touch follow it.
+  useEffect(() => {
+    const previous = previousBase.current;
+    previousBase.current = base;
+    if (JSON.stringify(previous) === JSON.stringify(base)) return;
+    setTitle((cur) => (cur === previous.title ? base.title : cur));
+    setDescription((cur) => (cur === previous.description ? base.description : cur));
+    setTagsText((cur) => (cur === previous.tags.join(", ") ? base.tags.join(", ") : cur));
+  }, [base]);
+
+  // Only what the user changed is sent (the server keeps the other fields), plus the status the button asks for.
+  const changes = changedFields(base, { title, description, tags });
+  useCopilotView("folder-listing-form", Object.keys(changes).length ? { root_id: listing.root_id, rel_path: listing.rel_path, fields: changes } : null);
   const save = (status) =>
-    act(() => api.saveFolderListing(root.id, listing.rel_path, { title, description, tags, status }), "Ficha guardada.").then(onSaved);
+    act(() => api.saveFolderListing(root.id, listing.rel_path, { ...changes, status }), "Ficha guardada.").then(onSaved);
   const check = () => act(() => api.checkFolderListing(root.id, listing.rel_path), "Ficha revisada.").then(onSaved);
 
   return (
@@ -69,6 +89,14 @@ export default function Fichas() {
   useEffect(() => {
     load();
   }, [rootId, statusFilter, status?.counts?.models]);
+
+  // What the assistant sees: the filters, the counts by status and the sheet being edited. After a turn the list and that sheet are read again.
+  const counts = rows ? rows.reduce((acc, r) => ({ ...acc, [r.status]: (acc[r.status] || 0) + 1 }), { total: rows.length }) : null;
+  useCopilotView("fichas", { root_id: rootId || null, status: statusFilter || null, counts, selected: selected ? { root_id: selected.root_id, rel_path: selected.rel_path } : null });
+  useCopilotRefresh(() => {
+    load();
+    if (selected) api.folderListing(selected.root_id, selected.rel_path).then(setSelected).catch(() => {});
+  });
 
   useEffect(() => {
     if (!progress || progress.phase !== "running") return undefined;

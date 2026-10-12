@@ -90,6 +90,35 @@ Adding a folder (`POST /api/roots`, `models_add_root`) accepts a pasted path wit
 - `POST /api/organize/plan` (root, reference, reference_format, target_template, match, number_width → plan with `id`), `GET /api/organize/plans[/{id}]`, `POST /api/organize/apply` (plan_id), `POST /api/organize/undo` (apply_id optional, remove_created_folders), `GET /api/organize/applies`, `POST /api/organize/sheets-batch` (root_id or path, scope, mode, refresh, overwrite, dry_run, limit, language)
 - `POST /api/maintenance/rescan-all | rebuild-fts | refresh-dupes`
 - `GET /api/agent/tools` (catalog + instructions), `POST /api/agent/call` (Bearer token from `data/mcp-token`)
+- The assistant panel: `GET /api/copilot/info`, `GET /api/copilot/panel.js`, `/api/copilot/proxy`, `GET /api/copilot/launcher.js` (see *Faustus assistant panel*)
+
+## Faustus assistant panel
+
+Every page has a floating **Faustus** button (bottom right) that opens the Faustus assistant in a side panel, with one
+conversation kept across reloads. The server side comes from the shared Hoard Link (`install_spa` mounts the relay and adds
+the launcher to the HTML: `GET /api/copilot/info`, `GET /api/copilot/panel.js`, `/api/copilot/proxy`,
+`GET /api/copilot/launcher.js`); the UI tells the panel what is on screen through `window.hoardCopilot.context()`
+(`client/src/copilot-context.js`). What each turn carries, beside the page route and title:
+
+| View | Real objects sent (`active_objects`) | Unsaved input (`view.editor`) |
+|---|---|---|
+| Gallery | the first five models on screen (`model`), and the root folder, album or folder filtered on (`root`, `album`, `collection`) | the search text typed and not yet submitted |
+| Model | the model (`model`: name, folder, format, tags, triangles, volume, watertight, duplicate counts) and its store listing (`listing`: title, category, language, tags, description length) | the listing fields, name, notes and folder that differ from what is saved |
+| Collections | every album (`album`: name, model count) | the new album name, a renamed album, a model id waiting to be added |
+| Listings | the folder listing being edited (`folder_listing`: status, issues, tag and description counts); the counts by status are in `view.counts` | the title, description and tags that differ from the saved sheet |
+| Organize | the plan on screen (`organize_plan`: groups, items to move, conflicts; `stale` when the form changed since) and the root folders | every form field that is not at its default (folder, list, template, aliases, switches) |
+| Folders | every root folder (`root`) | the "add folder" form |
+| Statistics | none; the totals are in `view.summary` | |
+| Settings | none | |
+
+The filters of the gallery go in `view.filters`. When the assistant finishes a turn the open view reloads in place (status,
+the models already on screen, the model and its listing, albums, folder listings, roots, statistics); what is being typed is
+left alone, and fields not touched by the user follow the new saved values. The model listing form, the folder listing form
+and the album rename send only the fields the user changed (the listing endpoints merge omitted fields), so a change made
+by the assistant in the meantime is not overwritten by the form.
+
+Turn it off with `HOARD_COPILOT=0` in the environment (or `install_spa(app, STATIC_DIR, copilot=False)`); the manifest
+declares the panel under `x-family.copilot` in `faustus-plugin.json`.
 
 ## MCP tools
 
