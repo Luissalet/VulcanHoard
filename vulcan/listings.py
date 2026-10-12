@@ -31,16 +31,18 @@ class ListingStore:
 
     def set(self, model_id: int, data: dict, source: str = "manual") -> dict:
         """Create or replace the listing. Fields left out keep their previous value (idempotent for identical input)."""
-        current = self.get(model_id) or {"title": "", "description": "", "tags": [], "category": "", "price_hint": "", "language": "es"}
-        merged = {**current}
-        for key in LISTING_FIELDS:
-            if data.get(key) is not None:
-                merged[key] = data[key]
-        merged["tags"] = normalise_tags(merged["tags"])
-        merged["title"] = merged["title"].strip()
         with self.db.transaction() as conn:
             if conn.execute("SELECT 1 FROM models WHERE id = ?", (model_id,)).fetchone() is None:
                 raise LookupError(f"Model {model_id} does not exist.")
+            # Read/merge/write under the same transaction: concurrent partial
+            # editor and agent saves must retain each other's untouched fields.
+            current = self.get(model_id) or {"title": "", "description": "", "tags": [], "category": "", "price_hint": "", "language": "es"}
+            merged = {**current}
+            for key in LISTING_FIELDS:
+                if data.get(key) is not None:
+                    merged[key] = data[key]
+            merged["tags"] = normalise_tags(merged["tags"])
+            merged["title"] = merged["title"].strip()
             conn.execute(
                 """INSERT INTO listings(model_id, title, description, tags, category, price_hint, language, listing_source, listing_updated_at)
                    VALUES (?,?,?,?,?,?,?,?,?)

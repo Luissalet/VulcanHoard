@@ -21,6 +21,7 @@ async function request(method, path, { params, body } = {}) {
 }
 
 export const api = {
+  copilotContext: (body) => request("POST", "/api/copilot/context", { body }),
   status: () => request("GET", "/api/status"),
   stats: () => request("GET", "/api/stats"),
   roots: () => request("GET", "/api/roots"),

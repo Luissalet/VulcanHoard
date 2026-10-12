@@ -4,21 +4,30 @@ import { useApp } from "../App.jsx";
 import ModelCard from "../components/ModelCard.jsx";
 import { Empty, PageHeader } from "../components/ui.jsx";
 import { num } from "../format.js";
+import { useDraft } from "../useDraft.js";
+import { useCopilotContext, useCopilotRefresh } from "../copilot.js";
 
 function AlbumPanel({ album, onChange }) {
   const { act } = useApp();
   const [models, setModels] = useState(null);
   const [open, setOpen] = useState(false);
   const [addId, setAddId] = useState("");
+  const draft = useDraft(album.id, { name: album.name });
+  useEffect(() => { draft.receive({ name: album.name }); }, [album.name]);
+  useCopilotContext({ album_id: album.id, editor: { kind: "album", fields: { ...draft.fields, add_model_id: addId }, dirty_fields: [...draft.dirty, ...(addId ? ["add_model_id"] : [])] } }, `album:${album.id}`, true);
+  useCopilotRefresh(() => open ? api.models({ album: album.id, limit: 200 }).then((r) => setModels(r.models)) : undefined);
 
   useEffect(() => {
     if (!open) return;
     api.models({ album: album.id, limit: 200 }).then((r) => setModels(r.models)).catch(() => {});
   }, [open, album.count, album.id]);
 
-  const rename = (e) => {
-    const name = e.target.value.trim();
-    if (name && name !== album.name) act(() => api.updateAlbum(album.id, { name }), "Álbum renombrado.").then(onChange);
+  const rename = async () => {
+    const name = draft.fields.name.trim();
+    if (name && draft.dirty.includes("name")) {
+      const saved = await act(() => api.updateAlbum(album.id, { name }), "Álbum renombrado.");
+      if (saved) { draft.acknowledge({ name: draft.fields.name }, saved); onChange(); }
+    }
   };
   const add = (e) => {
     e.preventDefault();
@@ -33,9 +42,9 @@ function AlbumPanel({ album, onChange }) {
   };
 
   return (
-    <section className="panel-white">
+    <section data-copilot-editor={`album:${album.id}`} className="panel-white">
       <div className="flex flex-wrap items-center gap-3">
-        <input className="field w-auto min-w-[200px] flex-1 font-semibold" defaultValue={album.name} onBlur={rename} aria-label="Nombre del álbum" />
+        <input data-copilot-field="name" className="field w-auto min-w-[200px] flex-1 font-semibold" value={draft.fields.name} onChange={(e) => draft.edit({ name: e.target.value })} onBlur={rename} aria-label="Nombre del álbum" />
         <span className="help num">{num(album.count)} modelos</span>
         <a className="btn btn-sm" href={`#/galeria?album=${album.id}`}>Ver en la galería</a>
         <button type="button" className="btn btn-sm" onClick={() => setOpen((v) => !v)}>{open ? "Ocultar" : "Mostrar"}</button>
@@ -68,6 +77,8 @@ export default function Colecciones() {
   const [data, setData] = useState(null);
   const [name, setName] = useState("");
   const load = () => api.collections().then(setData).catch(() => {});
+  useCopilotRefresh(load);
+  useCopilotContext({ editor: { kind: "album", fields: { name }, dirty_fields: name ? ["name"] : [] } }, "album:new");
   useEffect(() => {
     load();
   }, [status?.counts?.models]);
@@ -87,8 +98,8 @@ export default function Colecciones() {
       <PageHeader title="Colecciones" description="Las carpetas agrupan los modelos automáticamente; los álbumes son selecciones manuales (una campaña, un cliente, una serie)." />
       <section className="mb-6">
         <h2 className="mb-2 text-[16px] font-semibold">Álbumes</h2>
-        <form className="panel mb-3 flex flex-wrap gap-2" onSubmit={create}>
-          <input className="field flex-1" placeholder="Nombre del álbum nuevo" value={name} onChange={(e) => setName(e.target.value)} aria-label="Nombre del álbum" />
+        <form data-copilot-editor="album:new" className="panel mb-3 flex flex-wrap gap-2" onSubmit={create}>
+          <input data-copilot-field="name" className="field flex-1" placeholder="Nombre del álbum nuevo" value={name} onChange={(e) => setName(e.target.value)} aria-label="Nombre del álbum" />
           <button type="submit" className="btn btn-primary">Crear álbum</button>
         </form>
         {data && data.albums.length === 0 && <Empty title="Sin álbumes">Crea uno y añade modelos por su id desde aquí o desde el asistente.</Empty>}

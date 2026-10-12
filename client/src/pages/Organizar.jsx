@@ -3,6 +3,7 @@ import { api } from "../api.js";
 import { useApp } from "../App.jsx";
 import { Empty, PageHeader } from "../components/ui.jsx";
 import { num, when } from "../format.js";
+import { useCopilotContext, useCopilotRefresh } from "../copilot.js";
 
 const CONFLICT_LABEL = {
   target_is_file: "La carpeta destino es un archivo",
@@ -83,6 +84,8 @@ export default function Organizar() {
   const [dry, setDry] = useState(false);
 
   const loadApplies = () => api.organizeApplies().then((r) => setApplies(r.applies)).catch(() => {});
+  useCopilotContext({ root_id: roots.find((item) => item.path === root)?.id, editor: { kind: "organize", fields: { root, reference, template, aliases: aliasText, contains, files, folders, dry }, dirty_fields: ["root", "reference", "template", "aliases"] } }, "organize");
+  useCopilotRefresh(() => Promise.all([loadApplies(), api.roots().then((r) => setRoots(r.roots))]));
   useEffect(() => {
     api.roots().then((r) => setRoots(r.roots)).catch(() => {});
     loadApplies();
@@ -139,16 +142,16 @@ export default function Organizar() {
   const s = plan?.summary;
 
   return (
-    <div>
+    <div data-copilot-editor="organize">
       <PageHeader title="Organizar colección" description="Pega la lista de grupos (una por línea, miembros separados por >), previsualiza el plan y aplícalo: una carpeta por grupo, sin borrar ni sobrescribir nada y con deshacer." />
 
       <section className="panel mb-4">
         <label className="mb-1 block text-[12px] font-semibold" htmlFor="org-root">Carpeta a organizar</label>
-        <input id="org-root" className="field mb-3" list="org-roots" value={root} onChange={(e) => setRoot(e.target.value)} placeholder="C:\Users\...\Modelos\Mi colección" />
+        <input data-copilot-field="root" id="org-root" className="field mb-3" list="org-roots" value={root} onChange={(e) => setRoot(e.target.value)} placeholder="C:\Users\...\Modelos\Mi colección" />
         <datalist id="org-roots">{roots.map((r) => <option key={r.id} value={r.path}>{r.name}</option>)}</datalist>
 
         <label className="mb-1 block text-[12px] font-semibold" htmlFor="org-ref">Lista de referencia</label>
-        <textarea id="org-ref" className="field mb-1 min-h-[150px] font-mono text-[12px]" value={reference} onChange={(e) => setReference(e.target.value)} placeholder={EXAMPLE} />
+        <textarea data-copilot-field="reference" id="org-ref" className="field mb-1 min-h-[150px] font-mono text-[12px]" value={reference} onChange={(e) => setReference(e.target.value)} placeholder={EXAMPLE} />
         <p className="help mb-3 text-[12px]">Separadores: <code>&gt;</code>, <code>-&gt;</code>, <code>→</code>, coma o un guion con espacios. «Nombre: a &gt; b» da nombre al grupo (si no, el primer miembro). También vale un CSV con cabecera <code>group,member,number</code> o la ruta de un .txt/.csv.</p>
 
         <div className="mb-3 grid gap-3 md:grid-cols-2">

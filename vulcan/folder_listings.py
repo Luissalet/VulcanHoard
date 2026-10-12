@@ -233,21 +233,22 @@ class FolderListingStore:
 
     def set(self, root_id: int, rel_path: str, data: dict, status: str = "draft", write_file: bool = True) -> dict:
         """Merge `data` into the listing (fields left out keep their value), write the DB and `cults3d.json`."""
-        root = self.roots.get(root_id)
-        if root is None:
-            raise LookupError(f"Root {root_id} does not exist.")
-        current = self.get(root_id, rel_path) or {"title": "", "description": "", "tags": []}
-        merged = dict(current)
-        for key in ("title", "description", "tags"):
-            if data.get(key) is not None:
-                merged[key] = data[key]
-        merged["tags"] = normalise_tags(merged["tags"]) if isinstance(merged["tags"], list) else []
-        merged["title"] = (merged["title"] or "").strip()
-        merged["description"] = merged["description"] or ""
-        self._upsert_row(root_id, rel_path, merged["title"], merged["description"], merged["tags"], status, [], None)
-        if write_file:
-            self._write_file(root, rel_path, {"title": merged["title"], "description": merged["description"], "tags": merged["tags"]})
-        return self.get(root_id, rel_path)
+        with self.db.transaction():
+            root = self.roots.get(root_id)
+            if root is None:
+                raise LookupError(f"Root {root_id} does not exist.")
+            current = self.get(root_id, rel_path) or {"title": "", "description": "", "tags": []}
+            merged = dict(current)
+            for key in ("title", "description", "tags"):
+                if data.get(key) is not None:
+                    merged[key] = data[key]
+            merged["tags"] = normalise_tags(merged["tags"]) if isinstance(merged["tags"], list) else []
+            merged["title"] = (merged["title"] or "").strip()
+            merged["description"] = merged["description"] or ""
+            self._upsert_row(root_id, rel_path, merged["title"], merged["description"], merged["tags"], status, [], None)
+            if write_file:
+                self._write_file(root, rel_path, {"title": merged["title"], "description": merged["description"], "tags": merged["tags"]})
+            return self.get(root_id, rel_path)
 
     @staticmethod
     def _write_file(root: Root, rel: str, content: dict) -> None:

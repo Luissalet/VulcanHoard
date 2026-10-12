@@ -3,6 +3,7 @@ import { api } from "../api.js";
 import { useApp } from "../App.jsx";
 import { PageHeader } from "../components/ui.jsx";
 import { FORMAT_LABEL, PHASE_LABEL, bytes, num, when } from "../format.js";
+import { useCopilotRefresh } from "../copilot.js";
 
 function Stat({ label, value, help }) {
   return (
@@ -25,6 +26,7 @@ function Bar({ value, max }) {
 export default function Estadisticas() {
   const { status } = useApp();
   const [stats, setStats] = useState(null);
+  useCopilotRefresh(() => api.stats().then(setStats));
   useEffect(() => {
     api.stats().then(setStats).catch(() => {});
   }, [status?.counts?.models, status?.worker?.busy]);
