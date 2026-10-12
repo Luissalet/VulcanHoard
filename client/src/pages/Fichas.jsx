@@ -1,8 +1,10 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api.js";
 import { useApp } from "../App.jsx";
 import { Empty, PageHeader } from "../components/ui.jsx";
 import { splitTags } from "../format.js";
+import { useDraft } from "../useDraft.js";
+import { useCopilotContext, useCopilotRefresh } from "../copilot.js";
 
 const STATUS_LABEL = { none: "Sin ficha", draft: "Borrador", checked: "Revisada", approved: "Aprobada" };
 const STATUS_CLASS = { none: "chip", draft: "chip chip-accent", checked: "chip", approved: "chip chip-ok" };
@@ -13,23 +15,26 @@ function StatusChip({ status }) {
 
 function Editor({ root, listing, onSaved }) {
   const { act } = useApp();
-  const [title, setTitle] = useState(listing.title || "");
-  const [description, setDescription] = useState(listing.description || "");
+  const draft = useDraft(listing.id, { title: listing.title || "", description: listing.description || "", tags: listing.tags || [] });
+  const { title, description } = draft.fields;
   const [tagsText, setTagsText] = useState((listing.tags || []).join(", "));
   const tags = useMemo(() => splitTags(tagsText), [tagsText]);
 
   useEffect(() => {
-    setTitle(listing.title || "");
-    setDescription(listing.description || "");
-    setTagsText((listing.tags || []).join(", "));
-  }, [listing.root_id, listing.rel_path]);
+    if (!draft.dirty.includes("tags")) setTagsText((listing.tags || []).join(", "));
+    draft.receive({ title: listing.title || "", description: listing.description || "", tags: listing.tags || [] });
+  }, [listing]);
+  useCopilotContext({ listing_id: listing.id, editor: { kind: "folder_listing", fields: draft.fields, dirty_fields: draft.dirty } }, `folder_listing:${listing.id}`);
 
-  const save = (status) =>
-    act(() => api.saveFolderListing(root.id, listing.rel_path, { title, description, tags, status }), "Ficha guardada.").then(onSaved);
+  const save = async (status) => {
+    const sent = draft.patch();
+    const saved = await act(() => api.saveFolderListing(root.id, listing.rel_path, { ...sent, status }), "Ficha guardada.");
+    if (saved) { draft.acknowledge(sent, saved); onSaved(saved); }
+  };
   const check = () => act(() => api.checkFolderListing(root.id, listing.rel_path), "Ficha revisada.").then(onSaved);
 
   return (
-    <section className="panel-white mt-3">
+    <section data-copilot-editor={`folder_listing:${listing.id}`} className="panel-white mt-3">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
           <div className="truncate text-[13px] font-semibold">{listing.rel_path || "(carpeta raíz)"}</div>
@@ -43,11 +48,11 @@ function Editor({ root, listing, onSaved }) {
         </ul>
       )}
       <label className="mb-2 block text-[12px] font-semibold">Título (máx. 120)</label>
-      <input className="field mb-3" value={title} maxLength={120} onChange={(e) => setTitle(e.target.value)} />
+      <input data-copilot-field="title" className="field mb-3" value={title} maxLength={120} onChange={(e) => draft.edit({ title: e.target.value })} />
       <label className="mb-2 block text-[12px] font-semibold">Descripción en inglés (mín. 200 caracteres) — {description.length} car.</label>
-      <textarea className="field mb-3 min-h-[140px]" value={description} onChange={(e) => setDescription(e.target.value)} />
+      <textarea data-copilot-field="description" className="field mb-3 min-h-[140px]" value={description} onChange={(e) => draft.edit({ description: e.target.value })} />
       <label className="mb-2 block text-[12px] font-semibold">Etiquetas, separadas por comas — {tags.length}/20</label>
-      <textarea className="field mb-3 min-h-[70px]" value={tagsText} onChange={(e) => setTagsText(e.target.value)} placeholder="etiqueta1, etiqueta2, …" />
+      <textarea data-copilot-field="tags" className="field mb-3 min-h-[70px]" value={tagsText} onChange={(e) => { setTagsText(e.target.value); draft.edit({ tags: splitTags(e.target.value) }); }} placeholder="etiqueta1, etiqueta2, …" />
       <div className="flex flex-wrap gap-2">
         <button type="button" className="btn btn-sm" onClick={() => save("draft")}>Guardar borrador</button>
         <button type="button" className="btn btn-sm" onClick={check}>Revisar</button>
@@ -64,8 +69,20 @@ export default function Fichas() {
   const [rows, setRows] = useState(null);
   const [selected, setSelected] = useState(null);
   const [progress, setProgress] = useState(null);
+  const editorRequest = useRef(0);
+  const selectedId = useRef(null);
+  selectedId.current = selected?.id;
 
   const load = () => api.folderListings({ root_id: rootId || undefined, status: statusFilter || undefined }).then((r) => setRows(r.listings));
+  useCopilotContext({ root_id: rootId || undefined });
+  useCopilotRefresh(async () => {
+    await load();
+    if (selected) {
+      const request = ++editorRequest.current;
+      const fresh = await api.folderListing(selected.root_id, selected.rel_path);
+      if (request === editorRequest.current) setSelected((current) => current?.id === fresh.id ? fresh : current);
+    }
+  });
   useEffect(() => {
     load();
   }, [rootId, statusFilter, status?.counts?.models]);
@@ -76,7 +93,11 @@ export default function Fichas() {
     return () => clearInterval(timer);
   }, [progress]);
 
-  const open = (row) => api.folderListing(row.root_id, row.rel_path).then(setSelected);
+  const open = async (row) => {
+    const request = ++editorRequest.current;
+    const fresh = await api.folderListing(row.root_id, row.rel_path);
+    if (request === editorRequest.current) setSelected(fresh);
+  };
 
   const draftOne = (row) =>
     act(() => api.draftFolderListings({ root_id: row.root_id, path: row.rel_path, limit: 1, overwrite: row.status !== "none" }))
@@ -153,7 +174,7 @@ export default function Fichas() {
         </div>
       )}
 
-      {selected && selectedRoot && <Editor root={selectedRoot} listing={selected} onSaved={(l) => { setSelected(l); load(); }} />}
+      {selected && selectedRoot && <Editor key={selected.id} root={selectedRoot} listing={selected} onSaved={(l) => { if (l && selectedId.current === l.id) open(l); load(); }} />}
     </div>
   );
 }

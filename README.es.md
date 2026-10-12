@@ -2,7 +2,13 @@
 
 Tu biblioteca personal de modelos para impresión 3D, indexada en tu propio ordenador. Señala las carpetas donde guardas tus STL, 3MF y OBJ y la aplicación mide cada modelo (medidas en mm, triángulos, volumen, superficie, si es estanco, cuántos cuerpos tiene), genera una miniatura en la CPU, encuentra duplicados y modelos casi iguales, y guarda por modelo etiquetas, notas y una ficha para la tienda (título, descripción, etiquetas, categoría). Un asistente accede a la misma biblioteca por MCP: puede encontrar «aquel busto de dragón de la primavera pasada», citar sus medidas reales y redactar la ficha por ti sin inventarse nada que la geometría no diga.
 
-Todo se queda en tu máquina: SQLite con FTS5, miniaturas en WebP, sin cuentas y sin red. La aplicación nunca llama a un modelo de lenguaje.
+La biblioteca se queda en tu máquina: SQLite con FTS5 y miniaturas en WebP, sin cuentas. El copilot compartido de Faustus lleva la conversación y ejecuta herramientas mediante el relay local de HoardLink; las funciones existentes de fichas y CAD mantienen sus trabajos concretos de dominio.
+
+## Copilot de Faustus
+
+El botón flotante de Faustus abre el panel compartido en todas las vistas. Recibe el ID real del modelo, ficha de carpeta, raíz o álbum seleccionado, el proyecto de la raíz, los filtros, la selección de texto y el borrador del formulario. Un objeto nuevo o inexistente no tiene ID activo; consultar contexto no crea modelos, escanea carpetas ni ejecuta CAD. Al terminar un turno se actualiza la vista conservando los campos que estás editando. Las fichas de modelo y carpeta guardan solo los campos modificados y los combinan de forma atómica con otros cambios.
+
+La dirección de Faustus se configura con `VULCAN_FAUSTUS_URL` (o `HOARD_FAUSTUS_URL` / configuración de HoardLink); las credenciales quedan en el servidor. `data/copilot-space-id` identifica esta biblioteca aunque cambie el puerto o se reinicie. Faustus conserva conversaciones, borradores y ejecución; las herramientas MCP nativas de Vulcan siguen disponibles. Consulta [el contrato del copilot](docs/copilot.md).
 
 ## Qué hace
 

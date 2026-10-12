@@ -10,6 +10,7 @@ import Fichas from "./pages/Fichas.jsx";
 import Organizar from "./pages/Organizar.jsx";
 import Estadisticas from "./pages/Estadisticas.jsx";
 import Ajustes from "./pages/Ajustes.jsx";
+import { installCopilotAdapter } from "./copilot.js";
 
 const PAGES = [
   { path: "galeria", label: "Galería", icon: "M4 5h6v6H4zM14 5h6v6h-6zM4 15h6v6H4zM14 15h6v6h-6z", component: Galeria },
@@ -73,6 +74,7 @@ export default function App() {
     const timer = setInterval(refresh, 4000);
     return () => clearInterval(timer);
   }, [refresh]);
+  useEffect(() => installCopilotAdapter(refresh), [refresh]);
 
   const notify = useCallback((message) => setToast(message), []);
   const act = useCallback(

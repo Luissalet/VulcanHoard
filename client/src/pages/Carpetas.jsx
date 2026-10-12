@@ -3,6 +3,7 @@ import { api } from "../api.js";
 import { useApp } from "../App.jsx";
 import { Empty, ErrorList, PageHeader, Progress, Switch } from "../components/ui.jsx";
 import { PHASE_LABEL, THUMB_MODES, bytes, duration, num, when } from "../format.js";
+import { useCopilotContext, useCopilotRefresh } from "../copilot.js";
 
 const splitGlobs = (text) => text.split(/[\n,]/).map((s) => s.trim()).filter(Boolean);
 
@@ -14,6 +15,8 @@ export default function Carpetas() {
   const [errorsOpen, setErrorsOpen] = useState({});
 
   const load = () => api.roots().then((r) => setRoots(r.roots)).catch(() => {});
+  useCopilotContext({ editor: { kind: "root", fields: { ...form, advanced }, dirty_fields: Object.keys(form).filter((key) => form[key] !== "" && form[key] !== false) } }, "root:new");
+  useCopilotRefresh(load);
   useEffect(() => {
     load();
   }, [status]); // status polls every few seconds → progress bars follow
@@ -42,14 +45,14 @@ export default function Carpetas() {
   return (
     <div>
       <PageHeader title="Carpetas" description="Cada carpeta raíz se recorre buscando STL, 3MF y OBJ. Vulcan mide cada archivo, comprueba si es estanco, genera la miniatura y solo vuelve a leer lo que cambia." />
-      <form className="panel mb-6 grid gap-3 md:grid-cols-[minmax(0,1fr)_220px]" onSubmit={submit}>
+      <form data-copilot-editor="root:new" className="panel mb-6 grid gap-3 md:grid-cols-[minmax(0,1fr)_220px]" onSubmit={submit}>
         <div>
           <label className="label" htmlFor="path">Ruta de la carpeta</label>
-          <input id="path" className="field" placeholder="C:\Users\...\Modelos 3D" value={form.path} onChange={(e) => setForm({ ...form, path: e.target.value })} required />
+          <input data-copilot-field="path" id="path" className="field" placeholder="C:\Users\...\Modelos 3D" value={form.path} onChange={(e) => setForm({ ...form, path: e.target.value })} required />
         </div>
         <div>
           <label className="label" htmlFor="name">Nombre</label>
-          <input id="name" className="field" placeholder="Modelos" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          <input data-copilot-field="name" id="name" className="field" placeholder="Modelos" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
         </div>
         <div>
           {advanced ? (

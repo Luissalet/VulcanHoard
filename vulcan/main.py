@@ -13,6 +13,7 @@ from . import __version__
 from .api import ROUTERS
 from .config import Config
 from .hoard_link import family
+from .hoard_link.copilot import install_copilot
 from .hoard_link.guard import install_guard
 from .hoard_link.service import health_router, install_error_handlers, install_spa
 from .services import Services
@@ -46,6 +47,7 @@ def create_app(config: Config | None = None) -> FastAPI:
     app.include_router(health_router(SERVICE, __version__, extra=lambda: {"dataDirConfigured": config.data_dir_configured}))
     for router in ROUTERS:
         app.include_router(router)
+    install_copilot(app, "vulcan", config.data_dir, app_name="Vulcan's Hoard")
     # manifest.webmanifest and sw.js are static files of the client build (client/public): the single-page-app server sends them.
     install_spa(app, STATIC_DIR)
     return app

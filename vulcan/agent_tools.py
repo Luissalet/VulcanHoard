@@ -10,6 +10,7 @@ from .hoard_link.agentkit import Empty, Tool, ann, call_tool as run_tool, tool_c
 from .organize import plan_view
 from .search import SORT_NAMES, Filters
 from .services import Services
+from .copilot_context import ContextArgs, build_context
 
 AGENT_INSTRUCTIONS = """Vulcan's Hoard is the user's own library of 3D-printable models (STL, 3MF, OBJ files in folders on their PC), scanned locally: for every file it knows the size in mm, triangles, volume, whether the mesh is watertight, how many bodies it has, a thumbnail, tags, notes and an optional marketplace listing (title, description, tags, category).
 Describe a model only from what the geometry data and the user say: dimensions, number of parts, watertightness, file format, folder and the user's own notes and tags. Never invent features, materials, history or use cases that are not in the data or in the conversation; ask the user when the listing needs them.
@@ -485,6 +486,10 @@ def run_cad_regenerate(services: Services, args: CadRegenerateArgs) -> dict:
     return cad_service.get(services).regenerate(args.id, args.params, args.spec, args.expect)
 
 
+def run_copilot_context(services: Services, args: ContextArgs) -> dict:
+    return build_context(services, **args.model_dump())
+
+
 TOOLS: list[Tool] = [
     Tool("models_search", "Search the 3D model library by words and filters. Keywords: buscar modelo, encuentra mi STL, figura de.\nSearch the user's 3D model library by words (name, tags, notes, folder, listing text) with filters: format, tag, collection, watertight, has_listing, duplicates, size in mm. Returns id, name, format, bbox (mm), triangles, tags, has_listing and thumb_url per hit. Ranking sorts (-extent, -volume, -size, -triangles, -date) fold identical files into one hit with a 'copies' count, so 'the three biggest' are three different models. First step for 'find my model of X'.\nSinónimos: buscar modelo, modelo 3D, STL, 3MF, OBJ, impresión 3D, archivo, figura, pieza, buscar en mis modelos, cuál era, carpeta de modelos, etiquetas, tamaño en mm, miniatura.", SearchArgs, ann(True), run_search),
     Tool("model_info", "Everything about one model: size in mm, triangles, tags, listing, duplicates. Keywords: ficha, dimensiones.\nEverything about one model (by id or path): dimensions in mm, triangles, vertices, volume, surface, watertight, bodies (parts), units guess, folder, tags, notes, listing, exact and near duplicates, albums, thumb_url.\nSinónimos: modelo 3D, ficha, detalles, cuántos triángulos, tamaño en mm, medidas, volumen, es estanco, cuántas piezas, duplicados, STL, ruta del archivo, miniatura.", InfoArgs, ann(True), run_info),
@@ -513,6 +518,8 @@ TOOLS: list[Tool] = [
     Tool("cad_from_text", "Design a 3D part from a text description or a spec and add it to the library (write). Keywords: diseña pieza.\nBuilds a parametric part in millimetres (boxes, cylinders, spheres, holes, unions/differences, patterns) from a description (a local model writes the spec, validated, with one repair attempt) or from a spec you pass. Saves STL + spec + check render into the library as a new model, and returns the measured bounding box, volume, watertightness and a check against the requested measures. save=false only measures. Report the measured numbers, not the intended ones.\nSinónimos: diseña una pieza, crea un modelo 3D, texto a CAD, modelo paramétrico, hazme una placa con agujeros, soporte, caja, cilindro, generar STL, medidas en mm.", CadFromTextArgs, ann(False, False, False), run_cad_from_text),
     Tool("cad_regenerate", "Rebuild a generated part with new parameter values, same model id (write). Keywords: cambiar medidas.\nRecompiles the stored spec of a part made by cad_from_text with new values for named parameters (or a replacement spec), rewrites its STL and check render, reindexes the same library model and returns the new measures and what changed against the previous version.\nSinónimos: cambiar medidas de la pieza, hazla más ancha, agujero de otro diámetro, regenerar, modificar parámetros, editar dimensiones, versión nueva de la pieza.", CadRegenerateArgs, ann(False, False, True), run_cad_regenerate),
 ]
+
+TOOLS.append(Tool("copilot_context_get", "Read native context for a library view without starting work. Keywords: contexto, vista, edición sin guardar.\nResolve real model, folder listing, root or album IDs for the Faustus copilot. New/missing IDs return no active object and never create one or start a scan. Optional editor and selection are supplied snapshots, not a browser inspection. The stores are the same ones used by model_info and folder_listing_get.\nSinónimos: contexto actual, vista, selección, borrador, edición sin guardar.", ContextArgs, ann(True), run_copilot_context))
 
 TOOLS_BY_NAME = {tool.name: tool for tool in TOOLS}
 

@@ -4,11 +4,14 @@ import { useApp } from "../App.jsx";
 import { Thumb } from "../components/ModelCard.jsx";
 import { FormatChip, TagEditor } from "../components/ui.jsx";
 import { FORMAT_LABEL, UNITS_LABEL, bytes, dims, listingText, num, when } from "../format.js";
+import { useDraft } from "../useDraft.js";
+import { useCopilotContext, useCopilotRefresh } from "../copilot.js";
 
 const Viewer = lazy(() => import("../components/Viewer.jsx")); // three.js loads only on the model page
 
-function useDebouncedSave(save, delay = 700) {
+function useDebouncedSave(save, owner, delay = 700) {
   const timer = useRef(null);
+  useEffect(() => () => clearTimeout(timer.current), [owner]);
   return (value) => {
     clearTimeout(timer.current);
     timer.current = setTimeout(() => save(value), delay);
@@ -46,54 +49,72 @@ export default function Modelo({ param }) {
   const { act, notify } = useApp();
   const [model, setModel] = useState(null);
   const [error, setError] = useState(null);
-  const [listing, setListing] = useState(null);
-  const [notes, setNotes] = useState("");
-  const [name, setName] = useState("");
+  const metadata = useDraft(id, { name: "", notes: "", collection: "" });
+  const listingDraft = useDraft(id, { title: "", description: "", tags: [], category: "", price_hint: "", language: "es" });
+  const listing = listingDraft.fields;
+  const { name, notes, collection } = metadata.fields;
+  const owner = useRef(id);
+  owner.current = id;
+  const loadRequest = useRef(0);
   const [saved, setSaved] = useState("");
   const [similar, setSimilar] = useState(null);
   const [similarBusy, setSimilarBusy] = useState(false);
   const [similarError, setSimilarError] = useState("");
   const similarRequest = useRef(0);
 
-  const load = () =>
-    api.model(id)
+  const load = () => {
+    const request = ++loadRequest.current;
+    if (!Number.isSafeInteger(id) || id <= 0) {
+      setModel(null); setError("Modelo no disponible.");
+      return Promise.resolve();
+    }
+    return api.model(id)
       .then((m) => {
+        if (owner.current !== id || request !== loadRequest.current) return;
         setModel(m);
-        setListing(m.listing || { title: "", description: "", tags: [], category: "", price_hint: "", language: "es" });
-        setNotes(m.notes || "");
-        setName(m.name || "");
+        listingDraft.receive(m.listing || { title: "", description: "", tags: [], category: "", price_hint: "", language: "es" });
+        metadata.receive({ name: m.name || "", notes: m.notes || "", collection: m.collection || "" });
         setError(null);
       })
-      .catch((e) => setError(e.message));
+      .catch((e) => { if (owner.current === id && request === loadRequest.current) { setModel(null); setError(e.message); } });
+  };
+  useCopilotRefresh(load);
+  useCopilotContext({ model_id: param, editor: { kind: "model", fields: { ...metadata.fields, listing: listingDraft.fields }, dirty_fields: [...metadata.dirty, ...listingDraft.dirty.map((field) => `listing.${field}`)] } }, `model:${param}`);
   useEffect(() => {
     similarRequest.current += 1;
     setSimilar(null);
     setSimilarError("");
     setSimilarBusy(false);
+    setModel(null);
     load();
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const patch = async (changes, message) => {
+  const patch = async (changes, message, edited = changes) => {
     const updated = await act(() => api.updateModel(id, changes), message);
-    if (updated) setModel((m) => ({ ...m, ...updated }));
+    if (updated && metadata.isCurrent()) {
+      setModel((m) => ({ ...m, ...Object.fromEntries(Object.keys(changes).map((key) => [key, updated[key]])) }));
+      metadata.acknowledge(edited, updated);
+    }
   };
-  const saveNotes = useDebouncedSave((value) => patch({ notes: value }).then(() => setSaved("Notas guardadas")));
-  const saveName = useDebouncedSave((value) => value.trim() && patch({ name: value.trim() }));
-  const saveListing = useDebouncedSave((value) =>
-    act(() => api.saveListing(id, { ...value, source: "manual" })).then((r) => {
-      if (r) {
+  const saveNotes = useDebouncedSave((value) => patch({ notes: value }).then(() => { if (owner.current === id) setSaved("Notas guardadas"); }), id);
+  const saveName = useDebouncedSave((value) => value.trim() && patch({ name: value.trim() }, undefined, { name: value }), id);
+  const saveListing = useDebouncedSave((changes) =>
+    act(() => api.saveListing(id, { ...changes, source: "manual" })).then((r) => {
+      if (r && listingDraft.isCurrent()) {
         setModel((m) => ({ ...m, has_listing: true, listing: r.listing }));
+        listingDraft.acknowledge(changes, r.listing);
         setSaved("Ficha guardada");
       }
     }),
+    id,
   );
   const editListing = (changes) => {
-    const next = { ...listing, ...changes };
-    setListing(next);
-    saveListing(next);
+    saveListing(listingDraft.edit(changes));
   };
+  // The live draft retains only fields edited locally across agent refreshes.
+  const currentListing = listingDraft.fields;
   const copy = async () => {
-    const text = listingText(listing, model);
+    const text = listingText(currentListing, model);
     try {
       await navigator.clipboard.writeText(text);
       notify("Ficha copiada al portapapeles.");
@@ -120,11 +141,11 @@ export default function Modelo({ param }) {
   const dupes = model.dupes || { exact: [], near: [] };
 
   return (
-    <div>
+    <div data-copilot-editor={`model:${param}`}>
       <div className="mb-3 text-[12px]"><a className="btn-link" href="#/galeria">← Galería</a>{model.collection && <> · <a className="btn-link" href={`#/galeria?collection=${encodeURIComponent(model.collection)}`}>{model.collection}</a></>}</div>
       <header className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <input className="field w-full text-[22px] font-semibold md:text-[26px]" style={{ padding: "4px 8px" }} value={name} aria-label="Nombre" onChange={(e) => { setName(e.target.value); saveName(e.target.value); }} />
+          <input data-copilot-field="name" className="field w-full text-[22px] font-semibold md:text-[26px]" style={{ padding: "4px 8px" }} value={name} aria-label="Nombre" onChange={(e) => { metadata.edit({ name: e.target.value }); saveName(e.target.value); }} />
           <div className="help mt-1 truncate font-mono text-[12px]" title={model.path}>{model.path}</div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -150,11 +171,11 @@ export default function Modelo({ param }) {
             <div className="mt-3 grid gap-3">
               <div>
                 <label className="label" htmlFor="l-title">Título</label>
-                <input id="l-title" className="field" value={listing.title} onChange={(e) => editListing({ title: e.target.value })} placeholder="Nombre con el que lo publicas" />
+                <input data-copilot-field="listing.title" id="l-title" className="field" value={listing.title} onChange={(e) => editListing({ title: e.target.value })} placeholder="Nombre con el que lo publicas" />
               </div>
               <div>
                 <label className="label" htmlFor="l-desc">Descripción (markdown)</label>
-                <textarea id="l-desc" className="field" value={listing.description} onChange={(e) => editListing({ description: e.target.value })} placeholder="Qué es, cómo se imprime, cuántas piezas, medidas…" />
+                <textarea data-copilot-field="listing.description" id="l-desc" className="field" value={listing.description} onChange={(e) => editListing({ description: e.target.value })} placeholder="Qué es, cómo se imprime, cuántas piezas, medidas…" />
               </div>
               <div className="grid gap-3 sm:grid-cols-3">
                 <div>
@@ -207,9 +228,9 @@ export default function Modelo({ param }) {
             <h2 className="text-[16px] font-semibold">Etiquetas y notas</h2>
             <div className="mt-2"><TagEditor tags={model.tags} onChange={(tags) => patch({ tags }, "Etiquetas guardadas.")} /></div>
             <label className="label mt-3" htmlFor="notes">Notas</label>
-            <textarea id="notes" className="field" value={notes} onChange={(e) => { setNotes(e.target.value); saveNotes(e.target.value); }} placeholder="Ajustes de impresión, soportes, dónde lo publicaste…" />
+            <textarea data-copilot-field="notes" id="notes" className="field" value={notes} onChange={(e) => { metadata.edit({ notes: e.target.value }); saveNotes(e.target.value); }} placeholder="Ajustes de impresión, soportes, dónde lo publicaste…" />
             <label className="label mt-3" htmlFor="collection">Colección (carpeta)</label>
-            <input id="collection" className="field" defaultValue={model.collection} onBlur={(e) => e.target.value !== model.collection && patch({ collection: e.target.value }, "Colección guardada.")} />
+            <input data-copilot-field="collection" id="collection" className="field" value={collection} onChange={(e) => metadata.edit({ collection: e.target.value })} onBlur={() => metadata.dirty.includes("collection") && patch({ collection }, "Colección guardada.")} />
             {model.albums?.length > 0 && <p className="help mt-2">Álbumes: {model.albums.map((a) => <a key={a.id} className="btn-link" href={`#/galeria?album=${a.id}`}>{a.name}</a>).reduce((acc, el) => (acc.length ? [...acc, ", ", el] : [el]), [])}</p>}
           </section>
 

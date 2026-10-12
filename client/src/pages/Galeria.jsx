@@ -4,6 +4,7 @@ import { useApp } from "../App.jsx";
 import ModelCard from "../components/ModelCard.jsx";
 import { Empty, PageHeader } from "../components/ui.jsx";
 import { FORMAT_LABEL, SORT_OPTIONS, num } from "../format.js";
+import { useCopilotContext, useCopilotRefresh } from "../copilot.js";
 
 const PAGE = 60;
 const KEYS = ["q", "root", "format", "tag", "collection", "album", "watertight", "has_listing", "dupes", "sort"];
@@ -52,12 +53,15 @@ export default function Galeria({ query }) {
   const [loading, setLoading] = useState(false);
   const [offset, setOffset] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
+  const [revision, setRevision] = useState(0);
+  useCopilotContext({ root_id: filters.root, album_id: filters.album, editor: { kind: "search", fields: { q }, dirty_fields: q !== (filters.q || "") ? ["q"] : [] } }, "search");
+  useCopilotRefresh(() => { setOffset(0); setRevision((value) => value + 1); });
 
   useEffect(() => setQ(filters.q || ""), [filters.q]);
   useEffect(() => {
     api.facets().then(setFacets).catch(() => {});
     api.roots().then((r) => setRoots(r.roots)).catch(() => {});
-  }, [status?.counts?.models, status?.worker?.busy]);
+  }, [status?.counts?.models, status?.worker?.busy, revision]);
 
   const key = JSON.stringify(filters);
   useEffect(() => {
@@ -82,7 +86,7 @@ export default function Galeria({ query }) {
     return () => {
       cancelled = true;
     };
-  }, [key, offset, status?.counts?.models]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [key, offset, status?.counts?.models, revision]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const set = (patch) => writeFilters({ ...filters, ...patch });
   const toggle = (key, value) => set({ [key]: filters[key] === String(value) ? undefined : value });
@@ -94,7 +98,7 @@ export default function Galeria({ query }) {
   const empty = status && status.counts.models === 0;
 
   return (
-    <div>
+    <div data-copilot-editor="search">
       <PageHeader title="Galería" description="Todos tus modelos con su miniatura, medidas y formato. Busca por nombre, etiqueta, carpeta o texto de la ficha.">
         <div className="flex items-center gap-2">
           <select className="field w-auto" aria-label="Ordenar" value={filters.sort || (filters.q ? "relevance" : "name")} onChange={(e) => set({ sort: e.target.value })}>

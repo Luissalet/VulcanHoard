@@ -2,7 +2,13 @@
 
 Your personal library of 3D-printable models, indexed on your own PC. Point it at the folders where you keep your STL, 3MF and OBJ files and it measures every model (size in mm, triangles, volume, surface, watertight or not, number of bodies), renders a thumbnail on the CPU, finds duplicates and near-duplicates, and keeps tags, notes and a marketplace listing (title, description, tags, category) per model. An assistant reaches the same library through MCP, so it can find "that dragon bust from last spring", quote its real dimensions and draft the listing text for you — without inventing anything the geometry does not say.
 
-Everything stays on the machine: SQLite with FTS5, thumbnails as WebP files, no accounts, no network. The app itself never calls a language model.
+The library stays on the machine: SQLite with FTS5 and thumbnails as WebP files, without an account. Faustus's shared copilot handles conversation and tool execution through the local HoardLink relay; the existing listing and CAD services keep their bounded domain jobs.
+
+## Faustus copilot
+
+The floating Faustus button opens the shared chat panel in every view. It receives the current native model, folder listing, root or album ID, the root's project scope, filters, selected text and the current form draft. New and missing objects have no active ID; reading context never creates a model, scans a folder or runs CAD. After a turn, the view refreshes without discarding locally edited fields. Model and folder listing saves send only changed fields and merge them atomically with other updates.
+
+Configure the Faustus endpoint with `VULCAN_FAUSTUS_URL` (or `HOARD_FAUSTUS_URL` / HoardLink configuration); credentials stay in server configuration. The shared `data/copilot-space-id` identifies this library across ports and restarts. Conversation history, drafts and execution belong to Faustus; Vulcan keeps its native MCP tools. See [the copilot contract](docs/copilot.md).
 
 Part of the Hoard family (see `faustus-plugin.json`).
 
@@ -90,6 +96,7 @@ Adding a folder (`POST /api/roots`, `models_add_root`) accepts a pasted path wit
 - `POST /api/organize/plan` (root, reference, reference_format, target_template, match, number_width → plan with `id`), `GET /api/organize/plans[/{id}]`, `POST /api/organize/apply` (plan_id), `POST /api/organize/undo` (apply_id optional, remove_created_folders), `GET /api/organize/applies`, `POST /api/organize/sheets-batch` (root_id or path, scope, mode, refresh, overwrite, dry_run, limit, language)
 - `POST /api/maintenance/rescan-all | rebuild-fts | refresh-dupes`
 - `GET /api/agent/tools` (catalog + instructions), `POST /api/agent/call` (Bearer token from `data/mcp-token`)
+- `GET /api/copilot/info`, `GET /api/copilot/panel.js`, `GET /api/copilot/launcher.js`, `POST /api/copilot/proxy` (shared local relay), `POST /api/copilot/context` (read-only native context; also `copilot_context_get` over MCP)
 
 ## MCP tools
 
