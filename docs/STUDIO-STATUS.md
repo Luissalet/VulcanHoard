@@ -1,6 +1,6 @@
 # Studio integration status
 
-Fisiones task928: CAS2 source candidate awaiting independent review. It has not been integrated into the installed app, published or approved for real data relocation.
+Fisiones task928: CAS3 source candidate awaiting independent review. It has not been integrated into the installed app, published or approved for real data relocation.
 
 The studio owns the incorporated public sources of Gepetto, Daedalus, Plato, Heron and Gulliver. Existing Vulcan library functions remain available. All six modules and their automation start OFF; cold API/MCP discovery exposes160 tools without importing native engines, opening stores or spawning workers. Explicit activation preserves the complete native interfaces and formats under one owner. Shared projects retain native IDs, revisions, artifact hashes and library references.
 
@@ -23,3 +23,5 @@ Independent CAS review; smoke verification of the final installed package and co
 The UI detector ran once in degraded regex mode because optional parser dependencies were unavailable. It reported no findings but did not evaluate computed contrast or selector matching. Browser checks provide the visual evidence; this is not a full accessibility certification.
 
 The separate software-studio merger must continue to describe Theseus as incomplete and paused by Luis for usage quota. This integration does not resume that development.
+
+CAS2 review reproduced a second, delegated FileResponse open surviving cancellation after the read lease was released. CAS3 reuses the exact verified descriptor through the FileResponse range hook; no delegated pathname reopen occurs. Off-thread read/seek tasks are joined through repeated cancellation before releasing the descriptor. Twenty-two focal artifact/native-flow/lifecycle tests pass, including held read/seek, multipart ranges,416,HEAD and cancellation/error cleanup. The Starlette minimum is1.9 (the tested hook); the requirements pins now match the already-tested FastAPI0.146.0/Starlette1.9.0 environment instead of older source pins. This is not another full-suite run. Installed CAS2 theme CAD was confirmed visually, with all modules OFF before graceful QA shutdown; CAS3 changes no UI assets.
