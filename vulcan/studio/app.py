@@ -263,7 +263,8 @@ def create_app(data_dir=None, port=None, factory=None, catalog=None):
                 raise FileNotFoundError
         except (KeyError, IndexError, FileNotFoundError):
             raise HTTPException(404, 'El archivo de esta referencia ya no está disponible en su ubicación registrada.')
-        return FileResponse(path, filename=path.name)
+        from .retained_file import RetainedResponse
+        return RetainedResponse(row)
 
     @app.post('/api/agent/call')
     async def call(request: Request):

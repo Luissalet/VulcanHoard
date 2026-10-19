@@ -1,7 +1,10 @@
 """Explicit native-object discovery and cross-module artifact indexing."""
+import asyncio
 from urllib.parse import quote
 from fastapi import HTTPException
 from .dispatch import scoped_urls
+from .retained_file import retained_file, verify_retained
+from .cancellation import join_tasks
 
 
 READ_TOOLS = {'library': ('models_search', {'q':'', 'limit':100}),
@@ -58,12 +61,22 @@ async def index_artifact(projects, modules, identity, artifact_index, port):
     except (IndexError, TypeError):
         raise HTTPException(404, 'Unknown retained artifact')
     module = modules['library']
-    response = await module.request('POST', '/api/agent/call', headers=headers(module, port),
-        json={'name':'model_import_file', 'arguments':{'path':artifact['path']}})
-    if not response.is_success:
-        raise HTTPException(response.status_code, response.text[:500])
-    result = unwrap(response.json())
-    model = result.get('model', result)
+    async with retained_file(artifact) as stream:
+        consuming = asyncio.create_task(module.request('POST', '/api/agent/call', headers=headers(module, port),
+            json={'name':'model_import_file', 'arguments':{'path':artifact['path']}}))
+        try:
+            response = await asyncio.shield(consuming)
+        except asyncio.CancelledError:
+            await join_tasks([consuming])
+            raise
+        if not response.is_success:
+            raise HTTPException(response.status_code, response.text[:500])
+        result = unwrap(response.json())
+        model = result.get('model', result)
+        await verify_retained(stream, artifact)
+        if model.get('sha256') != artifact['sha256']:
+            raise HTTPException(409, {'error':'artifact_revision_conflict', 'native_result':result,
+                                     'message':'La biblioteca no acredita la revisión registrada. No se ha enlazado al proyecto.'})
     if model.get('id') is not None:
         projects.link(identity, 'library', str(model['id']), None, model.get('name'), object_url('library',model['id']))
     return {'native_result':scoped_urls(result,'library'), 'project':projects.get(identity), 'registered_sha256':artifact['sha256']}
