@@ -35,6 +35,7 @@ class Module:
     def __init__(self, spec, data_dir, factory):
         self.spec, self.data_dir, self.factory = spec, Path(data_dir), factory
         self.app = self.stack = None
+        self.context_exited = False
         self.lock = asyncio.Lock()
         self.configuration_lock = asyncio.Lock()
         self.requests = {}
@@ -43,7 +44,8 @@ class Module:
         self.error = ''
 
     def status(self):
-        return {**self.spec, 'enabled': self.app is not None, 'automatic': self.automatic,
+        return {**self.spec, 'enabled': self.app is not None and not self.stopping,
+                'phase': 'stopping' if self.stopping else 'on' if self.app is not None else 'off', 'automatic': self.automatic,
                 'data_dir': str(self.data_dir), 'error': self.error}
 
     async def set_enabled(self, enabled):
@@ -70,6 +72,8 @@ class Module:
 
     async def _set_enabled(self, enabled):
         async with self.lock:
+            if enabled and self.stopping:
+                raise RuntimeError('Retry module shutdown before enabling it again.')
             if enabled == (self.app is not None):
                 return self.status()
             self.error = ''
@@ -83,6 +87,7 @@ class Module:
                     self.error = f'{type(exc).__name__}: {exc}'
                     raise
                 self.app, self.stack = app, stack
+                self.context_exited = False
             else:
                 self.stopping = True
                 try:
@@ -90,10 +95,21 @@ class Module:
                     await join_tasks([task for task in pending if self.requests.get(task)], cancel=True)
                     if pending:
                         await join_tasks(pending)
-                    await self.stack.aclose()
+                    if self.context_exited:
+                        retry = getattr(self.app.state, 'retry_shutdown', None)
+                        if retry is None:
+                            raise RuntimeError('Native cleanup failed and has no retry callback; resources remain owned.')
+                        await retry()
+                    else:
+                        self.context_exited = True
+                        await self.stack.aclose()
                     self.app = self.stack = None
-                finally:
+                except BaseException as exc:
+                    self.error = f'{type(exc).__name__}: {exc}'
+                    raise
+                else:
                     self.stopping = False
+                    self.automatic = False
             return self.status()
 
     async def request(self, method, path, **kwargs):

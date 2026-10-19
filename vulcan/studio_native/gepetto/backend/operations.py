@@ -25,6 +25,18 @@ def install(server):
 
     server.inference_busy = busy
 
+    async def retry_shutdown():
+        queue.stop.set()
+        if queue.thread is not None:
+            await __import__('asyncio').to_thread(queue.thread.join)
+        await __import__('asyncio').to_thread(server.executor.shutdown, wait=True, cancel_futures=True)
+        if hasattr(server, 'pose_queue'):
+            for event in server.pose_queue.cancel_events.values():
+                event.set()
+            await __import__('asyncio').to_thread(server.pose_queue.pool.shutdown, wait=True, cancel_futures=True)
+
+    server.app.state.retry_shutdown = retry_shutdown
+
     @asynccontextmanager
     async def lifespan(app):
         nonlocal queue
@@ -38,14 +50,7 @@ def install(server):
         try:
             yield
         finally:
-            queue.stop.set()
-            if queue.thread is not None:
-                await __import__("asyncio").to_thread(queue.thread.join)
-            await __import__("asyncio").to_thread(server.executor.shutdown, wait=True, cancel_futures=True)
-            if hasattr(server, "pose_queue"):
-                for event in server.pose_queue.cancel_events.values():
-                    event.set()
-                await __import__("asyncio").to_thread(server.pose_queue.pool.shutdown, wait=True, cancel_futures=True)
+            await retry_shutdown()
 
     server.app.router.lifespan_context = lifespan
 

@@ -65,8 +65,11 @@ class Services:
         self.jobs.start()
 
     def stop(self) -> None:
-        self.jobs.stop()
-        self.fetcher.close()
+        if not hasattr(self, '_shutdown_steps'):
+            self._shutdown_steps = [self.jobs.stop, self.fetcher.close]
+        while self._shutdown_steps:
+            self._shutdown_steps[0]()
+            self._shutdown_steps.pop(0)
 
     # -- events ----------------------------------------------------------------------------------------------------------
     def emit(self, kind: str, data: dict[str, Any]) -> None:

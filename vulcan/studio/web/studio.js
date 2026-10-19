@@ -68,7 +68,7 @@ async function refresh() {
       toggle.setAttribute("aria-label", module.name);
       const label = element(
         "span",
-        module.enabled ? "Activada" : "Desactivada",
+        module.phase === "stopping" ? "Reintentar apagado" : module.enabled ? "Activada" : "Desactivada",
       );
       const track = element("span", "", "switch-track");
       track.setAttribute("aria-hidden", "true");
@@ -76,12 +76,12 @@ async function refresh() {
       toggle.append(label, track);
       toggle.onclick = async () => {
         toggle.disabled = true;
-        label.textContent = module.enabled ? "Deteniendo…" : "Activando…";
+        label.textContent = module.enabled || module.phase === "stopping" ? "Deteniendo…" : "Activando…";
         showError("");
         try {
           await request(`/api/modules/${module.id}`, {
             method: "PUT",
-            body: JSON.stringify({ enabled: !module.enabled }),
+            body: JSON.stringify({ enabled: module.phase !== "stopping" && !module.enabled }),
           });
         } catch (error) {
           showError(error.message);

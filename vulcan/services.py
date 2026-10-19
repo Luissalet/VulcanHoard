@@ -61,14 +61,12 @@ class Services:
             self.watcher.sync(self.roots.list())
 
     def stop(self) -> None:
-        self.watcher.stop()
-        self.worker.stop()
-        self.draft_worker.stop()
-        try:
-            self.link.sync.close()
-        except Exception:
-            pass
-        self.db.close()
+        if not hasattr(self, '_shutdown_steps'):
+            self._shutdown_steps = [self.watcher.stop, self.worker.stop,
+                                    self.draft_worker.stop, self.link.sync.close, self.db.close]
+        while self._shutdown_steps:
+            self._shutdown_steps[0]()
+            self._shutdown_steps.pop(0)
 
     # ---------- roots ----------
     def add_root(self, name: str, path: str, include: list[str] | None, exclude: list[str] | None, watch: bool,

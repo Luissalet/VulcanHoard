@@ -26,6 +26,10 @@ SERVICE = "vulcan-hoard"
 def create_app(config: Config | None = None) -> FastAPI:
     config = config or Config.from_env()
 
+    async def retry_shutdown():
+        if hasattr(app.state, 'services'):
+            await asyncio.to_thread(app.state.services.stop)
+
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         services = Services(config)
@@ -35,10 +39,11 @@ def create_app(config: Config | None = None) -> FastAPI:
         try:
             yield
         finally:
-            await asyncio.to_thread(services.stop)
+            await retry_shutdown()
 
     app = FastAPI(title="Vulcan's Hoard", version=__version__, lifespan=lifespan, docs_url=None, redoc_url=None)
     app.state.config = config
+    app.state.retry_shutdown = retry_shutdown
     # Hoard Link 0.4: this app on the family bus (agent.call events, calls to
     # siblings through the hub, the hoard_link block in /api/health).
     family.configure("vulcan", str(config.data_dir), token_file=str(config.token_path))
