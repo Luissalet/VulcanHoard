@@ -27,15 +27,18 @@ async function refresh() {
   try {
     const data = await request("/api/modules");
     const active = data.modules.filter((module) => module.enabled).length;
-    $("#summary").textContent = active
+    const pending = data.modules.filter((module) => module.phase === "stopping").length;
+    $("#summary").textContent = pending
+      ? `${pending} cierres pendientes · ${active} funciones activas`
+      : active
       ? `${active} de ${data.modules.length} funciones activas`
       : "Todo desactivado · ningún motor en segundo plano";
-    $("#stop-all").disabled = !active;
+    $("#stop-all").disabled = !active && !pending;
     // Preserve in-progress project forms while reflecting the current engines.
     for (const select of document.querySelectorAll("[data-module-selector]")) {
       for (const option of select.options) {
         const module = data.modules.find((item) => item.id === option.value);
-        if (module) option.textContent = module.name + (module.enabled ? "" : " · apagada");
+        if (module) option.textContent = module.name + (module.phase === "stopping" ? " · cierre pendiente" : module.enabled ? "" : " · apagada");
       }
     }
     $("#modules").replaceChildren();

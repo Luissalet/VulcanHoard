@@ -203,7 +203,7 @@ def create_app(data_dir=None, port=None, factory=None, catalog=None):
             except Exception as exc:
                 module.desired = False
                 persist()
-                raise HTTPException(503, f'No se pudo activar el módulo: {exc}') from exc
+                raise HTTPException(503, f'No se pudo cambiar el módulo: {exc}') from exc
             persist()
             return result
 
