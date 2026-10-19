@@ -94,7 +94,7 @@ class Jobs:
                 job.cancel_requested = True
         self._wake.set()
         if self._thread is not None:
-            self._thread.join(timeout=5)
+            self._thread.join()
         self._save()
 
     def submit(self, kind: str, project_id: str, title: str, work: Callable[[Job], Any]) -> Job:

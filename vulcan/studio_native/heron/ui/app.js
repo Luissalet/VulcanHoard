@@ -1,4 +1,5 @@
-if(location.search)history.replaceState(null,'',location.pathname);
+const studioBuild=new URLSearchParams(location.search).get('build');
+if(new URLSearchParams(location.search).has('token')){const url=new URL(location.href);url.searchParams.delete('token');history.replaceState(null,'',url.pathname+url.search);}
 const $=id=>document.getElementById(id),node=(tag,text)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;return n;};let templates={},pending=null,openRow=null,mode='new',loaded={id:null,recipe:null,text:''};
 async function request(path,body){const response=await fetch(path,body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{});const data=await response.json();if(!response.ok)throw Error(data.detail||data.error||'No disponible');return data;}
 function setRecipe(id,recipe){const text=JSON.stringify(recipe,null,2);$('recipe').value=text;loaded={id,recipe,text:$('recipe').value};}
@@ -8,7 +9,7 @@ async function run(fn){$('build').disabled=true;$('history').disabled=true;$('st
 $('recipe').oninput=()=>{pending=null;};$('template').onchange=()=>{setRecipe(null,templates[$('template').value]);pending=null;};
 $('build').onclick=()=>run(async()=>{const recipe=JSON.parse($('recipe').value);pending=pending||crypto.randomUUID();const row=await request('/api/builds',{request_id:pending,recipe});setRecipe(row.id,row.recipe);show(row);});
 $('history').onclick=()=>run(async()=>{showHistory((await request('/api/builds')).builds);});
-run(async()=>{const data=await request('/api/templates');templates=data.templates;$('schema').textContent=JSON.stringify(data.recipe_schema,null,2);for(const [key,recipe]of Object.entries(templates)){const opt=node('option',recipe.title);opt.value=key;$('template').append(opt);}$('template').onchange();});
+run(async()=>{const data=await request('/api/templates');templates=data.templates;$('schema').textContent=JSON.stringify(data.recipe_schema,null,2);for(const [key,recipe]of Object.entries(templates)){const opt=node('option',recipe.title);opt.value=key;$('template').append(opt);}$('template').onchange();if(studioBuild){const row=await request('/api/builds/'+encodeURIComponent(studioBuild));setRecipe(row.id,row.recipe);show(row);}});
 // --- Family assistant contract: real context of the open view and in-place refresh ---
 // Builds are immutable receipts: a changed recipe is a new build with a new id, so an edit the
 // assistant made meanwhile (a new build) can never be overwritten by saving here.

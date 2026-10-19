@@ -19,6 +19,7 @@ from .family_tools import import_file
 from .hoard_link import atomic
 from .services import Services
 from .thumbnail import render
+from .studio.global_http import job as global_job
 
 HISTORY_LIMIT = 20
 CAPABILITIES = {
@@ -127,6 +128,7 @@ class CadService:
             return False
 
     # ---------- internals ----------
+    @global_job
     def _spec_from_model(self, description: str, params: dict | None):
         """Ask the shared language model for a spec: strict JSON, validated and compiled; one repair attempt with the errors."""
         link = self.services.link

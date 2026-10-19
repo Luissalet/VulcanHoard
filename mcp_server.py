@@ -1,10 +1,8 @@
 """Stdio MCP bridge for Vulcan's Hoard.
 
-It never opens the database: every tool call is proxied to the running app (`POST /api/agent/call`) with the Bearer token
-from `<DATA_DIR>/mcp-token`. The tool list comes from `GET /api/agent/tools` (refreshed while the bridge runs), so the
-bridge and the app can never disagree. When nothing answers, the bridge starts the app itself (`python -m vulcan`, detached,
-on the port of VULCAN_URL) and waits for it; VULCAN_BRIDGE_AUTOSTART=0 turns that off. The bridge is the shared
-`hoard_link.bridge.CatalogBridge`.
+It never opens a module database. Discovery uses the owned static studio catalogue
+and never starts an app or engine. Calls use the explicitly started studio and
+the Bearer token from <DATA_DIR>/mcp-token. The transport is the shared CatalogBridge.
 """
 
 from __future__ import annotations
@@ -29,7 +27,10 @@ class StudioBridge(CatalogBridge):
 
 def build() -> CatalogBridge:
     return StudioBridge(app="vulcan", service="vulcan-hoard", package="vulcan", default_port=5186, data_dir_env="VULCAN_DATA_DIR", autostart=False,
-                         title="Vulcan's Hoard", root=__file__)
+                         title="Vulcan's Hoard", root=__file__, instructions=
+                         'All studio modules initially OFF. Listing tools starts no server or engine. '
+                         'Use vulcan_set_module only for a module explicitly requested by the user. '
+                         'models_search and the other native tools retain their schemas and native object IDs.')
 
 
 if __name__ == "__main__":

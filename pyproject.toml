@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "vulcan-hoard"
 version = "0.1.0"
-description = "Local library of the user's 3D-printable models (STL, 3MF, OBJ): folder scanning, mesh metrics, CPU-rendered thumbnails, duplicates, marketplace listings, exposed to assistants through MCP."
+description = "3D studio with model library, editable figure relief, silhouettes, measured CAD, terrain and local image-to-3D generation; independently activated modules and shared native projects."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { file = "LICENSE" }
@@ -28,12 +28,36 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest>=8"]
 thumbs = ["fast-simplification>=0.2"]  # quadric decimation for thumbnails of huge meshes; a face subsample is used without it
+studio = [
+  "flask>=3,<4", "python-multipart>=0.0.20", "filelock>=3.16",
+  "scikit-learn>=1.6,<2", "scikit-image>=0.24", "shapely>=2.1,<3",
+  "manifold3d>=3", "rasterio>=1.3", "contourpy>=1.2", "vtracer==1.0.0a4",
+  "mapbox-earcut>=2", "svg.path>=6.3,<8", "jsonschema>=4.18,<5", "cadquery>=2.5",
+]
 
 [project.scripts]
 vulcan-hoard = "vulcan.__main__:main"
 
 [tool.setuptools.packages.find]
 include = ["vulcan*"]
+namespaces = false
+
+[tool.setuptools]
+license-files = ["LICENSE", "licenses/*", "vulcan/studio_native/*/LICENSE", "vulcan/studio_native/daedalus/licenses/*"]
+
+[tool.setuptools.exclude-package-data]
+"*" = ["**/__pycache__/*", "**/*.pyc", "**/.venv/**", "**/node_modules/**"]
+
+[tool.setuptools.package-data]
+"*" = ["ui/*.css", "_data/*.json", "LICENSE", "README.md", "README.es.md"]
+"vulcan" = ["static/**/*"]
+"vulcan.studio" = ["web/**/*", "catalog.json"]
+"vulcan.studio_native" = ["PROVENANCE.json"]
+"vulcan.studio_native.gepetto" = ["dist/**/*", "blender/*.py"]
+"vulcan.studio_native.daedalus" = ["client/**/*", "tools/*.py", "licenses/**/*", "THIRD_PARTY.md", "app-icon.png"]
+"vulcan.studio_native.plato" = ["static/**/*", "templates/**/*", "schemas/**/*"]
+"vulcan.studio_native.heron" = ["ui/**/*", "app-icon.png"]
+"vulcan.studio_native.gulliver.gulliver_hoard" = ["static/**/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

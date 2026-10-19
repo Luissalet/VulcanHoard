@@ -2,9 +2,56 @@
   "schema": 1,
   "id": "vulcan",
   "name": "Vulcan's Hoard",
-  "purpose": "The user's personal library of 3D-printable models: folders of STL, 3MF and OBJ files scanned locally (dimensions, triangles, watertightness, thumbnails, duplicates) so the assistant can find models and write their marketplace listings. It also sorts a loose folder into one folder per group from a list the user pastes (plan, apply, undo; never deletes or overwrites) and drafts the sheet of every folder in one call.",
-  "capabilities": ["3d-models", "stl", "3mf", "obj", "mesh-metrics", "thumbnails", "duplicates", "near-duplicates", "listings", "tags", "notes", "collections", "albums", "folder-scan", "folder-watch", "fts-search", "stats", "folder-listings", "cults3d", "listing-validator", "listing-drafting", "listing-export", "collection-organizer", "organize-plan", "organize-undo", "sheets-batch", "skeleton-listings"],
-  "placeholders": ["VULCAN_DIR", "APP_URL", "TOKEN_FILE", "PYTHON"],
+  "purpose": "3D studio: model library, editable figure relief, image-to-3D generation, silhouette extrusion, measured CAD and terrain/cities. Independent modules initially OFF; shared native projects and retained artifacts.",
+  "capabilities": [
+    "3d-models",
+    "stl",
+    "3mf",
+    "obj",
+    "mesh-metrics",
+    "thumbnails",
+    "duplicates",
+    "near-duplicates",
+    "listings",
+    "tags",
+    "notes",
+    "collections",
+    "albums",
+    "folder-scan",
+    "folder-watch",
+    "fts-search",
+    "stats",
+    "folder-listings",
+    "cults3d",
+    "listing-validator",
+    "listing-drafting",
+    "listing-export",
+    "collection-organizer",
+    "organize-plan",
+    "organize-undo",
+    "sheets-batch",
+    "skeleton-listings",
+    "3d-studio",
+    "editable-relief",
+    "blender-projects",
+    "image-to-3d",
+    "mesh-refinement",
+    "silhouette-composition",
+    "silhouette-extrusion",
+    "parametric-cad",
+    "step",
+    "terrain",
+    "cities",
+    "shared-native-projects",
+    "retained-artifacts",
+    "independent-modules"
+  ],
+  "placeholders": [
+    "VULCAN_DIR",
+    "APP_URL",
+    "TOKEN_FILE",
+    "PYTHON"
+  ],
   "defaults": {
     "APP_URL": "http://127.0.0.1:5186",
     "TOKEN_FILE": "{VULCAN_DIR}/data/mcp-token",
@@ -13,26 +60,65 @@
   "app": {
     "url_default": "http://127.0.0.1:5186",
     "ui_url": "{APP_URL}",
-    "health": { "path": "/api/health", "expect": { "service": "vulcan-hoard" } },
-    "identify": { "service": ["vulcan-hoard"], "title": ["vulcan's hoard", "modelos 3d"] },
+    "health": {
+      "path": "/api/health",
+      "expect": {
+        "service": "vulcan-hoard"
+      }
+    },
+    "identify": {
+      "service": [
+        "vulcan-hoard"
+      ],
+      "title": [
+        "vulcan's hoard",
+        "modelos 3d"
+      ]
+    },
     "launch_hint": {
       "kind": "process",
       "executable": "{PYTHON}",
-      "argv": ["-m", "vulcan"],
+      "argv": [
+        "-m",
+        "vulcan"
+      ],
       "cwd": "{VULCAN_DIR}",
-      "readiness": { "url": "{APP_URL}/api/health", "timeout_s": 30 }
+      "readiness": {
+        "url": "{APP_URL}/api/health",
+        "timeout_s": 30
+      }
     }
   },
   "mcp": {
     "transport": "stdio",
     "command": "{PYTHON}",
-    "args": ["{VULCAN_DIR}/mcp_server.py"],
-    "env": { "VULCAN_URL": "{APP_URL}", "VULCAN_TOKEN_FILE": "{TOKEN_FILE}" },
+    "args": [
+      "{VULCAN_DIR}/mcp_server.py"
+    ],
+    "env": {
+      "VULCAN_URL": "{APP_URL}",
+      "VULCAN_TOKEN_FILE": "{TOKEN_FILE}"
+    },
     "optional_env": []
   },
-  "notes": "Keep the app running (python -m vulcan) while the assistant uses it: the MCP bridge proxies every call to the local server and never opens the database. Scanning a big folder takes a while the first time (metrics plus one CPU-rendered thumbnail per file); later scans only read what changed. Tools (24): models_*/model_* (search, info, listing, tags, notes, stats, dupes, similar, add_root, rescan, recent), folder_listing_* (list, get, set, check, draft, export) and, new, collection_plan (read-only plan from a pasted list), collection_apply, collection_undo and sheets_batch (skeleton sheet drafts for every folder or model, no model needed), model_import_file (index one STL/3MF/OBJ now; other apps call it when an export finishes; emits vulcan.model.added) and listings_export_catalog (read-only: every folder and model listing as catalogue entries, the shape Mercator imports). To group a folder never move files one by one with the shell: plan, show the summary, apply only after the user agrees; apply and undo queue a rescan, so wait for models_stats to be idle before sheets_batch.",
+  "notes": "All six modules and automation initially OFF. Explicitly start Vulcan, then vulcan_set_module for a requested function. Discovery uses the complete owned static catalogue without starting any server or native store. Library tool names are preserved; other module tools retain native names/schemas under namespaces. Shared projects retain IDs/revisions/artifact hashes. Text and vision use Faustus global stateless inference only. Native HTTP editors/APIs use /library/, /gepetto/, /daedalus/, /plato/, /heron/, /gulliver/; host control/project/MCP routes remain /api/. Compatibility aliases and real data migration are coordinated separately.",
   "x-family": {
-    "agent_contract": true, "events": true, "stack": "python",
-    "copilot": {"contract_version": "1.0", "info": "/api/copilot/info", "panel": "/api/copilot/panel.js", "proxy": "/api/copilot/proxy"}
+    "agent_contract": true,
+    "events": true,
+    "stack": "python",
+    "copilot": {
+      "contract_version": "1.0",
+      "info": "/api/copilot/info",
+      "panel": "/api/copilot/panel.js",
+      "proxy": "/api/copilot/proxy"
+    },
+    "modules": [
+      "library",
+      "gepetto",
+      "daedalus",
+      "plato",
+      "heron",
+      "gulliver"
+    ]
   }
 }

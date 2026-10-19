@@ -1,3 +1,4 @@
+from vulcan.studio import global_http as httpx
 """Ask for a physical view that actually exposes a disputed UV feature."""
 
 import json
@@ -238,6 +239,7 @@ def inspect_view(scene, item, inventory, labels, regions, classes, evidence):
         }
 
 
+@httpx.global_model
 def audit_hidden(
     model,
     scene,
@@ -253,7 +255,7 @@ def audit_hidden(
 ):
     """Reidentify hidden features using a newly observed physical view."""
     import base64, copy, time
-    import httpx
+    from vulcan.studio import global_http as httpx
     from .surface_plan import SurfaceDescription, decode_assignments
     from .model_io import check_response
     from .processing import png_bytes

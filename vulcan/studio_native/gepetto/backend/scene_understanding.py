@@ -5,7 +5,7 @@ import json
 import time
 from pathlib import Path
 from typing import Literal
-import httpx
+from vulcan.studio import global_http as httpx
 from pydantic import BaseModel, Field, model_validator
 from PIL import Image, ImageDraw
 from .processing import png_bytes
@@ -114,6 +114,7 @@ def contact_sheet(scene):
     return sheet
 
 
+@httpx.global_model
 def understand_scene(model, scene, evidence, progress=None):
     evidence = Path(evidence)
     evidence.mkdir(parents=True, exist_ok=True)

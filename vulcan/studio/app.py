@@ -21,6 +21,7 @@ from .native_response import NativeResponse
 from .projects import Projects, TOOLS as PROJECT_TOOLS
 from .specs import SPECS
 from .catalog import native_catalog, tool_catalog
+from .cancellation import join_tasks
 
 ROOT = Path(__file__).resolve().parent
 
@@ -37,6 +38,7 @@ class Module:
         self.lock = asyncio.Lock()
         self.configuration_lock = asyncio.Lock()
         self.requests = {}
+        self.transitions = set()
         self.desired = self.automatic = self.stopping = False
         self.error = ''
 
@@ -45,6 +47,28 @@ class Module:
                 'data_dir': str(self.data_dir), 'error': self.error}
 
     async def set_enabled(self, enabled):
+        # An HTTP disconnect cannot abandon a factory still executing in a
+        # thread. Keep its entire transition owned and join it before returning.
+        transition = asyncio.create_task(self._set_enabled(enabled))
+        self.transitions.add(transition)
+        cancelled = False
+        try:
+            while True:
+                try:
+                    result = await asyncio.shield(transition)
+                    break
+                except asyncio.CancelledError:
+                    cancelled = True
+                    if transition.done():
+                        result = transition.result()
+                        break
+            if cancelled:
+                raise asyncio.CancelledError
+            return result
+        finally:
+            self.transitions.discard(transition)
+
+    async def _set_enabled(self, enabled):
         async with self.lock:
             if enabled == (self.app is not None):
                 return self.status()
@@ -63,11 +87,9 @@ class Module:
                 self.stopping = True
                 try:
                     pending = list(self.requests)
-                    for task, streaming in list(self.requests.items()):
-                        if streaming:
-                            task.cancel()
+                    await join_tasks([task for task in pending if self.requests.get(task)], cancel=True)
                     if pending:
-                        await asyncio.gather(*pending, return_exceptions=True)
+                        await join_tasks(pending)
                     await self.stack.aclose()
                     self.app = self.stack = None
                 finally:
@@ -188,13 +210,18 @@ def create_app(data_dir=None, port=None, factory=None, catalog=None):
 
     async def project_call(name, args):
         try:
+            from .objects import list_objects, object_url, index_artifact
+            if name == 'vulcan_studio_objects':
+                return await list_objects(module_for(args['module']), port)
+            if name == 'vulcan_studio_index_artifact':
+                return await index_artifact(projects, modules, args['id'], args['artifact_index'], port)
             if name == 'vulcan_studio_projects':
                 return projects.get(args['id']) if args.get('id') else {'projects': projects.list()}
             if name == 'vulcan_studio_create':
                 return projects.create(args['title'])
             module_for(args['module'])
             if name == 'vulcan_studio_link':
-                return projects.link(args['id'], args['module'], args['native_id'], args.get('revision'))
+                return projects.link(args['id'], args['module'], args['native_id'], args.get('revision'), args.get('title'), object_url(args['module'],args['native_id']))
             return await asyncio.to_thread(projects.artifact, args['id'], args['module'], args['native_id'], args['path'], args.get('revision'))
         except KeyError as exc:
             raise HTTPException(404, str(exc)) from exc
@@ -208,6 +235,35 @@ def create_app(data_dir=None, port=None, factory=None, catalog=None):
     @app.post('/api/studio/projects')
     async def create_project(body: dict):
         return await project_call('vulcan_studio_create', body)
+
+    @app.get('/api/studio/objects/{key}')
+    async def objects(key: str):
+        return await project_call('vulcan_studio_objects', {'module':key})
+
+    @app.post('/api/studio/projects/{identity}/links')
+    async def link_object(identity: str, body: dict):
+        return await project_call('vulcan_studio_link', {**body,'id':identity})
+
+    @app.post('/api/studio/projects/{identity}/artifacts')
+    async def retain_artifact(identity: str, body: dict):
+        return await project_call('vulcan_studio_artifact', {**body,'id':identity})
+
+    @app.post('/api/studio/projects/{identity}/index-artifact')
+    async def index_artifact(identity: str, body: dict):
+        return await project_call('vulcan_studio_index_artifact', {**body,'id':identity})
+
+    @app.get('/api/studio/projects/{identity}/artifacts/{index}/file')
+    async def artifact_file(identity: str, index: int):
+        try:
+            if index < 0:
+                raise IndexError
+            row = projects.get(identity)['artifacts'][index]
+            path = Path(row['path'])
+            if not path.is_file():
+                raise FileNotFoundError
+        except (KeyError, IndexError, FileNotFoundError):
+            raise HTTPException(404, 'El archivo de esta referencia ya no está disponible en su ubicación registrada.')
+        return FileResponse(path, filename=path.name)
 
     @app.post('/api/agent/call')
     async def call(request: Request):
@@ -230,7 +286,7 @@ def create_app(data_dir=None, port=None, factory=None, catalog=None):
 
     @app.get('/')
     async def index():
-        return FileResponse(ROOT / 'web/index.html')
+        return FileResponse(ROOT / 'web/index.html', headers={'Cache-Control': 'no-store'})
 
     app.mount('/fusion-static', StaticFiles(directory=ROOT / 'web'), name='studio-static')
 

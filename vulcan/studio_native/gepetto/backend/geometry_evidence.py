@@ -4,7 +4,7 @@ import base64
 import json
 import time
 from pathlib import Path
-import httpx
+from vulcan.studio import global_http as httpx
 import numpy as np
 from PIL import Image
 from pydantic import BaseModel, Field
@@ -44,6 +44,7 @@ markings absent from the gray geometry."""
 PROMPT = " ".join(PROMPT.split())
 
 
+@httpx.global_model
 def preserve_modeled_part(
     model, item, inventory, labels, regions, geometry, original, control, evidence
 ):

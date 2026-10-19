@@ -2,7 +2,7 @@
 
 import base64, copy, json, time
 from pathlib import Path
-import httpx
+from vulcan.studio import global_http as httpx
 import numpy as np
 from PIL import Image
 from scipy import ndimage
@@ -105,6 +105,7 @@ def evidence_crop(source, labels, ids):
     return image
 
 
+@httpx.global_model
 def audit(
     model,
     source,

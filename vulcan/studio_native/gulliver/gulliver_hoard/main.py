@@ -4,6 +4,7 @@ come from Hoard Link)."""
 from __future__ import annotations
 
 import logging
+import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -36,7 +37,7 @@ def create_app(config: Config | None = None, services: Services | None = None) -
         try:
             yield
         finally:
-            svc.stop()
+            await asyncio.to_thread(svc.stop)
 
     app = FastAPI(title="Gulliver's Hoard", version=__version__, lifespan=lifespan, docs_url=None, redoc_url=None)
     app.state.config = config

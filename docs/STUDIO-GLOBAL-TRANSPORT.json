@@ -1,0 +1,28 @@
+{
+  "vision.py": [
+    "analyze"
+  ],
+  "commands.py": [
+    "interpret"
+  ],
+  "active_views.py": [
+    "audit_hidden"
+  ],
+  "geometry_evidence.py": [
+    "preserve_modeled_part"
+  ],
+  "scene_understanding.py": [
+    "understand_scene"
+  ],
+  "semantic_audit.py": [
+    "audit"
+  ],
+  "surface_plan.py": [
+    "infer_plan",
+    "observe_figure",
+    "infer_semantics",
+    "observe_surfaces",
+    "review_displacement"
+  ],
+  "runtime.py": []
+}

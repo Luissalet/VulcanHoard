@@ -61,18 +61,25 @@ def test_subprocess_http_and_mcp_bridge(app_process, library):
     health = httpx.get(f"{url}/api/health").json()
     assert health["service"] == "vulcan-hoard" and health["dataDirConfigured"] is True
     tools = httpx.get(f"{url}/api/agent/tools").json()["tools"]
-    assert [t["name"] for t in tools][:2] == ["models_search", "model_info"]
+    names = [t["name"] for t in tools]
+    assert names[:2] == ["vulcan_modules", "vulcan_set_module"]
+    assert "models_search" in names and "model_info" in names
 
     token = (data_dir / "mcp-token").read_text().strip()
     assert len(token) >= 32
     assert httpx.post(f"{url}/api/agent/call", json={"name": "models_stats"}).status_code == 401
     auth = {"Authorization": f"Bearer {token}"}
+    disabled = httpx.post(f"{url}/api/agent/call", json={"name": "models_stats"}, headers=auth)
+    assert disabled.status_code == 409
+    activated = httpx.post(f"{url}/api/agent/call", json={"name": "vulcan_set_module", "arguments": {
+        "module": "library", "enabled": True, "automatic": True}}, headers=auth, timeout=60)
+    assert activated.status_code == 200
     added = httpx.post(f"{url}/api/agent/call", json={"name": "models_add_root", "arguments": {"path": str(library), "name": "E2E"}}, headers=auth).json()
     assert added["ok"] is True
 
     deadline = time.time() + 120
     while time.time() < deadline:
-        status = httpx.get(f"{url}/api/status").json()
+        status = httpx.get(f"{url}/library/api/status").json()
         if status["counts"]["models"] >= EXPECTED_MODELS and not status["worker"]["busy"]:
             break
         time.sleep(0.3)
@@ -90,7 +97,7 @@ def test_subprocess_http_and_mcp_bridge(app_process, library):
         async with stdio_client(params) as (read, write):
             async with ClientSession(read, write) as session:
                 init = await session.initialize()
-                assert "models_search" in (init.instructions or "")
+                assert "module" in (init.instructions or "").lower()
                 listed = await session.list_tools()
                 names = [t.name for t in listed.tools]
                 assert names == [t["name"] for t in tools]
@@ -113,5 +120,5 @@ def test_subprocess_http_and_mcp_bridge(app_process, library):
 
     asyncio.run(through_mcp())
     # the listing written through MCP is visible in the plain API
-    listed = httpx.get(f"{url}/api/models", params={"has_listing": "true"}).json()
+    listed = httpx.get(f"{url}/library/api/models", params={"has_listing": "true"}).json()
     assert listed["total"] == 1 and listed["models"][0]["rel_path"] == "dragones/dragon_cubo_v2.stl"

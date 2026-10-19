@@ -179,23 +179,49 @@ def announce(rec: Any, store: Any, exports_dir: Path, *, sleep: Callable[[float]
     return payloads
 
 
-def start(scheduler: Any, store: Any, data_dir: Path | str) -> None:
+def start(scheduler: Any, store: Any, data_dir: Path | str):
     """Configure the library and announce finished exports; also watch the scheduler, which only notices a finished
     job when somebody asks for it."""
     configure(data_dir)
     exports_dir = Path(data_dir) / "exports"
+    stopped = threading.Event()
+    active = set()
+    lock = threading.RLock()
 
     def hook(rec: Any) -> None:
-        threading.Thread(target=lambda: announce(rec, store, exports_dir), name="plato-announce", daemon=True).start()
+        def run():
+            try:
+                announce(rec, store, exports_dir)
+            finally:
+                with lock:
+                    active.discard(threading.current_thread())
+        with lock:
+            if stopped.is_set():
+                return
+            thread = threading.Thread(target=run, name="plato-announce", daemon=True)
+            active.add(thread)
+            thread.start()
 
     scheduler.add_done_hook(hook)
 
     def watch() -> None:
-        while True:
-            time.sleep(2.0)
+        while not stopped.wait(2.0):
             try:
                 scheduler.poll()
             except Exception:  # noqa: BLE001
                 pass
 
-    threading.Thread(target=watch, name="plato-jobs-watch", daemon=True).start()
+    watcher = threading.Thread(target=watch, name="plato-jobs-watch", daemon=True)
+    watcher.start()
+
+    def close():
+        with lock:
+            stopped.set()
+        scheduler.remove_done_hook(hook)
+        watcher.join()
+        with lock:
+            pending = list(active)
+        for thread in pending:
+            thread.join()
+
+    return close

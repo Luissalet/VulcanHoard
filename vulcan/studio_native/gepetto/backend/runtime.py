@@ -1,7 +1,7 @@
 """Observed Ollama and GPU state; model operations remain asynchronous."""
 
 import csv, io, json, re, subprocess, threading, time
-import httpx
+from vulcan.studio import global_http as httpx
 from .vision import OLLAMA
 
 operation = {"status": "idle"}

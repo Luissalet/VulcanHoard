@@ -11,7 +11,7 @@ from vulcan.hoard_link import proc
 from .store import TERMINAL
 
 class JobManager:
-    def __init__(self,config,store,runner=None):
+    def __init__(self,config,store,runner=None,*,resume_pending=False):
         self.config=config
         self.store=store
         self.queue=queue.Queue()
@@ -22,9 +22,10 @@ class JobManager:
         self.store.recover()
         self.thread=threading.Thread(target=self.loop,name='daedalus-jobs',daemon=True)
         self.thread.start()
-        for job in reversed(self.store.list()):
-            if job['status']=='queued':
-                self.enqueue(job['id'])
+        if resume_pending:
+            for job in reversed(self.store.list()):
+                if job['status']=='queued':
+                    self.enqueue(job['id'])
 
     def enqueue(self,identity):
         with self.lock:

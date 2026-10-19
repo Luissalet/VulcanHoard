@@ -67,6 +67,37 @@ def test_native_catalog_dispatch_defaults_off_and_keeps_schema(tmp_path):
     assert events == [('on','heron',False),('off','heron',False),('on','heron',False),('off','heron',False)]
 
 
+def test_openapi_body_fields_and_binary_download_tools_use_native_routes(tmp_path):
+    from fastapi import Response
+    received = []
+    def native(key, path, automatic):
+        app = FastAPI()
+        @app.post('/api/pieces/{piece_id}')
+        async def edit(piece_id: str, body: dict):
+            received.append((piece_id, body))
+            return {'id': piece_id, **body}
+        @app.get('/api/piece.stl')
+        async def download():
+            return Response(b'native mesh', media_type='application/octet-stream')
+        return app
+    catalog = [{'name':'edit_piece','module':'gepetto','inputSchema':{},'rest':{
+        'method':'POST','path':'/api/pieces/{piece_id}','params':{
+            'piece':{'orig':'piece_id','in':'path','required':True},
+            'title':{'orig':'name','in':'body_field','required':True}}}},
+        {'name':'download_piece','module':'gepetto','inputSchema':{},'rest':{
+            'method':'GET','path':'/api/piece.stl','params':{}}}]
+    app = create_app(tmp_path,64836,factory=native,catalog=catalog)
+    with TestClient(app,base_url='http://127.0.0.1:64836') as client:
+        client.put('/api/modules/gepetto',json={'enabled':True}).raise_for_status()
+        auth={'Authorization':'Bearer '+app.state.token}
+        edited=client.post('/api/agent/call',headers=auth,json={
+            'name':'edit_piece','arguments':{'piece':'native-id','title':'Original name'}})
+        assert edited.status_code==200 and received==[('native-id',{'name':'Original name'})]
+        downloaded=client.post('/api/agent/call',headers=auth,json={'name':'download_piece'}).json()
+        assert downloaded['bytes']==11 and downloaded['download_url']=='/gepetto/api/piece.stl'
+        assert client.get(downloaded['download_url']).content==b'native mesh'
+
+
 def test_explicit_saved_choice_and_stop_all_persist(tmp_path):
     events = []
     app = create_app(tmp_path, 64836, factory=factory(events), catalog=[])
@@ -93,7 +124,9 @@ def test_projects_and_artifact_revisions_are_readable_with_engines_off(tmp_path)
             return response.json()
         project=call('vulcan_studio_create',{'title':'Measured miniature'})
         args={'id':project['id'],'module':'heron','native_id':'existing-id','revision':'r2'}
-        assert call('vulcan_studio_link',args)['links']==[{key:args[key] for key in ('module','native_id','revision')}]
+        link=call('vulcan_studio_link',args)['links'][0]
+        assert {key:link[key] for key in ('module','native_id','revision')}=={key:args[key] for key in ('module','native_id','revision')}
+        assert link['url']=='/heron/?build=existing-id'
         row=call('vulcan_studio_artifact',{**args,'path':str(artifact)})['artifacts'][0]
         assert row['sha256']==hashlib.sha256(artifact.read_bytes()).hexdigest()
     reopened=create_app(tmp_path/'data',64836,factory=lambda *args:pytest.fail('Unexpected engine'),catalog=[])

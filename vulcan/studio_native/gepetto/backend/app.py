@@ -29,6 +29,7 @@ from .processing import (
     HEIGHT_PALETTE,
 )
 from . import vision
+from vulcan.studio import global_http
 from . import family_events
 from .hoard_link.atomic import write_json_atomic
 from .hoard_link.copilot import install_copilot
@@ -503,6 +504,7 @@ class AnalyzeRequest(BaseModel):
     meshes: list[dict] = Field(max_length=250)
 
 
+@global_http.job
 def analysis_job(jid, pid, body, snapshot):
     evidence = folder(pid) / "analyses" / jid
     evidence.mkdir(parents=True, exist_ok=True)
@@ -822,6 +824,7 @@ class EvaluationRequest(BaseModel):
     target: list[str] | None = Field(default=None, max_length=20)
 
 
+@global_http.job
 def evaluation_job(jid, pid, body, snapshot):
     from .closed_loop import run, write
 

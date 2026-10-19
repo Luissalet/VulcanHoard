@@ -30,6 +30,7 @@ from pathlib import Path
 from .db import Database
 from .hoard_link import atomic
 from .store import Root, RootStore, normalise_tags
+from .studio.global_http import job as global_job
 
 LISTING_FILE = "cults3d.json"
 TEMPLATE_FILE = "cults3d_template.json"
@@ -408,6 +409,7 @@ class DraftWorker:
         self._lock = threading.Lock()
         self._progress: dict | None = None
         self._thread: threading.Thread | None = None
+        self._stop = threading.Event()
 
     def running(self) -> bool:
         with self._lock:
@@ -421,6 +423,7 @@ class DraftWorker:
         with self._lock:
             if self._thread and self._thread.is_alive():
                 raise RuntimeError("A draft batch is already running; wait for it to finish.")
+            self._stop.clear()
             self._progress = {"phase": "running", "total": len(targets), "done": 0, "drafted": 0, "skipped": 0,
                                "errors": [], "started_at": time.time(), "finished_at": None}
             thread = threading.Thread(target=self._run, args=(list(targets), overwrite), daemon=True, name="vulcan-draft")
@@ -428,9 +431,12 @@ class DraftWorker:
         thread.start()
         return self.status()
 
+    @global_job
     def _run(self, targets: list[tuple[int, str]], overwrite: bool) -> None:
         link = self.link_factory()
         for root_id, rel in targets:
+            if self._stop.is_set():
+                break
             try:
                 result = self.folder_listings.draft_one(root_id, rel, link, overwrite=overwrite)
                 with self._lock:
@@ -441,8 +447,15 @@ class DraftWorker:
             with self._lock:
                 self._progress["done"] += 1
         with self._lock:
-            self._progress["phase"] = "done"
+            self._progress["phase"] = "cancelled" if self._stop.is_set() else "done"
             self._progress["finished_at"] = time.time()
+
+    def stop(self) -> None:
+        self._stop.set()
+        with self._lock:
+            thread = self._thread
+        if thread is not None:
+            thread.join()
 
     def wait_idle(self, timeout: float = 30.0) -> bool:
         deadline = time.time() + timeout

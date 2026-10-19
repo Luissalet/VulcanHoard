@@ -2,7 +2,7 @@
 
 import copy, json, uuid
 from typing import Literal
-import httpx
+from vulcan.studio import global_http as httpx
 from pydantic import BaseModel, Field
 from .vision import OLLAMA
 from .relief_preferences import EYE_ORDER
@@ -60,6 +60,7 @@ def inventory(project):
     ]
 
 
+@httpx.global_model
 def interpret(model, command, project, selected, evidence):
     items = inventory(project)
     allowed = {i["key"] for i in items}

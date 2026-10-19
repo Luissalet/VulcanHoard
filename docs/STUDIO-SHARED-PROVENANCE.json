@@ -1,0 +1,61 @@
+{
+  "repository": "Borges-Hoard",
+  "commit": "10db1fb",
+  "files": [
+    {
+      "source_path": "fusion/native_response.py",
+      "target_path": "vulcan/studio/native_response.py",
+      "source_sha256": "5f3944b74a6439d66949620ffafe6db6af8ddf538ac3081207b8914404219ae1",
+      "current_sha256": "a2f8a0540347a7789baeb3a17b4e3802e8a48b8ee3b8cc9100aefd42ace482c6"
+    },
+    {
+      "source_path": "fusion/web/style.css",
+      "target_path": "vulcan/studio/web/style.css",
+      "source_sha256": "4247e819d85db9cc843e69843448897dbf7c311a7d56ecf3cbf2df101d46695c",
+      "current_sha256": "4247e819d85db9cc843e69843448897dbf7c311a7d56ecf3cbf2df101d46695c"
+    },
+    {
+      "source_path": "fusion/web/module-shell.css",
+      "target_path": "vulcan/studio/web/module-shell.css",
+      "source_sha256": "686ba5ec355ba3ea3cc9f247ee507c1bcee7c65c96ce9ed8b51cdcfe517643cc",
+      "current_sha256": "686ba5ec355ba3ea3cc9f247ee507c1bcee7c65c96ce9ed8b51cdcfe517643cc"
+    },
+    {
+      "source_path": "fusion/web/hoard-theme.css",
+      "target_path": "vulcan/studio/web/hoard-theme.css",
+      "source_sha256": "dd4270e3d0571dca9b5d18ac9502934c4d14adc8c06e8adc93b2156ff78ba53f",
+      "current_sha256": "5bca9ec7d293198c0e5b2e0c2f9b6424af68b0c798ac71b0656708095de5c610"
+    },
+    {
+      "source_path": "fusion/web/fonts/Cinzel.ttf",
+      "target_path": "vulcan/studio/web/fonts/Cinzel.ttf",
+      "source_sha256": "f4d83d34d1f6c741193e4acf4b3dff9531e5a67b6aa65228d00a7db72a4e0f34",
+      "current_sha256": "f4d83d34d1f6c741193e4acf4b3dff9531e5a67b6aa65228d00a7db72a4e0f34"
+    },
+    {
+      "source_path": "fusion/web/fonts/OFL-Cinzel.txt",
+      "target_path": "vulcan/studio/web/fonts/OFL-Cinzel.txt",
+      "source_sha256": "f2b3029aba64c378bf0963b62945eee15e564fe4330b934c8f2eb058282b5e83",
+      "current_sha256": "f2b3029aba64c378bf0963b62945eee15e564fe4330b934c8f2eb058282b5e83"
+    },
+    {
+      "source_path": "fusion/web/fonts/OFL-SourceSans3.txt",
+      "target_path": "vulcan/studio/web/fonts/OFL-SourceSans3.txt",
+      "source_sha256": "18aabf190848725e2576eefb5c29ba06aac1029d02132252a7f312eac2e50cf3",
+      "current_sha256": "18aabf190848725e2576eefb5c29ba06aac1029d02132252a7f312eac2e50cf3"
+    },
+    {
+      "source_path": "fusion/web/fonts/SourceSans3.woff2",
+      "target_path": "vulcan/studio/web/fonts/SourceSans3.woff2",
+      "source_sha256": "7a19a7027e125257d310c6dbd78ae3a30b5ea1e3794d60b12bb28227a003bfda",
+      "current_sha256": "7a19a7027e125257d310c6dbd78ae3a30b5ea1e3794d60b12bb28227a003bfda"
+    }
+  ],
+  "cancellation": {
+    "source": "Writer publishing/fusion/cancellation.py",
+    "commit": "b8180c7bb8a606417a05f3aa71fd2384d4df199a",
+    "target": "vulcan/studio/cancellation.py",
+    "sha256": "0648f5c60ec0cb7d68f61d3968561e290512dc0b3b50224faf2669d4470b96bb",
+    "note": "Shared owned cancellation/join implementation after independent CAS3 approval; SDK unchanged."
+  }
+}

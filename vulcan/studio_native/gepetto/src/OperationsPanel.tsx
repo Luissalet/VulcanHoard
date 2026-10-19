@@ -61,8 +61,7 @@ export default function OperationsPanel({
     [queue, setQueue] = useState<Queue>({ paused: true, items: [] }),
     [error, setError] = useState(''),
     [pending, setPending] = useState(false),
-    [samples, setSamples] = useState<Record<string, number[]>>({}),
-    [download, setDownload] = useState('');
+    [samples, setSamples] = useState<Record<string, number[]>>({});
   const [directory, setDirectory] = useState(() => {
       try {
         return localStorage.getItem('sculpthoard-directory') || '';
@@ -147,64 +146,18 @@ export default function OperationsPanel({
             {!runtime
               ? 'Leyendo el estado…'
               : !runtime.online
-                ? 'Ollama no está disponible.'
+                ? 'El servicio global no está disponible.'
                 : !model || !models.some((m) => m.name === model && m.vision)
                   ? 'Consultando modelos de visión. Puedes actualizar la lista si no aparece ninguno.'
                   : loaded
                     ? 'El modelo seleccionado está cargado en memoria.'
-                    : 'El modelo seleccionado está en disco; se cargará al utilizarlo.'}
+                    : 'La disponibilidad se comprobará al iniciar el trabajo; no se carga otro modelo.'}
           </p>
           <div className="operation-actions">
-            <button
-              className="button primary"
-              disabled={!!blocked || !model || !runtime?.online || loaded}
-              onClick={() => void action('/runtime/model', { action: 'load', model })}
-            >
-              Cargar modelo
-            </button>
-            <button
-              className="button secondary"
-              disabled={!!blocked || !loaded}
-              onClick={() => void action('/runtime/model', { action: 'unload', model })}
-            >
-              Liberar memoria
-            </button>
-            <button
-              className="text-button"
-              disabled={pending}
-              onClick={() => void onRefresh().catch((e) => setError(e.message))}
-            >
-              Actualizar modelos
-            </button>
+            <a className="button primary" href="http://127.0.0.1:7000/settings" target="_blank" rel="noreferrer">Administrar modelo global en Faustus</a>
+            <button className="text-button" disabled={pending} onClick={() => void onRefresh().catch((e) => setError(e.message))}>Actualizar modelos</button>
           </div>
-          {runtime?.operation.message && (
-            <p role="status">
-              {runtime.operation.message}
-              {runtime.operation.total
-                ? ` · ${Math.round((100 * (runtime.operation.completed || 0)) / runtime.operation.total)} %`
-                : ''}
-            </p>
-          )}
-          <details>
-            <summary>Descargar otro modelo</summary>
-            <label className="field-select">
-              Nombre de Ollama
-              <input
-                placeholder="Nombre:etiqueta del modelo"
-                value={download}
-                onChange={(e) => setDownload(e.target.value)}
-              />
-            </label>
-            <button
-              className="button secondary"
-              disabled={!!blocked || !download.trim()}
-              onClick={() =>
-                void action('/runtime/model', { action: 'download', model: download.trim() })
-              }
-            >
-              Descargar al disco
-            </button>
-          </details>
+          <p>El modelo de interpretación se configura en Faustus. Este estudio no carga ni descarga LLMs locales.</p>
           {!!runtime?.loaded.length && (
             <div className="loaded-models">
               <h3>Modelos en memoria</h3>

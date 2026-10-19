@@ -641,12 +641,12 @@ export default function App() {
         }}
       />
       <header className="topbar with-pose-navigation">
-        <a className="brand" href="/" aria-label="Gepetto’s Hoard">
+        <a className="brand" href="/" aria-label="Figuras y relieves">
           <span className="brand-symbol">
-            <img src="/icon-192.png" alt="" width={30} height={30} />
+            <img src="/fusion-static/icon-192.png" alt="" width={30} height={30} />
           </span>
           <strong>
-            gepetto’s <span>hoard</span>
+            figuras y <span>relieves</span>
           </strong>
         </a>
         <div className="project-breadcrumb">
@@ -663,7 +663,7 @@ export default function App() {
           </button>
           <span className="local-label">
             <span className={online ? 'status-dot' : 'status-dot offline'} />
-            Local · {online ? 'visión disponible' : 'sin conexión IA'}
+            IA global · {online ? 'configurada en Faustus' : 'no disponible'}
           </span>
           <button
             className="button plain mobile-rail"
@@ -1380,7 +1380,7 @@ export default function App() {
                   </button>
                   {!online && (
                     <button className="text-button" onClick={() => void refreshModels()}>
-                      Volver a conectar con Ollama
+                      Volver a consultar el modelo global
                     </button>
                   )}
                   {!project?.models.length && (

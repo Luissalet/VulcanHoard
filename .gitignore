@@ -1,12 +1,14 @@
 node_modules/
 vulcan/static/
 dist/
+build/
 data/
 venv/
 .venv/
 __pycache__/
 *.pyc
 *.egg-info/
+*.tsbuildinfo
 .pytest_cache/
 .env
 .env.*

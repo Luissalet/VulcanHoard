@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import asyncio
 import io
 import json
 import math
@@ -67,7 +68,7 @@ def public_job(job):
         job['result']=result
     return job
 
-def create_app(data_dir=None,runner=None,port=None):
+def create_app(data_dir=None,runner=None,port=None,automatic=False):
     config=Config(data_dir)
     if port is not None: config.port=port
     store=Store(config.data/'daedalus.db')
@@ -81,11 +82,11 @@ def create_app(data_dir=None,runner=None,port=None):
             instance.acquire(timeout=0)
         except Timeout as error:
             raise RuntimeError('Ya hay una instancia de Daedalus usando estos datos.') from error
-        app.state.manager=JobManager(config,store,runner)
+        app.state.manager=JobManager(config,store,runner,resume_pending=automatic)
         try:
             yield
         finally:
-            app.state.manager.close()
+            await asyncio.to_thread(app.state.manager.close)
             instance.release()
 
     app=FastAPI(title="Daedalus's Hoard",lifespan=lifespan)

@@ -14,12 +14,25 @@ DEBOUNCE_S = 2.0
 CHANGE_EVENTS = frozenset({"created", "modified", "moved", "deleted"})
 
 
+class _OwnedTimer(threading.Timer):
+    def __init__(self, *args, on_finished, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.on_finished = on_finished
+
+    def run(self):
+        try:
+            super().run()
+        finally:
+            self.on_finished(self)
+
+
 class Watcher:
     def __init__(self, enqueue: Callable[[int], bool]):
         self.enqueue = enqueue
         self._observer = None
         self._watches: dict[int, object] = {}
         self._timers: dict[int, threading.Timer] = {}
+        self._timer_threads: set[threading.Timer] = set()
         self._lock = threading.Lock()
         self.available = True
         self.error: str | None = None
@@ -90,13 +103,20 @@ class Watcher:
             timer = self._timers.pop(root_id, None)
             if timer:
                 timer.cancel()
-            timer = threading.Timer(DEBOUNCE_S, self._fire, args=(root_id,))
+            timer = _OwnedTimer(DEBOUNCE_S, self._fire, args=(root_id,), on_finished=self._timer_finished)
             timer.daemon = True
             self._timers[root_id] = timer
+            self._timer_threads.add(timer)
             timer.start()
+
+    def _timer_finished(self, timer):
+        with self._lock:
+            self._timer_threads.discard(timer)
 
     def _fire(self, root_id: int) -> None:
         with self._lock:
+            if self._timers.get(root_id) is not threading.current_thread():
+                return
             self._timers.pop(root_id, None)
         self.enqueue(root_id)
 
@@ -104,13 +124,16 @@ class Watcher:
         return sorted(self._watches)
 
     def stop(self) -> None:
-        with self._lock:
-            for timer in self._timers.values():
-                timer.cancel()
-            self._timers.clear()
         if self._observer is not None:
             self._observer.stop()
-            self._observer.join(timeout=5)
+            self._observer.join()
             self._observer = None
+        with self._lock:
+            timers = list(self._timer_threads)
+            for timer in timers:
+                timer.cancel()
+            self._timers.clear()
+        for timer in timers:
+            timer.join()
         self._watches.clear()
 

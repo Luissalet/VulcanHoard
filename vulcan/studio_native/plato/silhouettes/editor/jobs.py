@@ -300,6 +300,11 @@ class JobScheduler:
         self._done_hooks.append(hook)
 
     @_locked
+    def remove_done_hook(self, hook) -> None:
+        if hook in self._done_hooks:
+            self._done_hooks.remove(hook)
+
+    @_locked
     def poll(self) -> None:
         """Notice finished jobs without anybody asking for them (a background watcher calls this)."""
         self._poll_all()

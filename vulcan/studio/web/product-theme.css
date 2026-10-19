@@ -1,11 +1,86 @@
 /* The live family palette is canonical; DESIGN.md predates the shared theme. */
-::selection { background:var(--hoard-accent-soft); color:var(--hoard-text); }
-:focus-visible { outline:2px solid var(--hoard-accent); outline-offset:3px; }
-input { caret-color:var(--hoard-accent); }
-.project-input { display:flex; gap:12px; margin:8px 0 24px; }
-.project-input input { min-width:0; flex:1; padding:10px; background:var(--hoard-bg); color:var(--hoard-text); border:1px solid var(--hoard-line); border-radius:6px; font:inherit; }
-#projects { margin-top:48px; padding-top:24px; border-top:1px solid var(--line); scroll-margin-top:20px; }
-#project-list article { padding:16px 0; border-bottom:1px solid var(--line); }
-#project-list h3 { margin:0 0 8px; }
-.module-error { overflow-wrap:anywhere; }
-@media(max-width:600px) { .project-input { flex-direction:column; } }
+::selection {
+  background: var(--hoard-accent-soft);
+  color: var(--hoard-text);
+}
+:focus-visible {
+  outline: 2px solid var(--hoard-accent);
+  outline-offset: 3px;
+}
+input {
+  caret-color: var(--hoard-accent);
+}
+.project-input {
+  display: flex;
+  gap: 12px;
+  margin: 8px 0 24px;
+}
+.project-input input {
+  min-width: 0;
+  flex: 1;
+  padding: 10px;
+  background: var(--hoard-deep);
+  color: var(--hoard-text);
+  border: 1px solid var(--hoard-border);
+  border-radius: 6px;
+  font: inherit;
+}
+#projects {
+  margin-top: 48px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+  scroll-margin-top: 20px;
+}
+#project-list article {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+}
+#project-list h3 {
+  margin: 0 0 8px;
+}
+#project-list fieldset {
+  margin: 20px 0;
+  padding: 12px 0;
+  border: 0;
+  border-top: 1px solid var(--hoard-border);
+}
+#project-list legend {
+  font-weight: 600;
+  padding-right: 12px;
+}
+#project-list select,
+#project-list input {
+  max-width: 100%;
+  min-width: 0;
+  padding: 8px;
+  font: inherit;
+  color: var(--hoard-text);
+  background: var(--hoard-deep);
+  border: 1px solid var(--hoard-border);
+  border-radius: 6px;
+}
+.piece-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.piece-fields select,
+.piece-fields input {
+  flex: 1 1 180px;
+}
+.project-status {
+  color: var(--hoard-text-muted);
+  min-height: 1.5em;
+}
+.artifact-path {
+  overflow-wrap: anywhere;
+}
+.module-error {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 600px) {
+  .project-input {
+    flex-direction: column;
+  }
+}
