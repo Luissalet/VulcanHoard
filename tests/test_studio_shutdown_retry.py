@@ -32,14 +32,17 @@ def test_library_retains_real_global_http_client_until_close_succeeds(tmp_path, 
         link = app.state.services.link
         await asyncio.to_thread(link.sync._run, lambda inner: asyncio.sleep(0))
         client, thread = link.sync._inner._client, link.sync._thread
-        original = client.aclose
+        # The owner closes HTTPX's actual transport, whose failure must remain
+        # retryable independently of the client's early CLOSED flag.
+        transport = client._transport
+        original = transport.aclose
         attempts = []
         async def fail_twice():
             attempts.append('close')
             if len(attempts) < 3:
                 raise OSError('Real inner HTTP client remains open')
             await original()
-        monkeypatch.setattr(client, 'aclose', fail_twice)
+        monkeypatch.setattr(transport, 'aclose', fail_twice)
         try:
             for count in (1, 2):
                 with pytest.raises(OSError):
@@ -53,7 +56,7 @@ def test_library_retains_real_global_http_client_until_close_succeeds(tmp_path, 
             assert len(attempts) == 3 and owner.app is None
         finally:
             if owner.app is not None:
-                monkeypatch.setattr(client, 'aclose', original)
+                monkeypatch.setattr(transport, 'aclose', original)
                 await app.state.retry_shutdown()
     asyncio.run(scenario())
 
