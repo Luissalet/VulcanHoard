@@ -86,7 +86,7 @@ def import_file(services: Services, path: str, source_ref: str = "") -> dict:
               "name": model["name"], "format": model["format"], "root_id": root.id, "rel_path": model["rel_path"],
               "source_ref": model["source_ref"], "status": model["status"], "bbox": model["bbox"], "triangles": model["triangles"],
               "volume_cm3": model["volume_cm3"], "watertight": model["watertight"], "bodies": model["bodies"], "duplicate_of": model["dupe_of"],
-              "has_thumb": model["has_thumb"]}
+              "has_thumb": model["has_thumb"], "sha256": model["sha256"]}
     if outcome["created"]:
         family.emit("vulcan.model.added", {"model_id": model["id"], "ref": result["ref"], "name": model["name"], "format": model["format"],
                                            "path": model["path"], "source_ref": model["source_ref"] or ""})

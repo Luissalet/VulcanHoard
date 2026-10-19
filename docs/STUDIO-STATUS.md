@@ -1,18 +1,20 @@
 # Studio integration status
 
-Fisiones task928: source candidate awaiting independent review. It has not been integrated into the installed app, published or approved for real data relocation.
+Fisiones task928: CAS2 source candidate awaiting independent review. It has not been integrated into the installed app, published or approved for real data relocation.
 
 The studio owns the incorporated public sources of Gepetto, Daedalus, Plato, Heron and Gulliver. Existing Vulcan library functions remain available. All six modules and their automation start OFF; cold API/MCP discovery exposes160 tools without importing native engines, opening stores or spawning workers. Explicit activation preserves the complete native interfaces and formats under one owner. Shared projects retain native IDs, revisions, artifact hashes and library references.
 
 ## Verified
 
-- Full source suite:219 passed, zero failures/skips,86.195s. After the final native CAD HTML fix, the six native-flow/lifecycle tests passed again. The new assertion checks the actual CAD response for its scoped bootstrap, theme and owner navigation.
+- Full CAS2 source suite:231 passed, zero failures/skips,123.909s. This includes the native CAD HTML fix and12 artifact-revision regressions. The initial219-test run remains a separate historical baseline.
 - Actual stdio MCP discovery and native dispatch, complete schemas, native binary downloads, range requests, independent shutdown and persistent project/artifact operations.
 - CPU native flow: measured CadQuery piece to STL, shared project and revision, SHA256 reference, real library import, then readable/downloadable artifacts with all modules OFF.
 - Browser: initial OFF state, desktop/mobile390px shell, native editors and assets; SVG import/export, and PNG import with vtracer1.0.0a4 followed by five watertight STL meshes plus SVG/PNG exports. A shared native silhouette revision and its artifact were indexed into the real synthetic library. Global model configuration is displayed without invoking inference.
 - Cold historical queues remain paused unless automation is explicitly enabled. Shutdown joins native resources and asynchronous cleanup; cancellation never publishes OFF before cleanup completes.
 - Global transport tests cover exact endpoint/model/connection-revision pinning per job, family authentication, images and structured output, concurrent jobs, the real synchronous facade, streaming completion/truncation and child pose requests. No fallback, local model administration or live inference was used.
 - Both React builds passed. The wheel inspection checks all native HTML entrypoints, assets/fonts and lifecycle helpers and excludes stores, development environments, node_modules and Python caches. Licences and provenance are retained; the combined distribution is GPL3 with the original Vulcan MIT grant preserved.
+
+CAS1 independent review found that a changed artifact pathname could be indexed and downloaded under its old hash. CAS2 rejects changed SHA/size, requires the actual native library SHA, and retains a mandatory Windows read-sharing lease throughout import and ASGI download (including cancellation, errors, HEAD and Range). A cancelled caller joins pending acquisition/native consumption before releasing its handle. Historical registrations are preserved; the new revision must be registered explicitly. No file copies are introduced. Non-Windows reads validate hashes before/after but do not claim Windows mandatory write/delete exclusion.
 
 ## Remaining before activation
 
