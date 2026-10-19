@@ -1,5 +1,6 @@
 """Keep the family's Link API while resolving text/vision only to the global."""
 import asyncio
+import threading
 from contextvars import ContextVar
 
 from ..hoard_link import Link
@@ -10,6 +11,26 @@ from . import global_http
 
 
 class GlobalSync(SyncFacade):
+    def close(self, timeout=None):
+        loop, inner, thread = self._loop, self._inner, self._thread
+        if thread is threading.current_thread():
+            raise RuntimeError('Close the global client from its owning module')
+        if loop is not None:
+            if loop.is_running():
+                async def drain():
+                    if inner is not None and inner._owns_client and not inner._client.is_closed:
+                        await inner._client.aclose()
+                    await asyncio.get_running_loop().shutdown_default_executor()
+                asyncio.run_coroutine_threadsafe(drain(), loop).result()
+                loop.call_soon_threadsafe(loop.stop)
+            elif inner is not None and inner._owns_client and not inner._client.is_closed:
+                raise RuntimeError('The owned client still needs its shutdown loop')
+        if thread is not None:
+            thread.join()
+        if loop is not None:
+            loop.close()
+        self._loop = self._thread = self._inner = None
+
     def _twin(self):
         with self._start_lock:
             if self._inner is None:
@@ -24,6 +45,11 @@ class GlobalLink(Link):
         super().__init__(*args, **kwargs)
         self._selection = ContextVar('vulcan_global_selection', default=None)
         self.sync = GlobalSync(self)
+
+    async def aclose(self):
+        await asyncio.to_thread(self.sync.close)
+        if self._owns_client:
+            await self._client.aclose()
 
     async def resolve(self, capability, task=None):
         if capability not in ('llm', 'vision'):

@@ -29,6 +29,7 @@ def create_app(config: Config | None = None) -> FastAPI:
     async def retry_shutdown():
         if hasattr(app.state, 'services'):
             await asyncio.to_thread(app.state.services.stop)
+            await app.state.services.link.aclose()
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
