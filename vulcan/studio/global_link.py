@@ -8,6 +8,7 @@ from ..hoard_link.types import Resolution
 from ..hoard_link.reasoning import timeout_for
 from ..hoard_link._sync import SyncFacade
 from . import global_http
+from .close_client import OwnedAsyncClient, close_client
 
 
 class GlobalSync(SyncFacade):
@@ -15,15 +16,18 @@ class GlobalSync(SyncFacade):
         loop, inner, thread = self._loop, self._inner, self._thread
         if thread is threading.current_thread():
             raise RuntimeError('Close the global client from its owning module')
+        if loop is None and inner is not None and inner._owns_client:
+            loop = self._ensure_loop()
+            thread = self._thread
         if loop is not None:
             if loop.is_running():
                 async def drain():
-                    if inner is not None and inner._owns_client and not inner._client.is_closed:
-                        await inner._client.aclose()
+                    if inner is not None and inner._owns_client:
+                        await close_client(inner._client)
                     await asyncio.get_running_loop().shutdown_default_executor()
                 asyncio.run_coroutine_threadsafe(drain(), loop).result()
                 loop.call_soon_threadsafe(loop.stop)
-            elif inner is not None and inner._owns_client and not inner._client.is_closed:
+            elif inner is not None and inner._owns_client:
                 raise RuntimeError('The owned client still needs its shutdown loop')
         if thread is not None:
             thread.join()
@@ -41,15 +45,16 @@ class GlobalSync(SyncFacade):
 
 
 class GlobalLink(Link):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, config, client=None):
+        super().__init__(config, client=OwnedAsyncClient(trust_env=False) if client is None else client)
+        self._owns_client = client is None
         self._selection = ContextVar('vulcan_global_selection', default=None)
         self.sync = GlobalSync(self)
 
     async def aclose(self):
         await asyncio.to_thread(self.sync.close)
         if self._owns_client:
-            await self._client.aclose()
+            await close_client(self._client)
 
     async def resolve(self, capability, task=None):
         if capability not in ('llm', 'vision'):
