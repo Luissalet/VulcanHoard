@@ -76,6 +76,11 @@ def create_app(data_dir=None,runner=None,port=None,automatic=False):
     instance=FileLock(str(config.data/'server.lock'))
     settings_lock=threading.RLock()
 
+    async def retry_shutdown():
+        if hasattr(app.state, 'manager'):
+            await asyncio.to_thread(app.state.manager.close)
+        instance.release()
+
     @asynccontextmanager
     async def lifespan(app):
         try:
@@ -86,12 +91,12 @@ def create_app(data_dir=None,runner=None,port=None,automatic=False):
         try:
             yield
         finally:
-            await asyncio.to_thread(app.state.manager.close)
-            instance.release()
+            await retry_shutdown()
 
     app=FastAPI(title="Daedalus's Hoard",lifespan=lifespan)
     app.state.config=config
     app.state.store=store
+    app.state.retry_shutdown=retry_shutdown
 
     @app.get('/app-icon.png',include_in_schema=False)
     def app_icon():

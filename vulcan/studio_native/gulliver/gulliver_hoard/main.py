@@ -28,6 +28,10 @@ STATIC_DIR = Path(__file__).resolve().parent / "static"
 def create_app(config: Config | None = None, services: Services | None = None) -> FastAPI:
     config = config or (services.config if services else Config.from_env())
 
+    async def retry_shutdown():
+        if hasattr(app.state, 'services'):
+            await asyncio.to_thread(app.state.services.stop)
+
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         svc = services or Services(config)
@@ -37,10 +41,11 @@ def create_app(config: Config | None = None, services: Services | None = None) -
         try:
             yield
         finally:
-            await asyncio.to_thread(svc.stop)
+            await retry_shutdown()
 
     app = FastAPI(title="Gulliver's Hoard", version=__version__, lifespan=lifespan, docs_url=None, redoc_url=None)
     app.state.config = config
+    app.state.retry_shutdown = retry_shutdown
     family.configure(APP_ID, str(config.data_dir), token_file=str(config.token_path))
     install_guard(app, port_getter=lambda: config.port, allowed_env="GULLIVER_ALLOWED_HOSTS", allowed_hosts=config.allowed_hosts)
     install_error_handlers(app)

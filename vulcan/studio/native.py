@@ -51,33 +51,47 @@ def create_native(key, data_dir, *, port, automatic=False):
     if key == 'gepetto':
         name, server = load_engine('vulcan.studio_native.gepetto.backend', data_dir, port)
         native_lifespan = server.app.router.lifespan_context
+        native_shutdown = server.app.state.retry_shutdown
+
+        async def retry_shutdown():
+            await native_shutdown()
+            sys.modules.pop(name, None)
 
         @asynccontextmanager
         async def lifespan(app):
-            try:
-                async with native_lifespan(app):
-                    yield
-            finally:
-                sys.modules.pop(name, None)
+            async with native_lifespan(app):
+                yield
+            sys.modules.pop(name, None)
 
         server.app.router.lifespan_context = lifespan
+        server.app.state.retry_shutdown = retry_shutdown
         return server.app
     if key == 'plato':
         from starlette.middleware.wsgi import WSGIMiddleware
         from fastapi import FastAPI
         name, engine = load_engine('vulcan.studio_native.plato', data_dir, port)
+        close_family = None
+        family_closed = False
+
+        async def retry_shutdown():
+            nonlocal family_closed
+            if close_family is not None and not family_closed:
+                await asyncio.to_thread(close_family)
+                family_closed = True
+            await asyncio.to_thread(engine._scheduler.shutdown)
+            sys.modules.pop(name, None)
 
         @asynccontextmanager
         async def lifespan(app):
+            nonlocal close_family
             close_family = engine.plato_family.start(engine._scheduler, engine._store, data_dir)
             try:
                 yield
             finally:
-                await asyncio.to_thread(close_family)
-                await asyncio.to_thread(engine._scheduler.shutdown)
-                sys.modules.pop(name, None)
+                await retry_shutdown()
 
         app = FastAPI(lifespan=lifespan)
+        app.state.retry_shutdown = retry_shutdown
         app.mount('/', WSGIMiddleware(engine.app))
         return app
     raise ValueError('Unknown studio module')
