@@ -12,8 +12,8 @@ import './reference-pose.css';
 
 type Capabilities = {
   blender: boolean;
-  codex: boolean;
-  local_models: { name: string; vision: boolean }[];
+  global_available: boolean;
+  global_model: string;
 };
 type PoseRun = {
   id: string;
@@ -49,7 +49,6 @@ export default function ReferencePosePanel({
   const [blendPath, setBlendPath] = useState('');
   const [reference, setReference] = useState<File | null>(null);
   const [referenceUrl, setReferenceUrl] = useState('');
-  const [provider, setProvider] = useState('codex');
   const [runs, setRuns] = useState<PoseRun[]>([]);
   const [run, setRun] = useState<PoseRun | null>(null);
   const [pending, setPending] = useState(false);
@@ -119,8 +118,8 @@ export default function ReferencePosePanel({
       if (source === 'project' && project?.blenderSource) body.set('project_id', project.id);
       else body.set('blend_path', blendPath.trim());
       if (reference) body.set('reference', reference);
-      body.set('provider', provider === 'codex' ? 'codex' : 'ollama');
-      if (provider !== 'codex') body.set('model', provider.slice(7));
+      body.set('provider', 'global');
+      body.set('model', capabilities?.global_model || '');
       const next = await api<PoseRun>('/pose-runs', { method: 'POST', body });
       setRun(next);
       setRuns((old) => [next, ...old]);
@@ -150,7 +149,7 @@ export default function ReferencePosePanel({
 
   const ready =
     capabilities?.blender &&
-    (provider !== 'codex' || capabilities.codex) &&
+    capabilities.global_available &&
     (source === 'project' ? !!project?.blenderSource : !!blendPath.trim());
   const shownReference = run?.has_reference ? fileUrl(run, 'reference.png') : referenceUrl;
   return (
@@ -273,20 +272,11 @@ export default function ReferencePosePanel({
             <legend>Interpretar la referencia</legend>
             <label className="pose-field">
               Modelo
-              <select value={provider} onChange={(event) => setProvider(event.target.value)}>
-                <option value="codex">Codex · sesión iniciada</option>
-                {capabilities?.local_models
-                  .filter((model) => model.vision)
-                  .map((model) => (
-                    <option key={model.name} value={`ollama:${model.name}`}>
-                      {model.name} · local
-                    </option>
-                  ))}
-              </select>
+              <input value={capabilities?.global_model || 'Modelo global no disponible'} readOnly />
             </label>
             <p className="pose-hint">
-              Codex utiliza tu sesión, sin clave API. Los modelos locales con visión aparecen si
-              están disponibles.
+              Utiliza el modelo global configurado en Faustus. La interpretación de referencias
+              requiere que ese modelo admita imágenes.
             </p>
           </fieldset>
           {capabilities && !capabilities.blender && (
@@ -294,9 +284,9 @@ export default function ReferencePosePanel({
               No se encuentra Blender. Configúralo antes de generar una pose.
             </p>
           )}
-          {capabilities && provider === 'codex' && !capabilities.codex && (
+          {capabilities && !capabilities.global_available && (
             <p className="pose-error" role="alert">
-              Codex no está disponible. Inicia sesión o elige un modelo local con visión.
+              El modelo global no anuncia visión disponible. Revisa su configuración en Faustus.
             </p>
           )}
           {error && (

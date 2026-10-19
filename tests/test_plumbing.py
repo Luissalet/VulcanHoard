@@ -58,7 +58,9 @@ def test_a_second_start_reports_the_running_app_and_leaves_the_token_alone(tmp_p
         assert second.returncode == 0 and "already running" in second.stdout
         assert token_file.read_text() == before
         auth = {"Authorization": f"Bearer {before.strip()}"}
-        assert httpx.post(f"http://127.0.0.1:{port}/api/agent/call", json={"name": "models_stats"}, headers=auth).status_code == 200
+        assert httpx.post(f"http://127.0.0.1:{port}/api/agent/call", json={"name": "models_stats"}, headers=auth).status_code == 409
+        modules = httpx.post(f"http://127.0.0.1:{port}/api/agent/call", json={"name": "vulcan_modules"}, headers=auth)
+        assert modules.status_code == 200 and all(not module['enabled'] for module in modules.json()['modules'])
     finally:
         first.terminate()
         try:

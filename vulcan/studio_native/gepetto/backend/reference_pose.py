@@ -19,7 +19,7 @@ from pydantic import BaseModel
 from .closed_loop import BLENDER,ROOT
 from .hoard_link.atomic import write_json_atomic
 from . import vision
-from vulcan.studio_native.gepetto.pose_engine.core.card_pose_vision import codex_executable
+from vulcan.studio import global_http
 
 TERMINAL={'succeeded','failed','cancelled'}
 FILES={'reference.png':'card.png','preview.png':'preview.png','posed.blend':'posed.blend','report.json':'result.json'}
@@ -113,6 +113,7 @@ class PoseQueue:
         except subprocess.TimeoutExpired:
             proc.kill();proc.wait(timeout=10)
 
+    @global_http.job
     def work(self,rid):
         cancel=self.cancel_events[rid]
         if cancel.is_set(): return
@@ -123,10 +124,14 @@ class PoseQueue:
         env=os.environ.copy()
         env['FIGURE_TOOLS_POSE_PROVIDER']=item['provider']
         env['FIGURE_TOOLS_POSE_MODEL']=item['model']
-        env['FIGURE_TOOLS_OLLAMA_URL']=vision.OLLAMA
         proc=None
         started=time.monotonic()
         try:
+            selection=global_http.selected()
+            env['VULCAN_GLOBAL_MODEL_CONFIG']=json.dumps(selection)
+            env['FIGURE_TOOLS_POSE_PROVIDER']='global'
+            env['FIGURE_TOOLS_POSE_MODEL']=selection['model']
+            self.update(rid,provider='global',model=selection['model'])
             self.update(rid,status='running',message='Abriendo el personaje en Blender…')
             with (p/'worker.log').open('w',encoding='utf-8') as log:
                 proc=subprocess.Popen([str(BLENDER),'--background','--factory-startup','--disable-autoexec',
@@ -171,11 +176,11 @@ def router_for(server):
 
     @router.get('/api/pose-capabilities')
     def capabilities():
-        try: codex=bool(codex_executable())
-        except (RuntimeError,ValueError): codex=False
-        return {'blender':BLENDER.is_file(),'codex':codex,
-                'local_models':[m for m in vision.models()['models'] if m.get('vision') is True],
-                'default_provider':'codex'}
+        models = vision.models()
+        available = [m for m in models['models'] if m.get('vision') is True]
+        return {'blender':BLENDER.is_file(), 'global_available':bool(available),
+                'global_model':available[0]['name'] if available else '',
+                'codex':False, 'local_models':[], 'default_provider':'global'}
 
     @router.get('/api/pose-runs')
     def runs(): return queue.list()
@@ -184,19 +189,18 @@ def router_for(server):
     def run(rid:str): return queue.read(rid)
 
     @router.post('/api/pose-runs')
-    async def create(blend_path:str=Form(''),project_id:str=Form(''),provider:str=Form('codex'),
+    async def create(blend_path:str=Form(''),project_id:str=Form(''),provider:str=Form('global'),
                      model:str=Form(''),reference:UploadFile|None=File(None)):
         if not BLENDER.is_file(): raise HTTPException(400,'No encuentro Blender en este equipo.')
-        if provider not in ('codex','ollama'): raise HTTPException(400,'Proveedor no compatible.')
+        if provider not in ('global','codex','ollama'): raise HTTPException(400,'Proveedor no compatible.')
         if queue.busy(): raise HTTPException(409,'Espera a que termine la propuesta actual o cancélala.')
-        if provider=='ollama':
-            if getattr(server,'inference_busy',lambda:False)():
-                raise HTTPException(409,'Hay otra operación de IA en marcha.')
-            if model not in [m['name'] for m in vision.models()['models'] if m.get('vision') is True]:
-                raise HTTPException(400,'Selecciona un modelo visual local disponible.')
-        else:
-            try: codex_executable()
-            except (RuntimeError,ValueError) as exc: raise HTTPException(400,str(exc))
+        if getattr(server,'inference_busy',lambda:False)():
+            raise HTTPException(409,'Hay otra operación de IA en marcha.')
+        try:
+            selection=global_http.selected()
+        except (RuntimeError,global_http.HTTPError) as exc:
+            raise HTTPException(503,str(exc)) from exc
+        model, provider = selection['model'], 'global'
         if blend_path:
             source=Path(blend_path).expanduser().resolve()
         elif project_id:

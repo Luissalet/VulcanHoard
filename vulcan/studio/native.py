@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import importlib
 import importlib.util
+import asyncio
 import sys
 import uuid
 from contextlib import asynccontextmanager
@@ -46,7 +47,7 @@ def create_native(key, data_dir, *, port, automatic=False):
         return create_app(config)
     if key == 'daedalus':
         from ..studio_native.daedalus.daedalus.api import create_app
-        return create_app(data_dir, port=port)
+        return create_app(data_dir, port=port, automatic=automatic)
     if key == 'gepetto':
         name, server = load_engine('vulcan.studio_native.gepetto.backend', data_dir, port)
         native_lifespan = server.app.router.lifespan_context
@@ -68,11 +69,12 @@ def create_native(key, data_dir, *, port, automatic=False):
 
         @asynccontextmanager
         async def lifespan(app):
-            engine.plato_family.configure(data_dir)
+            close_family = engine.plato_family.start(engine._scheduler, engine._store, data_dir)
             try:
                 yield
             finally:
-                engine._scheduler.shutdown()
+                await asyncio.to_thread(close_family)
+                await asyncio.to_thread(engine._scheduler.shutdown)
                 sys.modules.pop(name, None)
 
         app = FastAPI(lifespan=lifespan)

@@ -41,14 +41,18 @@ class Projects:
             write_json_atomic(self.path, state)
             return project
 
-    def link(self, identity, module, native_id, revision=None):
-        if not native_id or len(native_id) > 500:
+    def link(self, identity, module, native_id, revision=None, title=None, url=None):
+        if not isinstance(native_id, str) or not native_id or len(native_id) > 500:
             raise ValueError('A native object id is required')
         with self.lock:
             state = self._read()
             project = state['projects'][identity]
             link = {'module': module, 'native_id': native_id, 'revision': revision}
-            if link not in project['links']:
+            if not any(all(existing.get(key) == value for key,value in link.items()) for existing in project['links']):
+                if title:
+                    link['title'] = title
+                if url:
+                    link['url'] = url
                 project['links'].append(link)
                 write_json_atomic(self.path, state)
             return project
@@ -76,15 +80,19 @@ class Projects:
 
 
 TOOLS = [
+    {'name': 'vulcan_studio_objects', 'description': 'Read existing objects from an explicitly enabled native module; never activates it.',
+     'inputSchema': {'type':'object','properties':{'module':{'type':'string'}},'required':['module']}, 'annotations': {'readOnlyHint':True}},
     {'name': 'vulcan_studio_projects', 'description': 'Read shared 3D projects, native links and retained artifact revisions without starting engines.',
      'inputSchema': {'type': 'object', 'properties': {'id': {'type': 'string'}}}, 'annotations': {'readOnlyHint': True}},
     {'name': 'vulcan_studio_create', 'description': 'Create a shared 3D project without creating native objects or activating engines.',
      'inputSchema': {'type': 'object', 'properties': {'title': {'type': 'string', 'minLength': 1, 'maxLength': 200}}, 'required': ['title']}},
     {'name': 'vulcan_studio_link', 'description': 'Associate an existing native object and its revision with a shared 3D project; preserve its id and format.',
      'inputSchema': {'type': 'object', 'properties': {'id': {'type': 'string'}, 'module': {'type': 'string'},
-         'native_id': {'type': 'string'}, 'revision': {'type': ['string', 'null']}}, 'required': ['id', 'module', 'native_id']}},
+         'native_id': {'type': 'string'}, 'title':{'type':'string'}, 'revision': {'type': ['string', 'null']}}, 'required': ['id', 'module', 'native_id']}},
     {'name': 'vulcan_studio_artifact', 'description': 'Retain a completed artifact reference with SHA256 and native identity; never copy or modify the original.',
      'inputSchema': {'type': 'object', 'properties': {'id': {'type': 'string'}, 'module': {'type': 'string'},
          'native_id': {'type': 'string'}, 'path': {'type': 'string'}, 'revision': {'type': ['string', 'null']}},
          'required': ['id', 'module', 'native_id', 'path']}},
+    {'name':'vulcan_studio_index_artifact','description':'Index one retained STL/3MF/OBJ with the native library and link its real model ID to the project. The library must be enabled.',
+     'inputSchema':{'type':'object','properties':{'id':{'type':'string'},'artifact_index':{'type':'integer','minimum':0}},'required':['id','artifact_index']}},
 ]

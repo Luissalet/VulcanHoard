@@ -1,5 +1,4 @@
-"""The MCP bridge (the shared `hoard_link.bridge.CatalogBridge`) starts the app when nothing answers, so a workspace that
-starts first still gets the tools."""
+"""Discovery stays cold even when an obsolete autostart variable is set."""
 import importlib.util
 import sys
 from pathlib import Path
@@ -28,7 +27,7 @@ def test_the_bridge_is_configured_for_this_app(monkeypatch):
     assert bridge.base_url == "http://127.0.0.1:1" and bridge.prefix == "VULCAN"
 
 
-def test_nothing_answers_so_the_bridge_starts_the_app(monkeypatch, tmp_path):
+def test_obsolete_autostart_cannot_spawn_the_studio(monkeypatch, tmp_path):
     from vulcan.hoard_link import bridge as lib
 
     bridge = load(monkeypatch, "1")
@@ -42,8 +41,5 @@ def test_nothing_answers_so_the_bridge_starts_the_app(monkeypatch, tmp_path):
     monkeypatch.setattr(lib.launch, "process_created", lambda pid: 1.0)
     monkeypatch.setattr(lib.launch, "process_alive", lambda pid, created: True)
     lib._children.clear()
-    assert bridge.start_app(wait_s=5) is True
-    argv, env = started[0]
-    assert argv == [sys.executable, "-m", "vulcan"]
-    assert env["VULCAN_PORT"] == "1" and env["PORT_STRICT"] == "1" and env["HOARD_NO_BROWSER"] == "1"
-    assert (tmp_path / "logs").is_dir()
+    assert bridge.start_app(wait_s=5) is False
+    assert not started and not (tmp_path / "logs").exists()

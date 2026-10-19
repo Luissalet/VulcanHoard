@@ -2,6 +2,7 @@
 import asyncio
 import json
 import re
+from .cancellation import join_tasks
 
 from starlette.responses import JSONResponse, Response
 
@@ -18,14 +19,14 @@ class NativeResponse(Response):
         if "text/html" in ctype:
             # Native source remains owned by Vulcan. Scope its browser network
             # and assets while preserving its complete editor and hash router.
-            bootstrap = f'<base href="/{key}/"><script src="/fusion-static/native-scope.js" data-studio-module="{key}"></script>'.encode()
-            body = re.sub(rb'(<head[^>]*>)', lambda match: match[0] + bootstrap, body, count=1)
             body = re.sub(rb'((?:src|href|action)=[\x22\x27])/(?!/|fusion-static/)([^\x22\x27]*)',
                           lambda match: match[1] + f'/{key}/'.encode() + match[2], body)
+            bootstrap = f'<base href="/{key}/"><script src="/fusion-static/native-scope.js" data-studio-module="{key}"></script>'.encode()
+            body = re.sub(rb'(<head[^>]*>)', lambda match: match[0] + bootstrap, body, count=1)
             body = re.sub(rb'<html\b(?![^>]*data-hoard-app)', f'<html data-hoard-app="{product}"'.encode(), body, count=1)
             body = re.sub(rb'<title>.*?</title>', lambda m: ("<title>" + name + " · " + self.module.spec["name"] + "</title>").encode(), body, count=1)
             body = re.sub(rb'data-hoard-app="[^"]*"', f'data-hoard-app="{product}"'.encode(), body)
-            extra = b'<link rel="stylesheet" href="/fusion-static/product-theme.css"><link rel="stylesheet" href="/fusion-static/module-shell.css">'
+            extra = b'<link rel="stylesheet" href="/fusion-static/hoard-theme.css"><link rel="stylesheet" href="/fusion-static/product-theme.css"><link rel="stylesheet" href="/fusion-static/module-shell.css">'
             body = body.replace(b"</head>", extra + b"</head>", 1)
             bar = (f'<nav class="fusion-bar" aria-label="{name}"><a href="/"><img src="/fusion-static/icon-192.png" width="28" height="28" alt="">{name}</a>'
                    f'<span>{self.module.spec["name"]}</span><a class="fusion-functions" href="/">Funciones</a></nav>').encode()
@@ -46,8 +47,6 @@ class NativeResponse(Response):
             body = body.replace(b'"/api/"', f'"/{key}/api/"'.encode()).replace(b'"/assets/"', f'"/{key}/assets/"'.encode())
             body = body.replace(b'name !== CACHE_NAME', f'name.startsWith("{key}-") && name !== CACHE_NAME'.encode())
             headers["service-worker-allowed"] = f"/{key}/"
-        if key == "disk" and ("text/html" in ctype or "javascript" in ctype):
-            body = re.sub(rb'([\x22\x27\x60])/(?!disk/|static/|/)(?=[a-zA-Z])', rb'\1/disk/', body)
         return body
 
     async def __call__(self, scope, receive, send):
@@ -57,9 +56,8 @@ class NativeResponse(Response):
             if module.app is None or module.stopping:
                 return await JSONResponse({"error": "module_disabled", "module": module.spec["id"]}, status_code=409)(scope, receive, send)
             native = module.app
-            module.requests[task] = self.path.endswith("/live")
         child_scope = dict(scope, path="/" + self.path, raw_path=("/" + self.path).encode(), root_path="")
-        headers = [(k, v) for k, v in scope["headers"] if k != b"authorization"]
+        headers = [(k, v) for k, v in scope["headers"] if k not in (b"authorization", b"accept-encoding")]
         token_path = module.data_dir / "mcp-token"
         if token_path.exists():
             headers.append((b"authorization", b"Bearer " + token_path.read_text(encoding="utf-8").strip().encode()))
@@ -94,10 +92,14 @@ class NativeResponse(Response):
             await send(message)
 
         try:
-            await native(child_scope, receive, forward)
+            # Own the native request independently from the outer HTTP scope.
+            # Concurrent disconnect/OFF cannot cancel its cleanup twice.
+            task = asyncio.create_task(native(child_scope, receive, forward))
+            module.requests[task] = self.path.endswith('/live')
+            try:
+                await asyncio.shield(task)
+            except asyncio.CancelledError:
+                await join_tasks([task], cancel=True)
+                raise
         finally:
             module.requests.pop(task, None)
-        if module.spec["id"] == "disk" and self.path == "api/quit" and scope["method"] == "POST":
-            module.desired = False
-            self.on_quit()
-            await module.set_enabled(False)

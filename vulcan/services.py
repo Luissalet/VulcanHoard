@@ -12,7 +12,8 @@ from .config import Config
 from .db import Database
 from .dupes import Dupes
 from .folder_listings import DraftWorker, FolderListingStore
-from .hoard_link import Link, paths
+from .hoard_link import paths
+from .studio.global_link import GlobalLink as Link
 from .hoard_link.tokens import read_or_create_token
 from .listings import AlbumStore, ListingStore
 from .model_backend import load_link_config
@@ -62,6 +63,7 @@ class Services:
     def stop(self) -> None:
         self.watcher.stop()
         self.worker.stop()
+        self.draft_worker.stop()
         try:
             self.link.sync.close()
         except Exception:

@@ -1,0 +1,20 @@
+{
+  "bridge_commit": "dbe2569527c4553646d7e91f49b607124fcee0ff",
+  "bridge_source_sha256": "057026b09668dc4c8d8b90a763d3b4fbe8407431d42818a417b7f655f4926b25",
+  "modules": {
+    "gepetto": {
+      "openapi_sha256": "f96bc3838265524672cca92d111cf5db15532c4ed9b2597d66809fb945f9cf07",
+      "count": 62,
+      "excluded": [
+        "skipped POST /api/projects/{pid}/import: request body is not JSON (multipart/binary upload)",
+        "skipped POST /api/pose-runs: request body is not JSON (multipart/binary upload)"
+      ],
+      "manifest_sha256": "f747a8f3cd95cfc66c767c1aabac8ab05a008c28f3bface290ed214e54162500"
+    },
+    "plato": {
+      "count": 12,
+      "excluded": [],
+      "manifest_sha256": "1079a01a0d63288d0ca7e0bf5dc562fac28474eb6c9428da1b92415ea34b9c47"
+    }
+  }
+}

@@ -1,7 +1,7 @@
 [
   {
     "name": "models_search",
-    "description": "Search the 3D model library by words and filters. Keywords: buscar modelo, encuentra mi STL, figura de.\nSearch the user's 3D model library by words (name, tags, notes, folder, listing text) with filters: format, tag, collection, watertight, has_listing, duplicates, size in mm. Returns id, name, format, bbox (mm), triangles, tags, has_listing and thumb_url per hit. Ranking sorts (-extent, -volume, -size, -triangles, -date) fold identical files into one hit with a 'copies' count, so 'the three biggest' are three different models. First step for 'find my model of X'.\nSinónimos: buscar modelo, modelo 3D, STL, 3MF, OBJ, impresión 3D, archivo, figura, pieza, buscar en mis modelos, cuál era, carpeta de modelos, etiquetas, tamaño en mm, miniatura.",
+    "description": "Search the 3D model library by words and filters. Keywords: buscar modelo, encuentra mi STL, figura de.\nSearch the user's 3D model library by words (name, tags, notes, folder, listing text) with filters: format, tag, collection, watertight, has_listing, duplicates, size in mm. Returns id, name, format, bbox (mm), triangles, tags, has_listing and thumb_url per hit. Ranking sorts (-extent, -volume, -size, -triangles, -date) fold identical files into one hit with a 'copies' count, so 'the three biggest' are three different models. First step for 'find my model of X'.\nSinÃ³nimos: buscar modelo, modelo 3D, STL, 3MF, OBJ, impresiÃ³n 3D, archivo, figura, pieza, buscar en mis modelos, cuÃ¡l era, carpeta de modelos, etiquetas, tamaÃ±o en mm, miniatura.",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -173,7 +173,7 @@
   },
   {
     "name": "model_info",
-    "description": "Everything about one model: size in mm, triangles, tags, listing, duplicates. Keywords: ficha, dimensiones.\nEverything about one model (by id or path): dimensions in mm, triangles, vertices, volume, surface, watertight, bodies (parts), units guess, folder, tags, notes, listing, exact and near duplicates, albums, thumb_url.\nSinónimos: modelo 3D, ficha, detalles, cuántos triángulos, tamaño en mm, medidas, volumen, es estanco, cuántas piezas, duplicados, STL, ruta del archivo, miniatura.",
+    "description": "Everything about one model: size in mm, triangles, tags, listing, duplicates. Keywords: ficha, dimensiones.\nEverything about one model (by id or path): dimensions in mm, triangles, vertices, volume, surface, watertight, bodies (parts), units guess, folder, tags, notes, listing, exact and near duplicates, albums, thumb_url.\nSinÃ³nimos: modelo 3D, ficha, detalles, cuÃ¡ntos triÃ¡ngulos, tamaÃ±o en mm, medidas, volumen, es estanco, cuÃ¡ntas piezas, duplicados, STL, ruta del archivo, miniatura.",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -219,7 +219,7 @@
   },
   {
     "name": "model_listing_get",
-    "description": "The marketplace listing of a model, or none. Keywords: ver ficha de tienda, descripción, tags.\nThe marketplace listing of a model (title, description, tags, category, price hint, language, source, updated_at), or none.\nSinónimos: ficha, descripción para la tienda, texto de la tienda, título, etiquetas, categoría, precio, ficha del modelo.",
+    "description": "The marketplace listing of a model, or none. Keywords: ver ficha de tienda, descripciÃ³n, tags.\nThe marketplace listing of a model (title, description, tags, category, price hint, language, source, updated_at), or none.\nSinÃ³nimos: ficha, descripciÃ³n para la tienda, texto de la tienda, tÃ­tulo, etiquetas, categorÃ­a, precio, ficha del modelo.",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -246,7 +246,7 @@
   },
   {
     "name": "model_listing_set",
-    "description": "Write a model's marketplace listing: title, description, tags (write). Keywords: escribe la ficha, publicar.\nWrite the marketplace listing of a model (write): title, description (markdown), tags, category, price_hint, language. Fields left out keep their value; source is recorded as assistant. Idempotent: saving the same text twice changes nothing but the timestamp. Describe only what the geometry and the user say.\nSinónimos: genera la ficha, escribe la descripción para la tienda, ficha del modelo, título y descripción, etiquetas para la tienda, categoría, precio, redactar.",
+    "description": "Write a model's marketplace listing: title, description, tags (write). Keywords: escribe la ficha, publicar.\nWrite the marketplace listing of a model (write): title, description (markdown), tags, category, price_hint, language. Fields left out keep their value; source is recorded as assistant. Idempotent: saving the same text twice changes nothing but the timestamp. Describe only what the geometry and the user say.\nSinÃ³nimos: genera la ficha, escribe la descripciÃ³n para la tienda, ficha del modelo, tÃ­tulo y descripciÃ³n, etiquetas para la tienda, categorÃ­a, precio, redactar.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -358,7 +358,7 @@
   },
   {
     "name": "model_tag",
-    "description": "Add or remove tags on a model (write). Keywords: etiquetar, quitar etiqueta, clasificar modelo.\nAdd and/or remove tags on a model (write). Tags are lower-cased and de-duplicated; adding an existing tag is a no-op.\nSinónimos: etiquetar, añadir etiqueta, quitar etiqueta, etiquetas, tags, marcar, clasificar modelo.",
+    "description": "Add or remove tags on a model (write). Keywords: etiquetar, quitar etiqueta, clasificar modelo.\nAdd and/or remove tags on a model (write). Tags are lower-cased and de-duplicated; adding an existing tag is a no-op.\nSinÃ³nimos: etiquetar, aÃ±adir etiqueta, quitar etiqueta, etiquetas, tags, marcar, clasificar modelo.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -402,7 +402,7 @@
   },
   {
     "name": "model_note",
-    "description": "Replace or append the user's notes on a model (write).\nSinónimos: nota, apuntar, anotar, notas del modelo, recordar sobre este modelo, comentario.",
+    "description": "Replace or append the user's notes on a model (write).\nSinÃ³nimos: nota, apuntar, anotar, notas del modelo, recordar sobre este modelo, comentario.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -441,7 +441,7 @@
   },
   {
     "name": "models_stats",
-    "description": "Library statistics: counts, sizes, duplicates, scan queue and ETA. Keywords: cuántos modelos, estadísticas.\nLibrary statistics: models, bytes and triangles by format and by root folder, collections, listings, duplicates, errors, skipped files, scan queue with files/second and ETA per root, and folder watching. Cheap to call repeatedly (cached 5 s during a scan).\nSinónimos: estadísticas, cuántos modelos, cuántos STL, tamaño de la biblioteca, carpetas de modelos, está escaneando, progreso, resumen.",
+    "description": "Library statistics: counts, sizes, duplicates, scan queue and ETA. Keywords: cuÃ¡ntos modelos, estadÃ­sticas.\nLibrary statistics: models, bytes and triangles by format and by root folder, collections, listings, duplicates, errors, skipped files, scan queue with files/second and ETA per root, and folder watching. Cheap to call repeatedly (cached 5 s during a scan).\nSinÃ³nimos: estadÃ­sticas, cuÃ¡ntos modelos, cuÃ¡ntos STL, tamaÃ±o de la biblioteca, carpetas de modelos, estÃ¡ escaneando, progreso, resumen.",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -459,7 +459,7 @@
   },
   {
     "name": "models_dupes",
-    "description": "Duplicate groups, exact or near. Keywords: duplicados, repetidos, modelos iguales.\nDuplicate groups: exact (identical files, same sha256) or near (same triangle count, volume and bounding box within 1 %; suggestions to review). Each group lists id, name, path, size and dimensions.\nSinónimos: duplicados, repetidos, archivos iguales, copias, modelos parecidos, limpiar duplicados, mismo STL.",
+    "description": "Duplicate groups, exact or near. Keywords: duplicados, repetidos, modelos iguales.\nDuplicate groups: exact (identical files, same sha256) or near (same triangle count, volume and bounding box within 1 %; suggestions to review). Each group lists id, name, path, size and dimensions.\nSinÃ³nimos: duplicados, repetidos, archivos iguales, copias, modelos parecidos, limpiar duplicados, mismo STL.",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -491,7 +491,7 @@
   },
   {
     "name": "models_similar",
-    "description": "Find models with a similar 3D shape to one model id. Keywords: misma forma, remallado, geometría parecida.\nCompares filled closed meshes on a normalized voxel grid across right-angle rotations. Finds related models despite different triangle counts or uniform scale. Returns ranked scores and model ids; never labels them as duplicates.\nSinónimos: piezas parecidas, modelos con forma similar, geometría similar, mismo objeto remallado, versiones de esta pieza, busca modelos parecidos.",
+    "description": "Find models with a similar 3D shape to one model id. Keywords: misma forma, remallado, geometrÃ­a parecida.\nCompares filled closed meshes on a normalized voxel grid across right-angle rotations. Finds related models despite different triangle counts or uniform scale. Returns ranked scores and model ids; never labels them as duplicates.\nSinÃ³nimos: piezas parecidas, modelos con forma similar, geometrÃ­a similar, mismo objeto remallado, versiones de esta pieza, busca modelos parecidos.",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -532,7 +532,7 @@
   },
   {
     "name": "models_add_root",
-    "description": "Add a folder of models to the library and scan it (only when asked). Keywords: añadir carpeta, escanear.\nAdd a folder of models to the library (write). The path must exist on the user's PC; adding the same folder twice returns the existing root without rescanning. Options: thumbnails=all|top-level|none and skip_small_bytes to ignore tiny auto-generated meshes; exclude globs can be edited in the app (Carpetas). Scanning (metrics + thumbnails) starts in the background, in parallel worker processes. Only when the user asks.\nSinónimos: añadir carpeta, carpeta de modelos, escanear carpeta, indexar mis STL, nueva carpeta, agregar modelos.",
+    "description": "Add a folder of models to the library and scan it (only when asked). Keywords: aÃ±adir carpeta, escanear.\nAdd a folder of models to the library (write). The path must exist on the user's PC; adding the same folder twice returns the existing root without rescanning. Options: thumbnails=all|top-level|none and skip_small_bytes to ignore tiny auto-generated meshes; exclude globs can be edited in the app (Carpetas). Scanning (metrics + thumbnails) starts in the background, in parallel worker processes. Only when the user asks.\nSinÃ³nimos: aÃ±adir carpeta, carpeta de modelos, escanear carpeta, indexar mis STL, nueva carpeta, agregar modelos.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -594,7 +594,7 @@
   },
   {
     "name": "models_rescan",
-    "description": "Rescan a root or every root for new or changed files (only when asked). Keywords: reescanear, actualizar.\nQueue a non-destructive rescan of one root or of every enabled root: only new or changed files are parsed again; deleted files are purged. Only when the user asks.\nSinónimos: reescanear, volver a escanear, actualizar biblioteca, refrescar carpeta, escanear de nuevo, reindexar.",
+    "description": "Rescan a root or every root for new or changed files (only when asked). Keywords: reescanear, actualizar.\nQueue a non-destructive rescan of one root or of every enabled root: only new or changed files are parsed again; deleted files are purged. Only when the user asks.\nSinÃ³nimos: reescanear, volver a escanear, actualizar biblioteca, refrescar carpeta, escanear de nuevo, reindexar.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -626,7 +626,7 @@
   },
   {
     "name": "models_recent",
-    "description": "The newest models by file date. Keywords: modelos recientes, últimos añadidos, nuevos.\nThe n newest models by file modification date, with id, name, format, bbox, triangles, tags, has_listing and thumb_url.\nSinónimos: recientes, últimos modelos, lo último que he modelado, novedades, qué he añadido, modelos nuevos.",
+    "description": "The newest models by file date. Keywords: modelos recientes, Ãºltimos aÃ±adidos, nuevos.\nThe n newest models by file modification date, with id, name, format, bbox, triangles, tags, has_listing and thumb_url.\nSinÃ³nimos: recientes, Ãºltimos modelos, lo Ãºltimo que he modelado, novedades, quÃ© he aÃ±adido, modelos nuevos.",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -652,7 +652,7 @@
   },
   {
     "name": "folder_listings",
-    "description": "List folder listings (one per product folder) filtered by status; folders missing one come first.\nSinónimos: fichas, listados de carpeta, qué fichas faltan, estado de las fichas, carpetas sin ficha, cults3d.",
+    "description": "List folder listings (one per product folder) filtered by status; folders missing one come first.\nSinÃ³nimos: fichas, listados de carpeta, quÃ© fichas faltan, estado de las fichas, carpetas sin ficha, cults3d.",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -705,7 +705,7 @@
   },
   {
     "name": "folder_listing_get",
-    "description": "The marketplace listing of one folder (title, description, 20 tags, status, issues), by root+path.\nSinónimos: ficha de la carpeta, título y descripción de la carpeta, etiquetas, cults3d.json, estado de la ficha.",
+    "description": "The marketplace listing of one folder (title, description, 20 tags, status, issues), by root+path.\nSinÃ³nimos: ficha de la carpeta, tÃ­tulo y descripciÃ³n de la carpeta, etiquetas, cults3d.json, estado de la ficha.",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -744,7 +744,7 @@
   },
   {
     "name": "folder_listing_set",
-    "description": "Write a folder's listing (write): title, description (English), 20 tags; saves the DB and cults3d.json.\nSinónimos: genera la ficha de la carpeta, guarda el título y la descripción, escribe las 20 etiquetas, cults3d.json.",
+    "description": "Write a folder's listing (write): title, description (English), 20 tags; saves the DB and cults3d.json.\nSinÃ³nimos: genera la ficha de la carpeta, guarda el tÃ­tulo y la descripciÃ³n, escribe las 20 etiquetas, cults3d.json.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -835,7 +835,7 @@
   },
   {
     "name": "folder_listing_check",
-    "description": "Validate one or every folder listing (format, lengths, 20 unique tags, template rules, duplicate titles).\nSinónimos: comprobar ficha, validar ficha, revisar carpeta, está bien la ficha, errores de la ficha.",
+    "description": "Validate one or every folder listing (format, lengths, 20 unique tags, template rules, duplicate titles).\nSinÃ³nimos: comprobar ficha, validar ficha, revisar carpeta, estÃ¡ bien la ficha, errores de la ficha.",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -881,7 +881,7 @@
   },
   {
     "name": "folder_listing_draft",
-    "description": "Draft folder listings with the local model in the background (write): title, description, 20 tags.\nSinónimos: redactar fichas, generar ficha con IA, borrador de ficha, rellenar fichas que faltan, redacción automática.",
+    "description": "Draft folder listings with the local model in the background (write): title, description, 20 tags.\nSinÃ³nimos: redactar fichas, generar ficha con IA, borrador de ficha, rellenar fichas que faltan, redacciÃ³n automÃ¡tica.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -934,7 +934,7 @@
   },
   {
     "name": "folder_listings_export",
-    "description": "Export folder listings of a root to CSV, Markdown or JSON in data/exports (write, returns the path).\nSinónimos: exportar fichas, exportar catálogo, csv de fichas, listado para subir a la tienda, exportar cults3d.",
+    "description": "Export folder listings of a root to CSV, Markdown or JSON in data/exports (write, returns the path).\nSinÃ³nimos: exportar fichas, exportar catÃ¡logo, csv de fichas, listado para subir a la tienda, exportar cults3d.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -980,7 +980,7 @@
   },
   {
     "name": "collection_plan",
-    "description": "Plan sorting a folder's items into group folders from a pasted list (read-only). Keywords: organizar.\nNo model: matches each immediate child of the folder to a member of the list (formats in reference), ignoring case, accents, separators and number prefixes like 0001_. Returns the target folder per group with the items moving in, items already in place, unmatched, ambiguous and conflicts, plus a plan_id for collection_apply. Nothing is moved.\nSinónimos: organizar colección, agrupar carpetas, una carpeta por línea evolutiva, ordenar por lista, meter en carpetas, carpeta por grupo, números con ceros.",
+    "description": "Plan sorting a folder's items into group folders from a pasted list (read-only). Keywords: organizar.\nNo model: matches each immediate child of the folder to a member of the list (formats in reference), ignoring case, accents, separators and number prefixes like 0001_. Returns the target folder per group with the items moving in, items already in place, unmatched, ambiguous and conflicts, plus a plan_id for collection_apply. Nothing is moved.\nSinÃ³nimos: organizar colecciÃ³n, agrupar carpetas, una carpeta por lÃ­nea evolutiva, ordenar por lista, meter en carpetas, carpeta por grupo, nÃºmeros con ceros.",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -1000,7 +1000,7 @@
             },
             "accent_insensitive": {
               "default": true,
-              "description": "Ignore accents (Pokémon = pokemon).",
+              "description": "Ignore accents (PokÃ©mon = pokemon).",
               "title": "Accent Insensitive",
               "type": "boolean"
             },
@@ -1056,7 +1056,7 @@
           "type": "string"
         },
         "reference": {
-          "description": "The list pasted by the user, one group per line, members separated by >, ->, → , or ' - ', optionally with numbers: '001 Bulbasaur > Ivysaur > Venusaur'. 'Name: a > b' names the group explicitly (default: the first member). Or CSV with header group,member,number. Or the path of such a .txt/.csv file.",
+          "description": "The list pasted by the user, one group per line, members separated by >, ->, â†’ , or ' - ', optionally with numbers: '001 Bulbasaur > Ivysaur > Venusaur'. 'Name: a > b' names the group explicitly (default: the first member). Or CSV with header group,member,number. Or the path of such a .txt/.csv file.",
           "maxLength": 400000,
           "minLength": 1,
           "title": "Reference",
@@ -1108,7 +1108,7 @@
   },
   {
     "name": "collection_apply",
-    "description": "Apply a stored collection plan: create group folders and move the items in (write). Keywords: aplicar plan.\nCarries out a plan from collection_plan by id: creates the group folders and moves the matched items into them. Never deletes and never overwrites (a collision is skipped and reported), re-checks the disk at apply time, writes an undo journal and queues a rescan of the affected root. Only when the user agrees to the plan.\nSinónimos: aplicar plan, mover a carpetas, ejecutar la organización, crear carpetas por grupo, ordenar de verdad.",
+    "description": "Apply a stored collection plan: create group folders and move the items in (write). Keywords: aplicar plan.\nCarries out a plan from collection_plan by id: creates the group folders and moves the matched items into them. Never deletes and never overwrites (a collision is skipped and reported), re-checks the disk at apply time, writes an undo journal and queues a rescan of the affected root. Only when the user agrees to the plan.\nSinÃ³nimos: aplicar plan, mover a carpetas, ejecutar la organizaciÃ³n, crear carpetas por grupo, ordenar de verdad.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -1136,7 +1136,7 @@
   },
   {
     "name": "collection_undo",
-    "description": "Undo the last collection_apply (or a given one) by moving every item back (write). Keywords: deshacer.\nReverses an apply from its journal: moves each item back to where it was, never overwriting anything (an occupied original location is skipped and reported), then removes the group folders the apply created if they are empty again. Defaults to the most recent apply that is not undone. Queues a rescan.\nSinónimos: deshacer organización, revertir, volver atrás, devolver los archivos a su sitio, deshacer el último cambio.",
+    "description": "Undo the last collection_apply (or a given one) by moving every item back (write). Keywords: deshacer.\nReverses an apply from its journal: moves each item back to where it was, never overwriting anything (an occupied original location is skipped and reported), then removes the group folders the apply created if they are empty again. Defaults to the most recent apply that is not undone. Queues a rescan.\nSinÃ³nimos: deshacer organizaciÃ³n, revertir, volver atrÃ¡s, devolver los archivos a su sitio, deshacer el Ãºltimo cambio.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -1174,7 +1174,7 @@
   },
   {
     "name": "sheets_batch",
-    "description": "Create or refresh sheet drafts for every folder or model of a root in one call (write). Keywords: fichas.\nDeterministic skeleton drafts from the scanned data and the root's template (folders: cults3d.json sheets in English; models: listings), no language model; mode=model queues local-model drafting instead. Drafts stay draft; refresh and overwrite say which existing sheets may be rewritten, dry_run only counts. Returns created, refreshed and skipped with reasons.\nSinónimos: fichas de todas las carpetas, crear todas las fichas, borradores en lote, rellenar fichas que faltan, ficha esqueleto, fichas para toda la colección.",
+    "description": "Create or refresh sheet drafts for every folder or model of a root in one call (write). Keywords: fichas.\nDeterministic skeleton drafts from the scanned data and the root's template (folders: cults3d.json sheets in English; models: listings), no language model; mode=model queues local-model drafting instead. Drafts stay draft; refresh and overwrite say which existing sheets may be rewritten, dry_run only counts. Returns created, refreshed and skipped with reasons.\nSinÃ³nimos: fichas de todas las carpetas, crear todas las fichas, borradores en lote, rellenar fichas que faltan, ficha esqueleto, fichas para toda la colecciÃ³n.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -1260,7 +1260,7 @@
   },
   {
     "name": "model_import_file",
-    "description": "Index one STL/3MF/OBJ file now: thumbnail, size, duplicate check (write). Keywords: importar modelo.\nIndex one model file right away instead of waiting for a scan (write): measures it, renders the thumbnail, hashes it for the duplicate check and adds it to the library. The folder is added as a small root that lists only the files imported from it, unless a scanned root already covers the file. Importing the same file twice changes nothing. Emits vulcan.model.added for a new model; source_ref (a hoard:// reference, e.g. an export of another app) is stored and linked.\nSinónimos: importar archivo, añadir un STL, indexar modelo, registrar exportación, añadir al catálogo ahora, escanear un archivo.",
+    "description": "Index one STL/3MF/OBJ file now: thumbnail, size, duplicate check (write). Keywords: importar modelo.\nIndex one model file right away instead of waiting for a scan (write): measures it, renders the thumbnail, hashes it for the duplicate check and adds it to the library. The folder is added as a small root that lists only the files imported from it, unless a scanned root already covers the file. Importing the same file twice changes nothing. Emits vulcan.model.added for a new model; source_ref (a hoard:// reference, e.g. an export of another app) is stored and linked.\nSinÃ³nimos: importar archivo, aÃ±adir un STL, indexar modelo, registrar exportaciÃ³n, aÃ±adir al catÃ¡logo ahora, escanear un archivo.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -1302,7 +1302,7 @@
   },
   {
     "name": "listings_export_catalog",
-    "description": "Export the folder and model listings as catalogue entries for a shop catalogue. Keywords: exportar catálogo.\nEvery folder listing (not 'none') and every model listing as one entry: ref (hoard://vulcan/...), kind folder or model, title, description, tags, price (the listing's price hint, if any), folder, model_ids, status, updated_at. folder limits it to one folder and below. Read-only: it writes nothing; Mercator imports this shape.\nSinónimos: catálogo de la tienda, fichas para Mercator, exportar fichas como catálogo, listado de productos, cults3d.",
+    "description": "Export the folder and model listings as catalogue entries for a shop catalogue. Keywords: exportar catÃ¡logo.\nEvery folder listing (not 'none') and every model listing as one entry: ref (hoard://vulcan/...), kind folder or model, title, description, tags, price (the listing's price hint, if any), folder, model_ids, status, updated_at. folder limits it to one folder and below. Read-only: it writes nothing; Mercator imports this shape.\nSinÃ³nimos: catÃ¡logo de la tienda, fichas para Mercator, exportar fichas como catÃ¡logo, listado de productos, cults3d.",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -1334,7 +1334,7 @@
   },
   {
     "name": "cad_spec_schema",
-    "description": "JSON schema, node reference and example of the parametric CAD spec. Keywords: diseño CAD.\nThe schema, the node reference (box, cylinder, sphere, rounded_box, hole, union, difference, intersection, translate, rotate, scale, linear and polar patterns), an example spec, the boolean engine in use and what is unsupported (fillets of arbitrary edges, chamfers, threads, STEP). Read it once before writing a spec for cad_from_text.\nSinónimos: diseñar pieza, CAD paramétrico, esquema de la pieza, qué puedo modelar, primitivas, agujeros, patrones, texto a CAD, parámetros.",
+    "description": "JSON schema, node reference and example of the parametric CAD spec. Keywords: diseÃ±o CAD.\nThe schema, the node reference (box, cylinder, sphere, rounded_box, hole, union, difference, intersection, translate, rotate, scale, linear and polar patterns), an example spec, the boolean engine in use and what is unsupported (fillets of arbitrary edges, chamfers, threads, STEP). Read it once before writing a spec for cad_from_text.\nSinÃ³nimos: diseÃ±ar pieza, CAD paramÃ©trico, esquema de la pieza, quÃ© puedo modelar, primitivas, agujeros, patrones, texto a CAD, parÃ¡metros.",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -1351,7 +1351,7 @@
   },
   {
     "name": "cad_from_text",
-    "description": "Design a 3D part from a text description or a spec and add it to the library (write). Keywords: diseña pieza.\nBuilds a parametric part in millimetres (boxes, cylinders, spheres, holes, unions/differences, patterns) from a description (a local model writes the spec, validated, with one repair attempt) or from a spec you pass. Saves STL + spec + check render into the library as a new model, and returns the measured bounding box, volume, watertightness and a check against the requested measures. save=false only measures. Report the measured numbers, not the intended ones.\nSinónimos: diseña una pieza, crea un modelo 3D, texto a CAD, modelo paramétrico, hazme una placa con agujeros, soporte, caja, cilindro, generar STL, medidas en mm.",
+    "description": "Design a 3D part from a text description or a spec and add it to the library (write). Keywords: diseÃ±a pieza.\nBuilds a parametric part in millimetres (boxes, cylinders, spheres, holes, unions/differences, patterns) from a description (a local model writes the spec, validated, with one repair attempt) or from a spec you pass. Saves STL + spec + check render into the library as a new model, and returns the measured bounding box, volume, watertightness and a check against the requested measures. save=false only measures. Report the measured numbers, not the intended ones.\nSinÃ³nimos: diseÃ±a una pieza, crea un modelo 3D, texto a CAD, modelo paramÃ©trico, hazme una placa con agujeros, soporte, caja, cilindro, generar STL, medidas en mm.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -1443,7 +1443,7 @@
   },
   {
     "name": "cad_regenerate",
-    "description": "Rebuild a generated part with new parameter values, same model id (write). Keywords: cambiar medidas.\nRecompiles the stored spec of a part made by cad_from_text with new values for named parameters (or a replacement spec), rewrites its STL and check render, reindexes the same library model and returns the new measures and what changed against the previous version.\nSinónimos: cambiar medidas de la pieza, hazla más ancha, agujero de otro diámetro, regenerar, modificar parámetros, editar dimensiones, versión nueva de la pieza.",
+    "description": "Rebuild a generated part with new parameter values, same model id (write). Keywords: cambiar medidas.\nRecompiles the stored spec of a part made by cad_from_text with new values for named parameters (or a replacement spec), rewrites its STL and check render, reindexes the same library model and returns the new measures and what changed against the previous version.\nSinÃ³nimos: cambiar medidas de la pieza, hazla mÃ¡s ancha, agujero de otro diÃ¡metro, regenerar, modificar parÃ¡metros, editar dimensiones, versiÃ³n nueva de la pieza.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -1517,7 +1517,7 @@
   },
   {
     "name": "copilot_context_get",
-    "description": "Read native context for a library view without starting work. Keywords: contexto, vista, edición sin guardar.\nResolve real model, folder listing, root or album IDs for the Faustus copilot. New/missing IDs return no active object and never create one or start a scan. Optional editor and selection are supplied snapshots, not a browser inspection. The stores are the same ones used by model_info and folder_listing_get.\nSinónimos: contexto actual, vista, selección, borrador, edición sin guardar.",
+    "description": "Read native context for a library view without starting work. Keywords: contexto, vista, ediciÃ³n sin guardar.\nResolve real model, folder listing, root or album IDs for the Faustus copilot. New/missing IDs return no active object and never create one or start a scan. Optional editor and selection are supplied snapshots, not a browser inspection. The stores are the same ones used by model_info and folder_listing_get.\nSinÃ³nimos: contexto actual, vista, selecciÃ³n, borrador, ediciÃ³n sin guardar.",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -1631,7 +1631,7 @@
   },
   {
     "name": "gulliver_model_assembly",
-    "description": "Assembly guide for a kept build: numbered pieces, files and materials. Guia de montaje.\nUses only that generation. Piece pages share stable numbers; follow next_offset until null.\nSinónimos: montar, piezas, orientacion, filamentos",
+    "description": "Assembly guide for a kept build: numbered pieces, files and materials. Guia de montaje.\nUses only that generation. Piece pages share stable numbers; follow next_offset until null.\nSinÃ³nimos: montar, piezas, orientacion, filamentos",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -1679,7 +1679,7 @@
   },
   {
     "name": "gulliver_model_assembly_export",
-    "description": "Create a self-contained printable HTML assembly guide from a kept build. Exportar guia.\nBase outlines come from the original STL exports. Does not redraw horizontal pin holes or slice a model.\nSinónimos: imprimir, montaje, plano, html, pdf",
+    "description": "Create a self-contained printable HTML assembly guide from a kept build. Exportar guia.\nBase outlines come from the original STL exports. Does not redraw horizontal pin holes or slice a model.\nSinÃ³nimos: imprimir, montaje, plano, html, pdf",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -1724,7 +1724,7 @@
   },
   {
     "name": "gulliver_print_profiles",
-    "description": "Saved printer/material profiles (active or archived). Perfiles de impresion.\nSinónimos: boquilla, cama, filamento",
+    "description": "Saved printer/material profiles (active or archived). Perfiles de impresion.\nSinÃ³nimos: boquilla, cama, filamento",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -1747,7 +1747,7 @@
   },
   {
     "name": "gulliver_print_profile_save",
-    "description": "Save a whole printer/material profile; empty id creates one. Guardar perfil.\nSinónimos: impresora, material, precios",
+    "description": "Save a whole printer/material profile; empty id creates one. Guardar perfil.\nSinÃ³nimos: impresora, material, precios",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -1889,7 +1889,7 @@
   },
   {
     "name": "gulliver_print_profile_archive",
-    "description": "Archive a print profile, or restore it with archived=false. Archivar perfil.\nSinónimos: restaurar, impresora",
+    "description": "Archive a print profile, or restore it with archived=false. Archivar perfil.\nSinÃ³nimos: restaurar, impresora",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -1921,7 +1921,7 @@
   },
   {
     "name": "gulliver_model_profile_apply",
-    "description": "Prepare a model for a saved printer/material profile (a separate variant by default). Aplicar perfil.\nSinónimos: variante, cama, boquilla, filamento",
+    "description": "Prepare a model for a saved printer/material profile (a separate variant by default). Aplicar perfil.\nSinÃ³nimos: variante, cama, boquilla, filamento",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -1967,7 +1967,7 @@
   },
   {
     "name": "gulliver_model_materials",
-    "description": "Estimated material and cost per part, with geometric shell/infill assumptions. Consumo y coste.\nThis is not slicing: excludes purge, supports, energy and time. Missing prices keep total cost unknown.\nSinónimos: filamento, presupuesto, peso, color",
+    "description": "Estimated material and cost per part, with geometric shell/infill assumptions. Consumo y coste.\nThis is not slicing: excludes purge, supports, energy and time. Missing prices keep total cost unknown.\nSinÃ³nimos: filamento, presupuesto, peso, color",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -2008,7 +2008,7 @@
   },
   {
     "name": "gulliver_model_issues",
-    "description": "Positions of thin buildings, layers and crowns, in preview millimetres. Zonas fragiles.\nPaged to keep every position readable through MCP. Follow next_offset until null; total is after the layer filter.\nSinónimos: localizar, detalles finos, imprimir",
+    "description": "Positions of thin buildings, layers and crowns, in preview millimetres. Zonas fragiles.\nPaged to keep every position readable through MCP. Follow next_offset until null; total is after the layer filter.\nSinÃ³nimos: localizar, detalles finos, imprimir",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -2061,7 +2061,7 @@
   },
   {
     "name": "gulliver_place_search",
-    "description": "Find a place by name: centre and bounding box. Buscar lugar.\nSinónimos: geocodificar, dónde está, dirección",
+    "description": "Find a place by name: centre and bounding box. Buscar lugar.\nSinÃ³nimos: geocodificar, dÃ³nde estÃ¡, direcciÃ³n",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -2096,7 +2096,7 @@
   },
   {
     "name": "gulliver_area_check",
-    "description": "What a model of an area would be: scale, size in mm, tiles for the bed, warnings. Comprobar zona.\nNothing is built. fetch_features=true also counts buildings, roads and water from the map.\nSinónimos: escala, cabe en la cama, cuántas piezas, vista previa, tamaño",
+    "description": "What a model of an area would be: scale, size in mm, tiles for the bed, warnings. Comprobar zona.\nNothing is built. fetch_features=true also counts buildings, roads and water from the map.\nSinÃ³nimos: escala, cabe en la cama, cuÃ¡ntas piezas, vista previa, tamaÃ±o",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -3346,7 +3346,7 @@
   },
   {
     "name": "gulliver_presets_get",
-    "description": "Presets (city, landscape, relief), default parameters and part colours. Preajustes.\nSinónimos: opciones, parámetros por defecto",
+    "description": "Presets (city, landscape, relief), default parameters and part colours. Preajustes.\nSinÃ³nimos: opciones, parÃ¡metros por defecto",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -3364,7 +3364,7 @@
   },
   {
     "name": "gulliver_model_create",
-    "description": "Create a map model of a place and build it (a job). Crear maqueta.\nRequired: params.lon, params.lat (or params.track alone: the model is framed on the route). Typical: width_m/height_m (ground), size_mm, preset, tiles_x/tiles_y. Anywhere on Earth: worldwide building footprints, canopy-height trees, satellite land cover; laser heights where open (dsm_heights). Detail: trees/tree_density, roofs, arches, paths, rails, zones/snow_m, fields/field_rows (farm parcels with crop rows), plazas, road_depth_mm. Personal: highlight_lon/highlight_lat (your home in gold), track (GPX/KML/GeoJSON text as a raised ribbon). Finish: frame_mm, frame_style (flat|bevel|step), plaque/plaque_text, panels_x/panels_y (framed pictures), tile_cuts (straight|streets), thicken, nozzle_mm. The report carries a printability score and advice.\nSinónimos: maqueta 3d, mapa imprimible, stl de un sitio, ciudad en 3d, relieve, maqueta de ciudad, terrain, arboles 3d, montaña con nieve, mi casa, ruta gpx, placa, díptico, cuadros, campos, parcelas",
+    "description": "Create a map model of a place and build it (a job). Crear maqueta.\nRequired: params.lon, params.lat (or params.track alone: the model is framed on the route). Typical: width_m/height_m (ground), size_mm, preset, tiles_x/tiles_y. Anywhere on Earth: worldwide building footprints, canopy-height trees, satellite land cover; laser heights where open (dsm_heights). Detail: trees/tree_density, roofs, arches, paths, rails, zones/snow_m, fields/field_rows (farm parcels with crop rows), plazas, road_depth_mm. Personal: highlight_lon/highlight_lat (your home in gold), track (GPX/KML/GeoJSON text as a raised ribbon). Finish: frame_mm, frame_style (flat|bevel|step), plaque/plaque_text, panels_x/panels_y (framed pictures), tile_cuts (straight|streets), thicken, nozzle_mm. The report carries a printability score and advice.\nSinÃ³nimos: maqueta 3d, mapa imprimible, stl de un sitio, ciudad en 3d, relieve, maqueta de ciudad, terrain, arboles 3d, montaÃ±a con nieve, mi casa, ruta gpx, placa, dÃ­ptico, cuadros, campos, parcelas",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -4629,7 +4629,7 @@
   },
   {
     "name": "gulliver_model_list",
-    "description": "The model library: name, place, status, scale, size. Lista de maquetas.\nSinónimos: biblioteca, mis maquetas",
+    "description": "The model library: name, place, status, scale, size. Lista de maquetas.\nSinÃ³nimos: biblioteca, mis maquetas",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -4647,7 +4647,7 @@
   },
   {
     "name": "gulliver_model_get",
-    "description": "One model: parameters, status, the last build's report and its folder. Ver maqueta.\nSinónimos: informe, detalles, peso, tamaño, escala",
+    "description": "One model: parameters, status, the last build's report and its folder. Ver maqueta.\nSinÃ³nimos: informe, detalles, peso, tamaÃ±o, escala",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -4675,7 +4675,7 @@
   },
   {
     "name": "gulliver_model_update",
-    "description": "Rename a model or change its parameters (and rebuild with build=true). Editar maqueta.\nSinónimos: cambiar tamaño, más relieve, piezas, color, forma",
+    "description": "Rename a model or change its parameters (and rebuild with build=true). Editar maqueta.\nSinÃ³nimos: cambiar tamaÃ±o, mÃ¡s relieve, piezas, color, forma",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -5966,7 +5966,7 @@
   },
   {
     "name": "gulliver_model_build",
-    "description": "Build (or rebuild) a model's files: a job; job_get follows it. Generar maqueta.\nSinónimos: regenerar, construir, generar stl",
+    "description": "Build (or rebuild) a model's files: a job; job_get follows it. Generar maqueta.\nSinÃ³nimos: regenerar, construir, generar stl",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -5994,7 +5994,7 @@
   },
   {
     "name": "gulliver_model_duplicate",
-    "description": "Copy a model's parameters into a new model (not built). Duplicar maqueta.\nSinónimos: copiar, variante",
+    "description": "Copy a model's parameters into a new model (not built). Duplicar maqueta.\nSinÃ³nimos: copiar, variante",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -6029,7 +6029,7 @@
   },
   {
     "name": "gulliver_model_delete",
-    "description": "Delete a model and its files (confirm=true). Borrar maqueta.\nSinónimos: eliminar",
+    "description": "Delete a model and its files (confirm=true). Borrar maqueta.\nSinÃ³nimos: eliminar",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": true,
@@ -6062,7 +6062,7 @@
   },
   {
     "name": "gulliver_model_files",
-    "description": "Files of a model's build (current or a kept one): STL, 3MF, tiles, ZIP, preview. Archivos.\nSinónimos: descargar, stl, 3mf, piezas, ruta",
+    "description": "Files of a model's build (current or a kept one): STL, 3MF, tiles, ZIP, preview. Archivos.\nSinÃ³nimos: descargar, stl, 3mf, piezas, ruta",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -6097,7 +6097,7 @@
   },
   {
     "name": "gulliver_model_export",
-    "description": "Copy a model's files to a folder (Desktop/Gulliver by default). Exportar archivos.\nSinónimos: guardar en, copiar al escritorio, llevar a la impresora",
+    "description": "Copy a model's files to a folder (Desktop/Gulliver by default). Exportar archivos.\nSinÃ³nimos: guardar en, copiar al escritorio, llevar a la impresora",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -6151,7 +6151,7 @@
   },
   {
     "name": "gulliver_model_builds",
-    "description": "A model's kept builds, newest first, with the parameters and score of each. Generaciones.\nSinónimos: historial, versiones, variantes, anteriores",
+    "description": "A model's kept builds, newest first, with the parameters and score of each. Generaciones.\nSinÃ³nimos: historial, versiones, variantes, anteriores",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -6179,7 +6179,7 @@
   },
   {
     "name": "gulliver_model_compare",
-    "description": "Compare two builds of a model: changed parameters, size, weight, parts, score. Comparar.\nDefaults: the previous build (A) against the current one (B).\nSinónimos: a/b, cuál imprime mejor, diferencias, versión anterior",
+    "description": "Compare two builds of a model: changed parameters, size, weight, parts, score. Comparar.\nDefaults: the previous build (A) against the current one (B).\nSinÃ³nimos: a/b, cuÃ¡l imprime mejor, diferencias, versiÃ³n anterior",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -6221,7 +6221,7 @@
   },
   {
     "name": "gulliver_model_build_use",
-    "description": "Make a kept build the current one again, with its parameters. Volver a una generación.\nSinónimos: restaurar, deshacer, usar la anterior",
+    "description": "Make a kept build the current one again, with its parameters. Volver a una generaciÃ³n.\nSinÃ³nimos: restaurar, deshacer, usar la anterior",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -6256,7 +6256,7 @@
   },
   {
     "name": "gulliver_model_advice",
-    "description": "Printability fixes of the current build as parameter changes: preview, or apply and rebuild. Aplicar consejos.\nSinónimos: arreglar, imprimibilidad, corregir, mejorar impresión",
+    "description": "Printability fixes of the current build as parameter changes: preview, or apply and rebuild. Aplicar consejos.\nSinÃ³nimos: arreglar, imprimibilidad, corregir, mejorar impresiÃ³n",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -6306,7 +6306,7 @@
   },
   {
     "name": "gulliver_model_send_to_vulcan",
-    "description": "File a model (and optionally its tiles) in Vulcan's Hoard, the 3D print library. A Vulcan.\nSinónimos: biblioteca de impresión, catalogar",
+    "description": "File a model (and optionally its tiles) in Vulcan's Hoard, the 3D print library. A Vulcan.\nSinÃ³nimos: biblioteca de impresiÃ³n, catalogar",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -6341,7 +6341,7 @@
   },
   {
     "name": "gulliver_jobs_list",
-    "description": "Build jobs, newest first (optionally of one model). Trabajos.\nSinónimos: cola, progreso",
+    "description": "Build jobs, newest first (optionally of one model). Trabajos.\nSinÃ³nimos: cola, progreso",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -6372,7 +6372,7 @@
   },
   {
     "name": "gulliver_job_get",
-    "description": "A job's state, progress, step and log. Estado del trabajo.\nSinónimos: progreso, cuánto falta",
+    "description": "A job's state, progress, step and log. Estado del trabajo.\nSinÃ³nimos: progreso, cuÃ¡nto falta",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -6399,7 +6399,7 @@
   },
   {
     "name": "gulliver_job_cancel",
-    "description": "Cancel a queued or running build. Cancelar.\nSinónimos: parar, detener",
+    "description": "Cancel a queued or running build. Cancelar.\nSinÃ³nimos: parar, detener",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -6426,7 +6426,7 @@
   },
   {
     "name": "gulliver_settings_get",
-    "description": "Settings: printer bed, nozzle, elevation source, map servers, Vulcan, language. Ajustes.\nSinónimos: configuración, impresora, cama",
+    "description": "Settings: printer bed, nozzle, elevation source, map servers, Vulcan, language. Ajustes.\nSinÃ³nimos: configuraciÃ³n, impresora, cama",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -6444,7 +6444,7 @@
   },
   {
     "name": "gulliver_settings_set",
-    "description": "Change settings (bed size, nozzle, elevation source, export folder...). Cambiar ajustes.\nSinónimos: tamaño de cama, impresora",
+    "description": "Change settings (bed size, nozzle, elevation source, export folder...). Cambiar ajustes.\nSinÃ³nimos: tamaÃ±o de cama, impresora",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -6616,7 +6616,7 @@
   },
   {
     "name": "gulliver_cache_info",
-    "description": "Size of the downloaded elevation and map cache. Caché.\nSinónimos: espacio, descargas",
+    "description": "Size of the downloaded elevation and map cache. CachÃ©.\nSinÃ³nimos: espacio, descargas",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -6634,7 +6634,7 @@
   },
   {
     "name": "gulliver_cache_clear",
-    "description": "Empty the download cache, or one bucket of it (confirm=true). Vaciar caché.\nSinónimos: liberar espacio",
+    "description": "Empty the download cache, or one bucket of it (confirm=true). Vaciar cachÃ©.\nSinÃ³nimos: liberar espacio",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": true,
@@ -7039,7 +7039,7 @@
   },
   {
     "name": "heron_cad_templates",
-    "description": "Measured parametric CAD recipes and full schema. Keywords: CAD, medidas, plantilla, sÃ³lidos.",
+    "description": "Measured parametric CAD recipes and full schema. Keywords: CAD, medidas, plantilla, sÃƒÂ³lidos.",
     "inputSchema": {
       "type": "object",
       "properties": {},
@@ -7053,7 +7053,7 @@
   },
   {
     "name": "heron_cad_build",
-    "description": "Build a measured CAD recipe, verify STEP/STL and retain artifacts. Keywords: sÃ³lido, booleanas, fabricaciÃ³n.",
+    "description": "Build a measured CAD recipe, verify STEP/STL and retain artifacts. Keywords: sÃƒÂ³lido, booleanas, fabricaciÃƒÂ³n.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -7241,7 +7241,7 @@
   },
   {
     "name": "heron_cad_get",
-    "description": "Read a CAD receipt and verified export links. Keywords: STEP, STL, geometrÃ­a, informe.",
+    "description": "Read a CAD receipt and verified export links. Keywords: STEP, STL, geometrÃƒÂ­a, informe.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -7276,920 +7276,2994 @@
   },
   {
     "name": "gepetto_get_health",
-    "native_name": "get_health",
-    "module": "gepetto",
     "description": "Health check.",
     "inputSchema": {
-      "type": "object",
       "properties": {},
-      "required": []
+      "title": "get_healthArguments",
+      "type": "object"
     },
     "annotations": {
       "readOnlyHint": true
     },
+    "native_name": "get_health",
+    "module": "gepetto",
     "rest": {
       "name": "get_health",
       "description": "Health check.",
       "method": "GET",
       "path": "/api/health",
-      "params": {},
-      "readonly": true
+      "readonly": true,
+      "params": {}
     }
   },
   {
     "name": "gepetto_get_models",
-    "native_name": "get_models",
-    "module": "gepetto",
     "description": "List available models.",
     "inputSchema": {
-      "type": "object",
       "properties": {},
-      "required": []
+      "title": "get_modelsArguments",
+      "type": "object"
     },
     "annotations": {
       "readOnlyHint": true
     },
+    "native_name": "get_models",
+    "module": "gepetto",
     "rest": {
       "name": "get_models",
       "description": "List available models.",
       "method": "GET",
       "path": "/api/models",
-      "params": {},
-      "readonly": true
+      "readonly": true,
+      "params": {}
     }
   },
   {
     "name": "gepetto_list_projects",
-    "native_name": "list_projects",
-    "module": "gepetto",
     "description": "List projects.",
     "inputSchema": {
-      "type": "object",
       "properties": {},
-      "required": []
+      "title": "list_projectsArguments",
+      "type": "object"
     },
     "annotations": {
       "readOnlyHint": true
     },
+    "native_name": "list_projects",
+    "module": "gepetto",
     "rest": {
       "name": "list_projects",
       "description": "List projects.",
       "method": "GET",
       "path": "/api/projects",
-      "params": {},
-      "readonly": true
+      "readonly": true,
+      "params": {}
     }
   },
   {
     "name": "gepetto_get_project",
-    "native_name": "get_project",
-    "module": "gepetto",
     "description": "Get one project.",
     "inputSchema": {
-      "type": "object",
       "properties": {
         "pid": {
-          "type": "string",
-          "description": "Project id."
+          "title": "Pid",
+          "type": "string"
         }
       },
       "required": [
         "pid"
-      ]
+      ],
+      "title": "get_projectArguments",
+      "type": "object"
     },
     "annotations": {
       "readOnlyHint": true
     },
+    "native_name": "get_project",
+    "module": "gepetto",
     "rest": {
       "name": "get_project",
       "description": "Get one project.",
       "method": "GET",
       "path": "/api/projects/{pid}",
+      "readonly": true,
       "params": {
         "pid": {
+          "orig": "pid",
           "in": "path",
           "type": "string",
           "required": true,
           "description": "Project id."
         }
-      },
-      "readonly": true
+      }
     }
   },
   {
     "name": "gepetto_get_project_analysis_status",
-    "native_name": "get_project_analysis_status",
-    "module": "gepetto",
     "description": "Analysis status for a project.",
     "inputSchema": {
-      "type": "object",
       "properties": {
         "pid": {
-          "type": "string",
-          "description": "Project id."
+          "title": "Pid",
+          "type": "string"
         }
       },
       "required": [
         "pid"
-      ]
+      ],
+      "title": "get_project_analysis_statusArguments",
+      "type": "object"
     },
     "annotations": {
       "readOnlyHint": true
     },
+    "native_name": "get_project_analysis_status",
+    "module": "gepetto",
     "rest": {
       "name": "get_project_analysis_status",
       "description": "Analysis status for a project.",
       "method": "GET",
       "path": "/api/projects/{pid}/analysis-status",
+      "readonly": true,
       "params": {
         "pid": {
+          "orig": "pid",
           "in": "path",
           "type": "string",
           "required": true,
           "description": "Project id."
         }
-      },
-      "readonly": true
+      }
     }
   },
   {
     "name": "gepetto_get_job",
-    "native_name": "get_job",
-    "module": "gepetto",
     "description": "Get a job by id.",
     "inputSchema": {
-      "type": "object",
       "properties": {
         "jid": {
-          "type": "string",
-          "description": "Job id."
+          "title": "Jid",
+          "type": "string"
         }
       },
       "required": [
         "jid"
-      ]
+      ],
+      "title": "get_jobArguments",
+      "type": "object"
     },
     "annotations": {
       "readOnlyHint": true
     },
+    "native_name": "get_job",
+    "module": "gepetto",
     "rest": {
       "name": "get_job",
       "description": "Get a job by id.",
       "method": "GET",
       "path": "/api/jobs/{jid}",
+      "readonly": true,
       "params": {
         "jid": {
+          "orig": "jid",
           "in": "path",
           "type": "string",
           "required": true,
           "description": "Job id."
         }
-      },
-      "readonly": true
+      }
     }
   },
   {
     "name": "gepetto_get_runtime",
-    "native_name": "get_runtime",
-    "module": "gepetto",
     "description": "Runtime info.",
     "inputSchema": {
-      "type": "object",
       "properties": {},
-      "required": []
+      "title": "get_runtimeArguments",
+      "type": "object"
     },
     "annotations": {
       "readOnlyHint": true
     },
+    "native_name": "get_runtime",
+    "module": "gepetto",
     "rest": {
       "name": "get_runtime",
       "description": "Runtime info.",
       "method": "GET",
       "path": "/api/runtime",
-      "params": {},
-      "readonly": true
+      "readonly": true,
+      "params": {}
     }
   },
   {
     "name": "gepetto_get_batch",
-    "native_name": "get_batch",
-    "module": "gepetto",
     "description": "Batch status.",
     "inputSchema": {
-      "type": "object",
       "properties": {},
-      "required": []
+      "title": "get_batchArguments",
+      "type": "object"
     },
     "annotations": {
       "readOnlyHint": true
     },
+    "native_name": "get_batch",
+    "module": "gepetto",
     "rest": {
       "name": "get_batch",
       "description": "Batch status.",
       "method": "GET",
       "path": "/api/batch",
-      "params": {},
-      "readonly": true
+      "readonly": true,
+      "params": {}
     }
   },
   {
     "name": "gepetto_get_project_history",
-    "native_name": "get_project_history",
-    "module": "gepetto",
     "description": "History for a project.",
     "inputSchema": {
-      "type": "object",
       "properties": {
         "pid": {
-          "type": "string",
-          "description": "Project id."
+          "title": "Pid",
+          "type": "string"
         }
       },
       "required": [
         "pid"
-      ]
+      ],
+      "title": "get_project_historyArguments",
+      "type": "object"
     },
     "annotations": {
       "readOnlyHint": true
     },
+    "native_name": "get_project_history",
+    "module": "gepetto",
     "rest": {
       "name": "get_project_history",
       "description": "History for a project.",
       "method": "GET",
       "path": "/api/projects/{pid}/history",
+      "readonly": true,
       "params": {
         "pid": {
+          "orig": "pid",
           "in": "path",
           "type": "string",
           "required": true,
           "description": "Project id."
         }
-      },
-      "readonly": true
+      }
     }
   },
   {
     "name": "gepetto_create_project",
-    "native_name": "create_project",
-    "module": "gepetto",
     "description": "Create a project.",
     "inputSchema": {
-      "type": "object",
       "properties": {
         "body": {
-          "type": "object",
-          "description": "New project payload."
+          "additionalProperties": true,
+          "title": "Body",
+          "type": "object"
         }
       },
       "required": [
         "body"
-      ]
+      ],
+      "title": "create_projectArguments",
+      "type": "object"
     },
     "annotations": {
       "readOnlyHint": false
     },
+    "native_name": "create_project",
+    "module": "gepetto",
     "rest": {
       "name": "create_project",
       "description": "Create a project.",
       "method": "POST",
       "path": "/api/projects",
+      "readonly": false,
       "params": {
         "body": {
+          "orig": "body",
           "in": "body",
           "type": "object",
           "required": true,
           "description": "New project payload."
         }
-      },
-      "readonly": false
+      }
     }
   },
   {
     "name": "gepetto_analyze_project",
-    "native_name": "analyze_project",
-    "module": "gepetto",
     "description": "Start analysis for a project.",
     "inputSchema": {
-      "type": "object",
       "properties": {
         "pid": {
-          "type": "string",
-          "description": "Project id."
+          "title": "Pid",
+          "type": "string"
         },
         "body": {
-          "type": "object",
-          "description": "Analysis options."
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Body"
         }
       },
       "required": [
         "pid"
-      ]
+      ],
+      "title": "analyze_projectArguments",
+      "type": "object"
     },
     "annotations": {
       "readOnlyHint": false
     },
+    "native_name": "analyze_project",
+    "module": "gepetto",
     "rest": {
       "name": "analyze_project",
       "description": "Start analysis for a project.",
       "method": "POST",
       "path": "/api/projects/{pid}/analyze",
+      "readonly": false,
       "params": {
         "pid": {
+          "orig": "pid",
           "in": "path",
           "type": "string",
           "required": true,
           "description": "Project id."
         },
         "body": {
+          "orig": "body",
           "in": "body",
           "type": "object",
           "required": false,
           "description": "Analysis options."
         }
-      },
-      "readonly": false
+      }
     }
   },
   {
     "name": "gepetto_apply_project",
-    "native_name": "apply_project",
-    "module": "gepetto",
     "description": "Apply changes to a project.",
     "inputSchema": {
-      "type": "object",
       "properties": {
         "pid": {
-          "type": "string",
-          "description": "Project id."
+          "title": "Pid",
+          "type": "string"
         },
         "body": {
-          "type": "object",
-          "description": "Apply payload."
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Body"
         }
       },
       "required": [
         "pid"
-      ]
+      ],
+      "title": "apply_projectArguments",
+      "type": "object"
     },
     "annotations": {
       "readOnlyHint": false
     },
+    "native_name": "apply_project",
+    "module": "gepetto",
     "rest": {
       "name": "apply_project",
       "description": "Apply changes to a project.",
       "method": "POST",
       "path": "/api/projects/{pid}/apply",
+      "readonly": false,
       "params": {
         "pid": {
+          "orig": "pid",
           "in": "path",
           "type": "string",
           "required": true,
           "description": "Project id."
         },
         "body": {
+          "orig": "body",
           "in": "body",
           "type": "object",
           "required": false,
           "description": "Apply payload."
         }
-      },
-      "readonly": false
+      }
     }
   },
   {
     "name": "gepetto_command_project",
-    "native_name": "command_project",
-    "module": "gepetto",
     "description": "Send a command to a project.",
     "inputSchema": {
-      "type": "object",
       "properties": {
         "pid": {
-          "type": "string",
-          "description": "Project id."
+          "title": "Pid",
+          "type": "string"
         },
         "body": {
-          "type": "object",
-          "description": "Command payload."
+          "additionalProperties": true,
+          "title": "Body",
+          "type": "object"
         }
       },
       "required": [
         "pid",
         "body"
-      ]
+      ],
+      "title": "command_projectArguments",
+      "type": "object"
     },
     "annotations": {
       "readOnlyHint": false
     },
+    "native_name": "command_project",
+    "module": "gepetto",
     "rest": {
       "name": "command_project",
       "description": "Send a command to a project.",
       "method": "POST",
       "path": "/api/projects/{pid}/command",
+      "readonly": false,
       "params": {
         "pid": {
+          "orig": "pid",
           "in": "path",
           "type": "string",
           "required": true,
           "description": "Project id."
         },
         "body": {
+          "orig": "body",
           "in": "body",
           "type": "object",
           "required": true,
           "description": "Command payload."
         }
-      },
-      "readonly": false
+      }
     }
   },
   {
     "name": "gepetto_save_project",
-    "native_name": "save_project",
-    "module": "gepetto",
     "description": "Save a project.",
     "inputSchema": {
-      "type": "object",
       "properties": {
         "pid": {
-          "type": "string",
-          "description": "Project id."
+          "title": "Pid",
+          "type": "string"
         },
         "body": {
-          "type": "object",
-          "description": "Save options."
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Body"
         }
       },
       "required": [
         "pid"
-      ]
+      ],
+      "title": "save_projectArguments",
+      "type": "object"
     },
     "annotations": {
       "readOnlyHint": false
     },
+    "native_name": "save_project",
+    "module": "gepetto",
     "rest": {
       "name": "save_project",
       "description": "Save a project.",
       "method": "POST",
       "path": "/api/projects/{pid}/save",
+      "readonly": false,
       "params": {
         "pid": {
+          "orig": "pid",
           "in": "path",
           "type": "string",
           "required": true,
           "description": "Project id."
         },
         "body": {
+          "orig": "body",
           "in": "body",
           "type": "object",
           "required": false,
           "description": "Save options."
         }
-      },
-      "readonly": false
+      }
     }
   },
   {
-    "name": "plato_list_documents",
-    "native_name": "list_documents",
-    "module": "plato",
-    "description": "List documents.",
+    "name": "gepetto_info_api_copilot_info_get",
+    "description": "Info",
     "inputSchema": {
-      "type": "object",
       "properties": {},
-      "required": []
+      "title": "info_api_copilot_info_getArguments",
+      "type": "object"
     },
     "annotations": {
       "readOnlyHint": true
     },
+    "native_name": "info_api_copilot_info_get",
+    "module": "gepetto",
+    "rest": {
+      "name": "info_api_copilot_info_get",
+      "description": "Info",
+      "method": "GET",
+      "path": "/api/copilot/info",
+      "readonly": true,
+      "params": {}
+    }
+  },
+  {
+    "name": "gepetto_panel_api_copilot_panel_js_get",
+    "description": "Panel",
+    "inputSchema": {
+      "properties": {},
+      "title": "panel_api_copilot_panel_js_getArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "native_name": "panel_api_copilot_panel_js_get",
+    "module": "gepetto",
+    "rest": {
+      "name": "panel_api_copilot_panel_js_get",
+      "description": "Panel",
+      "method": "GET",
+      "path": "/api/copilot/panel.js",
+      "readonly": true,
+      "params": {}
+    }
+  },
+  {
+    "name": "gepetto_proxy_api_copilot_proxy_post",
+    "description": "Proxy",
+    "inputSchema": {
+      "properties": {},
+      "title": "proxy_api_copilot_proxy_postArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false
+    },
+    "native_name": "proxy_api_copilot_proxy_post",
+    "module": "gepetto",
+    "rest": {
+      "name": "proxy_api_copilot_proxy_post",
+      "description": "Proxy",
+      "method": "POST",
+      "path": "/api/copilot/proxy",
+      "readonly": false,
+      "params": {}
+    }
+  },
+  {
+    "name": "gepetto_health_api_health_get",
+    "description": "Health",
+    "inputSchema": {
+      "properties": {},
+      "title": "health_api_health_getArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "native_name": "health_api_health_get",
+    "module": "gepetto",
+    "rest": {
+      "name": "health_api_health_get",
+      "description": "Health",
+      "method": "GET",
+      "path": "/api/health",
+      "readonly": true,
+      "params": {}
+    }
+  },
+  {
+    "name": "gepetto_get_models_api_models_get",
+    "description": "Get Models",
+    "inputSchema": {
+      "properties": {},
+      "title": "get_models_api_models_getArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "native_name": "get_models_api_models_get",
+    "module": "gepetto",
+    "rest": {
+      "name": "get_models_api_models_get",
+      "description": "Get Models",
+      "method": "GET",
+      "path": "/api/models",
+      "readonly": true,
+      "params": {}
+    }
+  },
+  {
+    "name": "gepetto_projects_api_projects_get",
+    "description": "Projects",
+    "inputSchema": {
+      "properties": {},
+      "title": "projects_api_projects_getArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "native_name": "projects_api_projects_get",
+    "module": "gepetto",
+    "rest": {
+      "name": "projects_api_projects_get",
+      "description": "Projects",
+      "method": "GET",
+      "path": "/api/projects",
+      "readonly": true,
+      "params": {}
+    }
+  },
+  {
+    "name": "gepetto_create_api_projects_post",
+    "description": "Create",
+    "inputSchema": {
+      "properties": {
+        "body": {
+          "additionalProperties": true,
+          "title": "Body",
+          "type": "object"
+        }
+      },
+      "required": [
+        "body"
+      ],
+      "title": "create_api_projects_postArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false
+    },
+    "native_name": "create_api_projects_post",
+    "module": "gepetto",
+    "rest": {
+      "name": "create_api_projects_post",
+      "description": "Create",
+      "method": "POST",
+      "path": "/api/projects",
+      "readonly": false,
+      "params": {
+        "body": {
+          "orig": "body",
+          "in": "body",
+          "type": "object",
+          "required": true,
+          "description": "JSON request body."
+        }
+      }
+    }
+  },
+  {
+    "name": "gepetto_project_api_projects__pid__get",
+    "description": "Project",
+    "inputSchema": {
+      "properties": {
+        "pid": {
+          "title": "Pid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "pid"
+      ],
+      "title": "project_api_projects__pid__getArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "native_name": "project_api_projects__pid__get",
+    "module": "gepetto",
+    "rest": {
+      "name": "project_api_projects__pid__get",
+      "description": "Project",
+      "method": "GET",
+      "path": "/api/projects/{pid}",
+      "readonly": true,
+      "params": {
+        "pid": {
+          "orig": "pid",
+          "in": "path",
+          "type": "string",
+          "required": true,
+          "description": ""
+        }
+      }
+    }
+  },
+  {
+    "name": "gepetto_expand_saved_blender",
+    "description": "Expand Saved Blender",
+    "inputSchema": {
+      "properties": {
+        "pid": {
+          "title": "Pid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "pid"
+      ],
+      "title": "expand_saved_blender_api_projects__pid__import_blender_postArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false
+    },
+    "native_name": "expand_saved_blender_api_projects__pid__import_blender_post",
+    "module": "gepetto",
+    "rest": {
+      "name": "expand_saved_blender_api_projects__pid__import_blender_post",
+      "description": "Expand Saved Blender",
+      "method": "POST",
+      "path": "/api/projects/{pid}/import-blender",
+      "readonly": false,
+      "params": {
+        "pid": {
+          "orig": "pid",
+          "in": "path",
+          "type": "string",
+          "required": true,
+          "description": ""
+        }
+      }
+    }
+  },
+  {
+    "name": "gepetto_open_desktop_api_desktop_open_post",
+    "description": "Open Desktop",
+    "inputSchema": {
+      "properties": {
+        "body": {
+          "additionalProperties": true,
+          "title": "Body",
+          "type": "object"
+        }
+      },
+      "required": [
+        "body"
+      ],
+      "title": "open_desktop_api_desktop_open_postArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false
+    },
+    "native_name": "open_desktop_api_desktop_open_post",
+    "module": "gepetto",
+    "rest": {
+      "name": "open_desktop_api_desktop_open_post",
+      "description": "Open Desktop",
+      "method": "POST",
+      "path": "/api/desktop/open",
+      "readonly": false,
+      "params": {
+        "body": {
+          "orig": "body",
+          "in": "body",
+          "type": "object",
+          "required": true,
+          "description": "JSON request body."
+        }
+      }
+    }
+  },
+  {
+    "name": "gepetto_import_blender_path",
+    "description": "Import Blender Path",
+    "inputSchema": {
+      "properties": {
+        "pid": {
+          "title": "Pid",
+          "type": "string"
+        },
+        "body": {
+          "additionalProperties": true,
+          "title": "Body",
+          "type": "object"
+        }
+      },
+      "required": [
+        "pid",
+        "body"
+      ],
+      "title": "import_blender_path_api_projects__pid__import_blender_path_postArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false
+    },
+    "native_name": "import_blender_path_api_projects__pid__import_blender_path_post",
+    "module": "gepetto",
+    "rest": {
+      "name": "import_blender_path_api_projects__pid__import_blender_path_post",
+      "description": "Import Blender Path",
+      "method": "POST",
+      "path": "/api/projects/{pid}/import-blender-path",
+      "readonly": false,
+      "params": {
+        "pid": {
+          "orig": "pid",
+          "in": "path",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        "body": {
+          "orig": "body",
+          "in": "body",
+          "type": "object",
+          "required": true,
+          "description": "JSON request body."
+        }
+      }
+    }
+  },
+  {
+    "name": "gepetto_demo_api_demo_post",
+    "description": "Demo",
+    "inputSchema": {
+      "properties": {},
+      "title": "demo_api_demo_postArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false
+    },
+    "native_name": "demo_api_demo_post",
+    "module": "gepetto",
+    "rest": {
+      "name": "demo_api_demo_post",
+      "description": "Demo",
+      "method": "POST",
+      "path": "/api/demo",
+      "readonly": false,
+      "params": {}
+    }
+  },
+  {
+    "name": "gepetto_source_api_projects__pid__source__fid__get",
+    "description": "Source",
+    "inputSchema": {
+      "properties": {
+        "pid": {
+          "title": "Pid",
+          "type": "string"
+        },
+        "fid": {
+          "title": "Fid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "pid",
+        "fid"
+      ],
+      "title": "source_api_projects__pid__source__fid__getArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "native_name": "source_api_projects__pid__source__fid__get",
+    "module": "gepetto",
+    "rest": {
+      "name": "source_api_projects__pid__source__fid__get",
+      "description": "Source",
+      "method": "GET",
+      "path": "/api/projects/{pid}/source/{fid}",
+      "readonly": true,
+      "params": {
+        "pid": {
+          "orig": "pid",
+          "in": "path",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        "fid": {
+          "orig": "fid",
+          "in": "path",
+          "type": "string",
+          "required": true,
+          "description": ""
+        }
+      }
+    }
+  },
+  {
+    "name": "gepetto_preview_api_projects__pid__assets__aid___mode__png_get",
+    "description": "Preview",
+    "inputSchema": {
+      "properties": {
+        "pid": {
+          "title": "Pid",
+          "type": "string"
+        },
+        "aid": {
+          "title": "Aid",
+          "type": "string"
+        },
+        "mode": {
+          "title": "Mode",
+          "type": "string"
+        }
+      },
+      "required": [
+        "pid",
+        "aid",
+        "mode"
+      ],
+      "title": "preview_api_projects__pid__assets__aid___mode__png_getArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "native_name": "preview_api_projects__pid__assets__aid___mode__png_get",
+    "module": "gepetto",
+    "rest": {
+      "name": "preview_api_projects__pid__assets__aid___mode__png_get",
+      "description": "Preview",
+      "method": "GET",
+      "path": "/api/projects/{pid}/assets/{aid}/{mode}.png",
+      "readonly": true,
+      "params": {
+        "pid": {
+          "orig": "pid",
+          "in": "path",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        "aid": {
+          "orig": "aid",
+          "in": "path",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        "mode": {
+          "orig": "mode",
+          "in": "path",
+          "type": "string",
+          "required": true,
+          "description": ""
+        }
+      }
+    }
+  },
+  {
+    "name": "gepetto_mask_api_projects__pid__assets__aid__mask_get",
+    "description": "Mask",
+    "inputSchema": {
+      "properties": {
+        "pid": {
+          "title": "Pid",
+          "type": "string"
+        },
+        "aid": {
+          "title": "Aid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "pid",
+        "aid"
+      ],
+      "title": "mask_api_projects__pid__assets__aid__mask_getArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "native_name": "mask_api_projects__pid__assets__aid__mask_get",
+    "module": "gepetto",
+    "rest": {
+      "name": "mask_api_projects__pid__assets__aid__mask_get",
+      "description": "Mask",
+      "method": "GET",
+      "path": "/api/projects/{pid}/assets/{aid}/mask",
+      "readonly": true,
+      "params": {
+        "pid": {
+          "orig": "pid",
+          "in": "path",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        "aid": {
+          "orig": "aid",
+          "in": "path",
+          "type": "string",
+          "required": true,
+          "description": ""
+        }
+      }
+    }
+  },
+  {
+    "name": "gepetto_prepare_api_projects__pid__assets__aid__segment_post",
+    "description": "Prepare",
+    "inputSchema": {
+      "properties": {
+        "pid": {
+          "title": "Pid",
+          "type": "string"
+        },
+        "aid": {
+          "title": "Aid",
+          "type": "string"
+        },
+        "body": {
+          "additionalProperties": true,
+          "title": "Body",
+          "type": "object"
+        }
+      },
+      "required": [
+        "pid",
+        "aid",
+        "body"
+      ],
+      "title": "prepare_api_projects__pid__assets__aid__segment_postArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false
+    },
+    "native_name": "prepare_api_projects__pid__assets__aid__segment_post",
+    "module": "gepetto",
+    "rest": {
+      "name": "prepare_api_projects__pid__assets__aid__segment_post",
+      "description": "Prepare",
+      "method": "POST",
+      "path": "/api/projects/{pid}/assets/{aid}/segment",
+      "readonly": false,
+      "params": {
+        "pid": {
+          "orig": "pid",
+          "in": "path",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        "aid": {
+          "orig": "aid",
+          "in": "path",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        "body": {
+          "orig": "body",
+          "in": "body",
+          "type": "object",
+          "required": true,
+          "description": "JSON request body."
+        }
+      }
+    }
+  },
+  {
+    "name": "gepetto_patch_regions",
+    "description": "Patch Regions",
+    "inputSchema": {
+      "properties": {
+        "pid": {
+          "title": "Pid",
+          "type": "string"
+        },
+        "aid": {
+          "title": "Aid",
+          "type": "string"
+        },
+        "body": {
+          "additionalProperties": true,
+          "title": "Body",
+          "type": "object"
+        }
+      },
+      "required": [
+        "pid",
+        "aid",
+        "body"
+      ],
+      "title": "patch_regions_api_projects__pid__assets__aid__regions_patchArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false
+    },
+    "native_name": "patch_regions_api_projects__pid__assets__aid__regions_patch",
+    "module": "gepetto",
+    "rest": {
+      "name": "patch_regions_api_projects__pid__assets__aid__regions_patch",
+      "description": "Patch Regions",
+      "method": "PATCH",
+      "path": "/api/projects/{pid}/assets/{aid}/regions",
+      "readonly": false,
+      "params": {
+        "pid": {
+          "orig": "pid",
+          "in": "path",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        "aid": {
+          "orig": "aid",
+          "in": "path",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        "body": {
+          "orig": "body",
+          "in": "body",
+          "type": "object",
+          "required": true,
+          "description": "JSON request body."
+        }
+      }
+    }
+  },
+  {
+    "name": "gepetto_edit_api_projects__pid__assets__aid__patch",
+    "description": "Edit",
+    "inputSchema": {
+      "properties": {
+        "pid": {
+          "title": "Pid",
+          "type": "string"
+        },
+        "aid": {
+          "title": "Aid",
+          "type": "string"
+        },
+        "body": {
+          "additionalProperties": true,
+          "title": "Body",
+          "type": "object"
+        }
+      },
+      "required": [
+        "pid",
+        "aid",
+        "body"
+      ],
+      "title": "edit_api_projects__pid__assets__aid__patchArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false
+    },
+    "native_name": "edit_api_projects__pid__assets__aid__patch",
+    "module": "gepetto",
+    "rest": {
+      "name": "edit_api_projects__pid__assets__aid__patch",
+      "description": "Edit",
+      "method": "PATCH",
+      "path": "/api/projects/{pid}/assets/{aid}",
+      "readonly": false,
+      "params": {
+        "pid": {
+          "orig": "pid",
+          "in": "path",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        "aid": {
+          "orig": "aid",
+          "in": "path",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        "body": {
+          "orig": "body",
+          "in": "body",
+          "type": "object",
+          "required": true,
+          "description": "JSON request body."
+        }
+      }
+    }
+  },
+  {
+    "name": "gepetto_analysis_status_api_projects__pid__analysis_status_get",
+    "description": "Analysis Status",
+    "inputSchema": {
+      "properties": {
+        "pid": {
+          "title": "Pid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "pid"
+      ],
+      "title": "analysis_status_api_projects__pid__analysis_status_getArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "native_name": "analysis_status_api_projects__pid__analysis_status_get",
+    "module": "gepetto",
+    "rest": {
+      "name": "analysis_status_api_projects__pid__analysis_status_get",
+      "description": "Analysis Status",
+      "method": "GET",
+      "path": "/api/projects/{pid}/analysis-status",
+      "readonly": true,
+      "params": {
+        "pid": {
+          "orig": "pid",
+          "in": "path",
+          "type": "string",
+          "required": true,
+          "description": ""
+        }
+      }
+    }
+  },
+  {
+    "name": "gepetto_analyze_api_projects__pid__analyze_post",
+    "description": "Analyze",
+    "inputSchema": {
+      "properties": {
+        "pid": {
+          "title": "Pid",
+          "type": "string"
+        },
+        "body": {
+          "additionalProperties": true,
+          "title": "Body",
+          "type": "object"
+        }
+      },
+      "required": [
+        "pid",
+        "body"
+      ],
+      "title": "analyze_api_projects__pid__analyze_postArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false
+    },
+    "native_name": "analyze_api_projects__pid__analyze_post",
+    "module": "gepetto",
+    "rest": {
+      "name": "analyze_api_projects__pid__analyze_post",
+      "description": "Analyze",
+      "method": "POST",
+      "path": "/api/projects/{pid}/analyze",
+      "readonly": false,
+      "params": {
+        "pid": {
+          "orig": "pid",
+          "in": "path",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        "body": {
+          "orig": "body",
+          "in": "body",
+          "type": "object",
+          "required": true,
+          "description": "JSON request body."
+        }
+      }
+    }
+  },
+  {
+    "name": "gepetto_job_api_jobs__jid__get",
+    "description": "Job",
+    "inputSchema": {
+      "properties": {
+        "jid": {
+          "title": "Jid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "jid"
+      ],
+      "title": "job_api_jobs__jid__getArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "native_name": "job_api_jobs__jid__get",
+    "module": "gepetto",
+    "rest": {
+      "name": "job_api_jobs__jid__get",
+      "description": "Job",
+      "method": "GET",
+      "path": "/api/jobs/{jid}",
+      "readonly": true,
+      "params": {
+        "jid": {
+          "orig": "jid",
+          "in": "path",
+          "type": "string",
+          "required": true,
+          "description": ""
+        }
+      }
+    }
+  },
+  {
+    "name": "gepetto_apply_api_projects__pid__apply_post",
+    "description": "Apply",
+    "inputSchema": {
+      "properties": {
+        "pid": {
+          "title": "Pid",
+          "type": "string"
+        },
+        "body": {
+          "additionalProperties": true,
+          "title": "Body",
+          "type": "object"
+        }
+      },
+      "required": [
+        "pid",
+        "body"
+      ],
+      "title": "apply_api_projects__pid__apply_postArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false
+    },
+    "native_name": "apply_api_projects__pid__apply_post",
+    "module": "gepetto",
+    "rest": {
+      "name": "apply_api_projects__pid__apply_post",
+      "description": "Apply",
+      "method": "POST",
+      "path": "/api/projects/{pid}/apply",
+      "readonly": false,
+      "params": {
+        "pid": {
+          "orig": "pid",
+          "in": "path",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        "body": {
+          "orig": "body",
+          "in": "body",
+          "type": "object",
+          "required": true,
+          "description": "JSON request body."
+        }
+      }
+    }
+  },
+  {
+    "name": "gepetto_approve_api_projects__pid__approve_post",
+    "description": "Approve",
+    "inputSchema": {
+      "properties": {
+        "pid": {
+          "title": "Pid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "pid"
+      ],
+      "title": "approve_api_projects__pid__approve_postArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false
+    },
+    "native_name": "approve_api_projects__pid__approve_post",
+    "module": "gepetto",
+    "rest": {
+      "name": "approve_api_projects__pid__approve_post",
+      "description": "Approve",
+      "method": "POST",
+      "path": "/api/projects/{pid}/approve",
+      "readonly": false,
+      "params": {
+        "pid": {
+          "orig": "pid",
+          "in": "path",
+          "type": "string",
+          "required": true,
+          "description": ""
+        }
+      }
+    }
+  },
+  {
+    "name": "gepetto_export_api_projects__pid__export_get",
+    "description": "Export",
+    "inputSchema": {
+      "properties": {
+        "pid": {
+          "title": "Pid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "pid"
+      ],
+      "title": "export_api_projects__pid__export_getArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "native_name": "export_api_projects__pid__export_get",
+    "module": "gepetto",
+    "rest": {
+      "name": "export_api_projects__pid__export_get",
+      "description": "Export",
+      "method": "GET",
+      "path": "/api/projects/{pid}/export",
+      "readonly": true,
+      "params": {
+        "pid": {
+          "orig": "pid",
+          "in": "path",
+          "type": "string",
+          "required": true,
+          "description": ""
+        }
+      }
+    }
+  },
+  {
+    "name": "gepetto_evaluate_api_projects__pid__evaluate_post",
+    "description": "Evaluate",
+    "inputSchema": {
+      "properties": {
+        "pid": {
+          "title": "Pid",
+          "type": "string"
+        },
+        "body": {
+          "additionalProperties": true,
+          "title": "Body",
+          "type": "object"
+        }
+      },
+      "required": [
+        "pid",
+        "body"
+      ],
+      "title": "evaluate_api_projects__pid__evaluate_postArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false
+    },
+    "native_name": "evaluate_api_projects__pid__evaluate_post",
+    "module": "gepetto",
+    "rest": {
+      "name": "evaluate_api_projects__pid__evaluate_post",
+      "description": "Evaluate",
+      "method": "POST",
+      "path": "/api/projects/{pid}/evaluate",
+      "readonly": false,
+      "params": {
+        "pid": {
+          "orig": "pid",
+          "in": "path",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        "body": {
+          "orig": "body",
+          "in": "body",
+          "type": "object",
+          "required": true,
+          "description": "JSON request body."
+        }
+      }
+    }
+  },
+  {
+    "name": "gepetto_get_api_projects_pid_evaluations_jid_name",
+    "description": "Evaluation Artifact",
+    "inputSchema": {
+      "properties": {
+        "pid": {
+          "title": "Pid",
+          "type": "string"
+        },
+        "jid": {
+          "title": "Jid",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "pid",
+        "jid",
+        "name"
+      ],
+      "title": "get_api_projects_pid_evaluations_jid_nameArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "native_name": "get_api_projects_pid_evaluations_jid_name",
+    "module": "gepetto",
+    "rest": {
+      "name": "get_api_projects_pid_evaluations_jid_name",
+      "description": "Evaluation Artifact",
+      "method": "GET",
+      "path": "/api/projects/{pid}/evaluations/{jid}/{name}",
+      "readonly": true,
+      "params": {
+        "pid": {
+          "orig": "pid",
+          "in": "path",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        "jid": {
+          "orig": "jid",
+          "in": "path",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        "name": {
+          "orig": "name",
+          "in": "path",
+          "type": "string",
+          "required": true,
+          "description": ""
+        }
+      }
+    }
+  },
+  {
+    "name": "gepetto_evaluated_export_api_projects__pid__evaluated_export_get",
+    "description": "Evaluated Export",
+    "inputSchema": {
+      "properties": {
+        "pid": {
+          "title": "Pid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "pid"
+      ],
+      "title": "evaluated_export_api_projects__pid__evaluated_export_getArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "native_name": "evaluated_export_api_projects__pid__evaluated_export_get",
+    "module": "gepetto",
+    "rest": {
+      "name": "evaluated_export_api_projects__pid__evaluated_export_get",
+      "description": "Evaluated Export",
+      "method": "GET",
+      "path": "/api/projects/{pid}/evaluated-export",
+      "readonly": true,
+      "params": {
+        "pid": {
+          "orig": "pid",
+          "in": "path",
+          "type": "string",
+          "required": true,
+          "description": ""
+        }
+      }
+    }
+  },
+  {
+    "name": "gepetto_command_api_projects__pid__command_post",
+    "description": "Command",
+    "inputSchema": {
+      "properties": {
+        "pid": {
+          "title": "Pid",
+          "type": "string"
+        },
+        "body": {
+          "additionalProperties": true,
+          "title": "Body",
+          "type": "object"
+        }
+      },
+      "required": [
+        "pid",
+        "body"
+      ],
+      "title": "command_api_projects__pid__command_postArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false
+    },
+    "native_name": "command_api_projects__pid__command_post",
+    "module": "gepetto",
+    "rest": {
+      "name": "command_api_projects__pid__command_post",
+      "description": "Command",
+      "method": "POST",
+      "path": "/api/projects/{pid}/command",
+      "readonly": false,
+      "params": {
+        "pid": {
+          "orig": "pid",
+          "in": "path",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        "body": {
+          "orig": "body",
+          "in": "body",
+          "type": "object",
+          "required": true,
+          "description": "JSON request body."
+        }
+      }
+    }
+  },
+  {
+    "name": "gepetto_command_undo_api_projects__pid__command_undo_post",
+    "description": "Command Undo",
+    "inputSchema": {
+      "properties": {
+        "pid": {
+          "title": "Pid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "pid"
+      ],
+      "title": "command_undo_api_projects__pid__command_undo_postArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false
+    },
+    "native_name": "command_undo_api_projects__pid__command_undo_post",
+    "module": "gepetto",
+    "rest": {
+      "name": "command_undo_api_projects__pid__command_undo_post",
+      "description": "Command Undo",
+      "method": "POST",
+      "path": "/api/projects/{pid}/command-undo",
+      "readonly": false,
+      "params": {
+        "pid": {
+          "orig": "pid",
+          "in": "path",
+          "type": "string",
+          "required": true,
+          "description": ""
+        }
+      }
+    }
+  },
+  {
+    "name": "gepetto_import_portable_api_projects_import_portable_post",
+    "description": "Import Portable",
+    "inputSchema": {
+      "properties": {
+        "body": {
+          "additionalProperties": true,
+          "title": "Body",
+          "type": "object"
+        }
+      },
+      "required": [
+        "body"
+      ],
+      "title": "import_portable_api_projects_import_portable_postArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false
+    },
+    "native_name": "import_portable_api_projects_import_portable_post",
+    "module": "gepetto",
+    "rest": {
+      "name": "import_portable_api_projects_import_portable_post",
+      "description": "Import Portable",
+      "method": "POST",
+      "path": "/api/projects/import-portable",
+      "readonly": false,
+      "params": {
+        "body": {
+          "orig": "body",
+          "in": "body",
+          "type": "object",
+          "required": true,
+          "description": "JSON request body."
+        }
+      }
+    }
+  },
+  {
+    "name": "gepetto_export_portable",
+    "description": "Export Portable",
+    "inputSchema": {
+      "properties": {
+        "project_id": {
+          "title": "Project Id",
+          "type": "string"
+        },
+        "body": {
+          "additionalProperties": true,
+          "title": "Body",
+          "type": "object"
+        }
+      },
+      "required": [
+        "project_id",
+        "body"
+      ],
+      "title": "export_portable_api_projects__project_id__export_portable_postArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false
+    },
+    "native_name": "export_portable_api_projects__project_id__export_portable_post",
+    "module": "gepetto",
+    "rest": {
+      "name": "export_portable_api_projects__project_id__export_portable_post",
+      "description": "Export Portable",
+      "method": "POST",
+      "path": "/api/projects/{project_id}/export-portable",
+      "readonly": false,
+      "params": {
+        "project_id": {
+          "orig": "project_id",
+          "in": "path",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        "body": {
+          "orig": "body",
+          "in": "body",
+          "type": "object",
+          "required": true,
+          "description": "JSON request body."
+        }
+      }
+    }
+  },
+  {
+    "name": "gepetto_capabilities_api_pose_capabilities_get",
+    "description": "Capabilities",
+    "inputSchema": {
+      "properties": {},
+      "title": "capabilities_api_pose_capabilities_getArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "native_name": "capabilities_api_pose_capabilities_get",
+    "module": "gepetto",
+    "rest": {
+      "name": "capabilities_api_pose_capabilities_get",
+      "description": "Capabilities",
+      "method": "GET",
+      "path": "/api/pose-capabilities",
+      "readonly": true,
+      "params": {}
+    }
+  },
+  {
+    "name": "gepetto_runs_api_pose_runs_get",
+    "description": "Runs",
+    "inputSchema": {
+      "properties": {},
+      "title": "runs_api_pose_runs_getArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "native_name": "runs_api_pose_runs_get",
+    "module": "gepetto",
+    "rest": {
+      "name": "runs_api_pose_runs_get",
+      "description": "Runs",
+      "method": "GET",
+      "path": "/api/pose-runs",
+      "readonly": true,
+      "params": {}
+    }
+  },
+  {
+    "name": "gepetto_run_api_pose_runs__rid__get",
+    "description": "Run",
+    "inputSchema": {
+      "properties": {
+        "rid": {
+          "title": "Rid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "rid"
+      ],
+      "title": "run_api_pose_runs__rid__getArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "native_name": "run_api_pose_runs__rid__get",
+    "module": "gepetto",
+    "rest": {
+      "name": "run_api_pose_runs__rid__get",
+      "description": "Run",
+      "method": "GET",
+      "path": "/api/pose-runs/{rid}",
+      "readonly": true,
+      "params": {
+        "rid": {
+          "orig": "rid",
+          "in": "path",
+          "type": "string",
+          "required": true,
+          "description": ""
+        }
+      }
+    }
+  },
+  {
+    "name": "gepetto_cancel_api_pose_runs__rid__cancel_post",
+    "description": "Cancel",
+    "inputSchema": {
+      "properties": {
+        "rid": {
+          "title": "Rid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "rid"
+      ],
+      "title": "cancel_api_pose_runs__rid__cancel_postArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false
+    },
+    "native_name": "cancel_api_pose_runs__rid__cancel_post",
+    "module": "gepetto",
+    "rest": {
+      "name": "cancel_api_pose_runs__rid__cancel_post",
+      "description": "Cancel",
+      "method": "POST",
+      "path": "/api/pose-runs/{rid}/cancel",
+      "readonly": false,
+      "params": {
+        "rid": {
+          "orig": "rid",
+          "in": "path",
+          "type": "string",
+          "required": true,
+          "description": ""
+        }
+      }
+    }
+  },
+  {
+    "name": "gepetto_file_api_pose_runs__rid__files__name__get",
+    "description": "File",
+    "inputSchema": {
+      "properties": {
+        "rid": {
+          "title": "Rid",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "rid",
+        "name"
+      ],
+      "title": "file_api_pose_runs__rid__files__name__getArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "native_name": "file_api_pose_runs__rid__files__name__get",
+    "module": "gepetto",
+    "rest": {
+      "name": "file_api_pose_runs__rid__files__name__get",
+      "description": "File",
+      "method": "GET",
+      "path": "/api/pose-runs/{rid}/files/{name}",
+      "readonly": true,
+      "params": {
+        "rid": {
+          "orig": "rid",
+          "in": "path",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        "name": {
+          "orig": "name",
+          "in": "path",
+          "type": "string",
+          "required": true,
+          "description": ""
+        }
+      }
+    }
+  },
+  {
+    "name": "gepetto_export_api_pose_runs__rid__export_post",
+    "description": "Export",
+    "inputSchema": {
+      "properties": {
+        "rid": {
+          "title": "Rid",
+          "type": "string"
+        },
+        "body": {
+          "additionalProperties": true,
+          "title": "Body",
+          "type": "object"
+        }
+      },
+      "required": [
+        "rid",
+        "body"
+      ],
+      "title": "export_api_pose_runs__rid__export_postArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false
+    },
+    "native_name": "export_api_pose_runs__rid__export_post",
+    "module": "gepetto",
+    "rest": {
+      "name": "export_api_pose_runs__rid__export_post",
+      "description": "Export",
+      "method": "POST",
+      "path": "/api/pose-runs/{rid}/export",
+      "readonly": false,
+      "params": {
+        "rid": {
+          "orig": "rid",
+          "in": "path",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        "body": {
+          "orig": "body",
+          "in": "body",
+          "type": "object",
+          "required": true,
+          "description": "JSON request body."
+        }
+      }
+    }
+  },
+  {
+    "name": "gepetto_state_api_runtime_get",
+    "description": "State",
+    "inputSchema": {
+      "properties": {},
+      "title": "state_api_runtime_getArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "native_name": "state_api_runtime_get",
+    "module": "gepetto",
+    "rest": {
+      "name": "state_api_runtime_get",
+      "description": "State",
+      "method": "GET",
+      "path": "/api/runtime",
+      "readonly": true,
+      "params": {}
+    }
+  },
+  {
+    "name": "gepetto_model_action_api_runtime_model_post",
+    "description": "Model Action",
+    "inputSchema": {
+      "properties": {
+        "body": {
+          "additionalProperties": true,
+          "title": "Body",
+          "type": "object"
+        }
+      },
+      "required": [
+        "body"
+      ],
+      "title": "model_action_api_runtime_model_postArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false
+    },
+    "native_name": "model_action_api_runtime_model_post",
+    "module": "gepetto",
+    "rest": {
+      "name": "model_action_api_runtime_model_post",
+      "description": "Model Action",
+      "method": "POST",
+      "path": "/api/runtime/model",
+      "readonly": false,
+      "params": {
+        "body": {
+          "orig": "body",
+          "in": "body",
+          "type": "object",
+          "required": true,
+          "description": "JSON request body."
+        }
+      }
+    }
+  },
+  {
+    "name": "gepetto_batch_state_api_batch_get",
+    "description": "Batch State",
+    "inputSchema": {
+      "properties": {},
+      "title": "batch_state_api_batch_getArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "native_name": "batch_state_api_batch_get",
+    "module": "gepetto",
+    "rest": {
+      "name": "batch_state_api_batch_get",
+      "description": "Batch State",
+      "method": "GET",
+      "path": "/api/batch",
+      "readonly": true,
+      "params": {}
+    }
+  },
+  {
+    "name": "gepetto_enqueue_api_batch_post",
+    "description": "Enqueue",
+    "inputSchema": {
+      "properties": {
+        "body": {
+          "additionalProperties": true,
+          "title": "Body",
+          "type": "object"
+        }
+      },
+      "required": [
+        "body"
+      ],
+      "title": "enqueue_api_batch_postArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false
+    },
+    "native_name": "enqueue_api_batch_post",
+    "module": "gepetto",
+    "rest": {
+      "name": "enqueue_api_batch_post",
+      "description": "Enqueue",
+      "method": "POST",
+      "path": "/api/batch",
+      "readonly": false,
+      "params": {
+        "body": {
+          "orig": "body",
+          "in": "body",
+          "type": "object",
+          "required": true,
+          "description": "JSON request body."
+        }
+      }
+    }
+  },
+  {
+    "name": "gepetto_scan_api_batch_scan_post",
+    "description": "Scan",
+    "inputSchema": {
+      "properties": {
+        "body": {
+          "additionalProperties": true,
+          "title": "Body",
+          "type": "object"
+        }
+      },
+      "required": [
+        "body"
+      ],
+      "title": "scan_api_batch_scan_postArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false
+    },
+    "native_name": "scan_api_batch_scan_post",
+    "module": "gepetto",
+    "rest": {
+      "name": "scan_api_batch_scan_post",
+      "description": "Scan",
+      "method": "POST",
+      "path": "/api/batch/scan",
+      "readonly": false,
+      "params": {
+        "body": {
+          "orig": "body",
+          "in": "body",
+          "type": "object",
+          "required": true,
+          "description": "JSON request body."
+        }
+      }
+    }
+  },
+  {
+    "name": "gepetto_queue_control_api_batch_control_post",
+    "description": "Queue Control",
+    "inputSchema": {
+      "properties": {
+        "body": {
+          "additionalProperties": true,
+          "title": "Body",
+          "type": "object"
+        }
+      },
+      "required": [
+        "body"
+      ],
+      "title": "queue_control_api_batch_control_postArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false
+    },
+    "native_name": "queue_control_api_batch_control_post",
+    "module": "gepetto",
+    "rest": {
+      "name": "queue_control_api_batch_control_post",
+      "description": "Queue Control",
+      "method": "POST",
+      "path": "/api/batch/control",
+      "readonly": false,
+      "params": {
+        "body": {
+          "orig": "body",
+          "in": "body",
+          "type": "object",
+          "required": true,
+          "description": "JSON request body."
+        }
+      }
+    }
+  },
+  {
+    "name": "gepetto_history_api_projects__pid__history_get",
+    "description": "History",
+    "inputSchema": {
+      "properties": {
+        "pid": {
+          "title": "Pid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "pid"
+      ],
+      "title": "history_api_projects__pid__history_getArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "native_name": "history_api_projects__pid__history_get",
+    "module": "gepetto",
+    "rest": {
+      "name": "history_api_projects__pid__history_get",
+      "description": "History",
+      "method": "GET",
+      "path": "/api/projects/{pid}/history",
+      "readonly": true,
+      "params": {
+        "pid": {
+          "orig": "pid",
+          "in": "path",
+          "type": "string",
+          "required": true,
+          "description": ""
+        }
+      }
+    }
+  },
+  {
+    "name": "gepetto_save_api_projects__pid__save_post",
+    "description": "Save",
+    "inputSchema": {
+      "properties": {
+        "pid": {
+          "title": "Pid",
+          "type": "string"
+        },
+        "body": {
+          "additionalProperties": true,
+          "title": "Body",
+          "type": "object"
+        }
+      },
+      "required": [
+        "pid",
+        "body"
+      ],
+      "title": "save_api_projects__pid__save_postArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false
+    },
+    "native_name": "save_api_projects__pid__save_post",
+    "module": "gepetto",
+    "rest": {
+      "name": "save_api_projects__pid__save_post",
+      "description": "Save",
+      "method": "POST",
+      "path": "/api/projects/{pid}/save",
+      "readonly": false,
+      "params": {
+        "pid": {
+          "orig": "pid",
+          "in": "path",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        "body": {
+          "orig": "body",
+          "in": "body",
+          "type": "object",
+          "required": true,
+          "description": "JSON request body."
+        }
+      }
+    }
+  },
+  {
+    "name": "gepetto_restore_api_projects__pid__restore_post",
+    "description": "Restore",
+    "inputSchema": {
+      "properties": {
+        "pid": {
+          "title": "Pid",
+          "type": "string"
+        },
+        "body": {
+          "additionalProperties": true,
+          "title": "Body",
+          "type": "object"
+        }
+      },
+      "required": [
+        "pid",
+        "body"
+      ],
+      "title": "restore_api_projects__pid__restore_postArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false
+    },
+    "native_name": "restore_api_projects__pid__restore_post",
+    "module": "gepetto",
+    "rest": {
+      "name": "restore_api_projects__pid__restore_post",
+      "description": "Restore",
+      "method": "POST",
+      "path": "/api/projects/{pid}/restore",
+      "readonly": false,
+      "params": {
+        "pid": {
+          "orig": "pid",
+          "in": "path",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        "body": {
+          "orig": "body",
+          "in": "body",
+          "type": "object",
+          "required": true,
+          "description": "JSON request body."
+        }
+      }
+    }
+  },
+  {
+    "name": "gepetto_contrast_api_projects__pid__contrast_post",
+    "description": "Contrast",
+    "inputSchema": {
+      "properties": {
+        "pid": {
+          "title": "Pid",
+          "type": "string"
+        },
+        "body": {
+          "additionalProperties": true,
+          "title": "Body",
+          "type": "object"
+        }
+      },
+      "required": [
+        "pid",
+        "body"
+      ],
+      "title": "contrast_api_projects__pid__contrast_postArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false
+    },
+    "native_name": "contrast_api_projects__pid__contrast_post",
+    "module": "gepetto",
+    "rest": {
+      "name": "contrast_api_projects__pid__contrast_post",
+      "description": "Contrast",
+      "method": "POST",
+      "path": "/api/projects/{pid}/contrast",
+      "readonly": false,
+      "params": {
+        "pid": {
+          "orig": "pid",
+          "in": "path",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        "body": {
+          "orig": "body",
+          "in": "body",
+          "type": "object",
+          "required": true,
+          "description": "JSON request body."
+        }
+      }
+    }
+  },
+  {
+    "name": "gepetto_app_status",
+    "description": "Read the native health endpoint.",
+    "inputSchema": {
+      "properties": {},
+      "title": "app_statusArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "native_name": "app_status",
+    "module": "gepetto",
+    "rest": {
+      "name": "app_status",
+      "description": "Read the native health endpoint.",
+      "method": "GET",
+      "path": "/api/health",
+      "readonly": true,
+      "params": {}
+    }
+  },
+  {
+    "name": "plato_list_documents",
+    "description": "List documents.",
+    "inputSchema": {
+      "properties": {},
+      "title": "list_documentsArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "native_name": "list_documents",
+    "module": "plato",
     "rest": {
       "name": "list_documents",
       "description": "List documents.",
       "method": "GET",
       "path": "/api/v2/documents",
-      "params": {},
-      "readonly": true
+      "readonly": true,
+      "params": {}
     }
   },
   {
     "name": "plato_get_document",
-    "native_name": "get_document",
-    "module": "plato",
     "description": "Get one document.",
     "inputSchema": {
-      "type": "object",
       "properties": {
         "doc_id": {
-          "type": "string",
-          "description": "Document id."
+          "title": "Doc Id",
+          "type": "string"
         }
       },
       "required": [
         "doc_id"
-      ]
+      ],
+      "title": "get_documentArguments",
+      "type": "object"
     },
     "annotations": {
       "readOnlyHint": true
     },
+    "native_name": "get_document",
+    "module": "plato",
     "rest": {
       "name": "get_document",
       "description": "Get one document.",
       "method": "GET",
       "path": "/api/v2/documents/{doc_id}",
+      "readonly": true,
       "params": {
         "doc_id": {
+          "orig": "doc_id",
           "in": "path",
           "type": "string",
           "required": true,
           "description": "Document id."
         }
-      },
-      "readonly": true
+      }
     }
   },
   {
     "name": "plato_create_document",
-    "native_name": "create_document",
-    "module": "plato",
     "description": "Create a document.",
     "inputSchema": {
-      "type": "object",
       "properties": {
         "body": {
-          "type": "object",
-          "description": "New document payload."
+          "additionalProperties": true,
+          "title": "Body",
+          "type": "object"
         }
       },
       "required": [
         "body"
-      ]
+      ],
+      "title": "create_documentArguments",
+      "type": "object"
     },
     "annotations": {
       "readOnlyHint": false
     },
+    "native_name": "create_document",
+    "module": "plato",
     "rest": {
       "name": "create_document",
       "description": "Create a document.",
       "method": "POST",
       "path": "/api/v2/documents",
+      "readonly": false,
       "params": {
         "body": {
+          "orig": "body",
           "in": "body",
           "type": "object",
           "required": true,
           "description": "New document payload."
         }
-      },
-      "readonly": false
+      }
     }
   },
   {
     "name": "plato_document_command",
-    "native_name": "document_command",
-    "module": "plato",
     "description": "Send an editor command to a document.",
     "inputSchema": {
-      "type": "object",
       "properties": {
         "doc_id": {
-          "type": "string",
-          "description": "Document id."
+          "title": "Doc Id",
+          "type": "string"
         },
         "body": {
-          "type": "object",
-          "description": "Command payload."
+          "additionalProperties": true,
+          "title": "Body",
+          "type": "object"
         }
       },
       "required": [
         "doc_id",
         "body"
-      ]
+      ],
+      "title": "document_commandArguments",
+      "type": "object"
     },
     "annotations": {
       "readOnlyHint": false
     },
+    "native_name": "document_command",
+    "module": "plato",
     "rest": {
       "name": "document_command",
       "description": "Send an editor command to a document.",
       "method": "POST",
       "path": "/api/v2/documents/{doc_id}/commands",
+      "readonly": false,
       "params": {
         "doc_id": {
+          "orig": "doc_id",
           "in": "path",
           "type": "string",
           "required": true,
           "description": "Document id."
         },
         "body": {
+          "orig": "body",
           "in": "body",
           "type": "object",
           "required": true,
           "description": "Command payload."
         }
-      },
-      "readonly": false
+      }
     }
   },
   {
     "name": "plato_document_fit",
-    "native_name": "document_fit",
-    "module": "plato",
     "description": "Run fit on a document.",
     "inputSchema": {
-      "type": "object",
       "properties": {
         "doc_id": {
-          "type": "string",
-          "description": "Document id."
+          "title": "Doc Id",
+          "type": "string"
         },
         "body": {
-          "type": "object",
-          "description": "Fit options."
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Body"
         }
       },
       "required": [
         "doc_id"
-      ]
+      ],
+      "title": "document_fitArguments",
+      "type": "object"
     },
     "annotations": {
       "readOnlyHint": false
     },
+    "native_name": "document_fit",
+    "module": "plato",
     "rest": {
       "name": "document_fit",
       "description": "Run fit on a document.",
       "method": "POST",
       "path": "/api/v2/documents/{doc_id}/fit",
+      "readonly": false,
       "params": {
         "doc_id": {
+          "orig": "doc_id",
           "in": "path",
           "type": "string",
           "required": true,
           "description": "Document id."
         },
         "body": {
+          "orig": "body",
           "in": "body",
           "type": "object",
           "required": false,
           "description": "Fit options."
         }
-      },
-      "readonly": false
+      }
     }
   },
   {
     "name": "plato_document_constrain",
-    "native_name": "document_constrain",
-    "module": "plato",
     "description": "Run constrain on a document.",
     "inputSchema": {
-      "type": "object",
       "properties": {
         "doc_id": {
-          "type": "string",
-          "description": "Document id."
+          "title": "Doc Id",
+          "type": "string"
         },
         "body": {
-          "type": "object",
-          "description": "Constrain options."
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Body"
         }
       },
       "required": [
         "doc_id"
-      ]
+      ],
+      "title": "document_constrainArguments",
+      "type": "object"
     },
     "annotations": {
       "readOnlyHint": false
     },
+    "native_name": "document_constrain",
+    "module": "plato",
     "rest": {
       "name": "document_constrain",
       "description": "Run constrain on a document.",
       "method": "POST",
       "path": "/api/v2/documents/{doc_id}/constrain",
+      "readonly": false,
       "params": {
         "doc_id": {
+          "orig": "doc_id",
           "in": "path",
           "type": "string",
           "required": true,
           "description": "Document id."
         },
         "body": {
+          "orig": "body",
           "in": "body",
           "type": "object",
           "required": false,
           "description": "Constrain options."
         }
-      },
-      "readonly": false
+      }
     }
   },
   {
     "name": "plato_document_preview",
-    "native_name": "document_preview",
-    "module": "plato",
     "description": "Render a preview of a document.",
     "inputSchema": {
-      "type": "object",
       "properties": {
         "doc_id": {
-          "type": "string",
-          "description": "Document id."
+          "title": "Doc Id",
+          "type": "string"
         },
         "body": {
-          "type": "object",
-          "description": "Preview options."
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Body"
         }
       },
       "required": [
         "doc_id"
-      ]
+      ],
+      "title": "document_previewArguments",
+      "type": "object"
     },
     "annotations": {
       "readOnlyHint": false
     },
+    "native_name": "document_preview",
+    "module": "plato",
     "rest": {
       "name": "document_preview",
       "description": "Render a preview of a document.",
       "method": "POST",
       "path": "/api/v2/documents/{doc_id}/preview",
+      "readonly": false,
       "params": {
         "doc_id": {
+          "orig": "doc_id",
           "in": "path",
           "type": "string",
           "required": true,
           "description": "Document id."
         },
         "body": {
+          "orig": "body",
           "in": "body",
           "type": "object",
           "required": false,
           "description": "Preview options."
         }
-      },
-      "readonly": false
+      }
     }
   },
   {
     "name": "plato_document_mesh_rings",
-    "native_name": "document_mesh_rings",
-    "module": "plato",
     "description": "Generate mesh rings for a document.",
     "inputSchema": {
-      "type": "object",
       "properties": {
         "doc_id": {
-          "type": "string",
-          "description": "Document id."
+          "title": "Doc Id",
+          "type": "string"
         },
         "body": {
-          "type": "object",
-          "description": "Mesh-ring options."
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Body"
         }
       },
       "required": [
         "doc_id"
-      ]
+      ],
+      "title": "document_mesh_ringsArguments",
+      "type": "object"
     },
     "annotations": {
       "readOnlyHint": false
     },
+    "native_name": "document_mesh_rings",
+    "module": "plato",
     "rest": {
       "name": "document_mesh_rings",
       "description": "Generate mesh rings for a document.",
       "method": "POST",
       "path": "/api/v2/documents/{doc_id}/mesh-rings",
+      "readonly": false,
       "params": {
         "doc_id": {
+          "orig": "doc_id",
           "in": "path",
           "type": "string",
           "required": true,
           "description": "Document id."
         },
         "body": {
+          "orig": "body",
           "in": "body",
           "type": "object",
           "required": false,
           "description": "Mesh-ring options."
         }
-      },
-      "readonly": false
+      }
     }
   },
   {
     "name": "plato_document_exports",
-    "native_name": "document_exports",
-    "module": "plato",
     "description": "Export a document.",
     "inputSchema": {
-      "type": "object",
       "properties": {
         "doc_id": {
-          "type": "string",
-          "description": "Document id."
+          "title": "Doc Id",
+          "type": "string"
         },
         "body": {
-          "type": "object",
-          "description": "Export options."
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Body"
         }
       },
       "required": [
         "doc_id"
-      ]
+      ],
+      "title": "document_exportsArguments",
+      "type": "object"
     },
     "annotations": {
       "readOnlyHint": false
     },
+    "native_name": "document_exports",
+    "module": "plato",
     "rest": {
       "name": "document_exports",
       "description": "Export a document.",
       "method": "POST",
       "path": "/api/v2/documents/{doc_id}/exports",
+      "readonly": false,
       "params": {
         "doc_id": {
+          "orig": "doc_id",
           "in": "path",
           "type": "string",
           "required": true,
           "description": "Document id."
         },
         "body": {
+          "orig": "body",
           "in": "body",
           "type": "object",
           "required": false,
           "description": "Export options."
         }
-      },
-      "readonly": false
+      }
     }
   },
   {
     "name": "plato_get_job",
-    "native_name": "get_job",
-    "module": "plato",
     "description": "Get a job by id.",
     "inputSchema": {
-      "type": "object",
       "properties": {
         "job_id": {
-          "type": "string",
-          "description": "Job id."
+          "title": "Job Id",
+          "type": "string"
         }
       },
       "required": [
         "job_id"
-      ]
+      ],
+      "title": "get_jobArguments",
+      "type": "object"
     },
     "annotations": {
       "readOnlyHint": true
     },
+    "native_name": "get_job",
+    "module": "plato",
     "rest": {
       "name": "get_job",
       "description": "Get a job by id.",
       "method": "GET",
       "path": "/api/v2/jobs/{job_id}",
+      "readonly": true,
       "params": {
         "job_id": {
+          "orig": "job_id",
           "in": "path",
           "type": "string",
           "required": true,
           "description": "Job id."
         }
-      },
-      "readonly": true
+      }
     }
   },
   {
     "name": "plato_cancel_job",
-    "native_name": "cancel_job",
-    "module": "plato",
     "description": "Cancel a job.",
     "inputSchema": {
-      "type": "object",
       "properties": {
         "job_id": {
-          "type": "string",
-          "description": "Job id."
+          "title": "Job Id",
+          "type": "string"
         }
       },
       "required": [
         "job_id"
-      ]
+      ],
+      "title": "cancel_jobArguments",
+      "type": "object"
     },
     "annotations": {
       "readOnlyHint": false
     },
+    "native_name": "cancel_job",
+    "module": "plato",
     "rest": {
       "name": "cancel_job",
       "description": "Cancel a job.",
       "method": "POST",
       "path": "/api/v2/jobs/{job_id}/cancel",
+      "readonly": false,
       "params": {
         "job_id": {
+          "orig": "job_id",
           "in": "path",
           "type": "string",
           "required": true,
           "description": "Job id."
         }
-      },
-      "readonly": false
+      }
+    }
+  },
+  {
+    "name": "plato_app_status",
+    "description": "Read the native health endpoint.",
+    "inputSchema": {
+      "properties": {},
+      "title": "app_statusArguments",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "native_name": "app_status",
+    "module": "plato",
+    "rest": {
+      "name": "app_status",
+      "description": "Read the native health endpoint.",
+      "method": "GET",
+      "path": "/api/health",
+      "readonly": true,
+      "params": {}
     }
   }
 ]

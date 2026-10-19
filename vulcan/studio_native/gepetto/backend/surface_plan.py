@@ -7,7 +7,7 @@ and model appearance. No character-specific names, colors or heights live here.
 import base64, json, time, re, unicodedata, copy
 from typing import Literal
 from pathlib import Path
-import httpx
+from vulcan.studio import global_http as httpx
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 from scipy.spatial import cKDTree
@@ -322,6 +322,7 @@ shirt just because both are white. These roles describe physical function, not R
 )
 
 
+@httpx.global_model
 def infer_plan(
     model, reference, atlas, regions, evidence, feedback=None, control=None, thinking=False
 ):
@@ -449,6 +450,7 @@ Region locations are atlas pixels; optional model bounds are actual UV-to-mesh
 samples in Blender XYZ. These are context, not displacement heights."""
 
 
+@httpx.global_model
 def observe_figure(model, reference, evidence):
     """Read the complete figure before UV fragments can anchor its interpretation."""
     evidence = Path(evidence)
@@ -525,6 +527,7 @@ def semantic_contact(reference, atlas, focused):
     return sheet
 
 
+@httpx.global_model
 def infer_semantics(
     model, reference, atlas, focused, regions, evidence, observation=None, reasoning=None
 ):
@@ -696,6 +699,7 @@ class VisualCues(BaseModel):
     uncertainty: str = Field(max_length=250)
 
 
+@httpx.global_model
 def observe_surfaces(model, reference, control, evidence, context=None):
     """Identify anatomy before the palette-ID mapping can anchor the answer."""
     evidence = Path(evidence)
@@ -976,6 +980,7 @@ def compact_inventory(plans):
     return inventory
 
 
+@httpx.global_model
 def review_displacement(
     model,
     original,

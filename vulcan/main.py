@@ -4,6 +4,7 @@ and the single-page-app server are the shared `hoard_link.guard` / `hoard_link.s
 from __future__ import annotations
 
 import logging
+import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -34,7 +35,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         try:
             yield
         finally:
-            services.stop()
+            await asyncio.to_thread(services.stop)
 
     app = FastAPI(title="Vulcan's Hoard", version=__version__, lifespan=lifespan, docs_url=None, redoc_url=None)
     app.state.config = config

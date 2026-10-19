@@ -37,11 +37,12 @@ class ScanWorker:
 
     def stop(self) -> None:
         self._stop.set()
-        for event in list(self._cancel.values()):
-            event.set()
+        with self._lock:
+            for event in self._cancel.values():
+                event.set()
         self._queue.put(None)
         if self._thread:
-            self._thread.join(timeout=15)
+            self._thread.join()
 
     def running(self) -> bool:
         return bool(self._thread and self._thread.is_alive())
@@ -104,6 +105,8 @@ class ScanWorker:
             if item is None or self._stop.is_set():
                 break
             with self._lock:
+                if self._stop.is_set():
+                    return
                 if item not in self._queued:
                     continue  # cancelled while waiting
                 self._queued.discard(item)

@@ -16,3 +16,4 @@ watchdog==6.0.0
 pytest==9.1.1
 # Optional: nicer thumbnails for meshes over 300k triangles (quadric decimation); without it a face subsample is used.
 fast-simplification==0.2.0
+-r requirements-studio.txt

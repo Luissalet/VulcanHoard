@@ -1,13 +1,13 @@
-"""Scene-grounded proposals through a locally configured Ollama vision model."""
+"""Scene-grounded proposals through the configured global vision model."""
 
 import json
 import time
-import httpx
+from vulcan.studio import global_http as httpx
 from pydantic import BaseModel, Field
 from typing import Literal
 from .relief_preferences import EYE_ORDER
 
-OLLAMA = "http://127.0.0.1:11434"
+OLLAMA = "hoard-global://selected"  # Historical request contract, never a local server.
 
 
 class SemanticRegion(BaseModel):
@@ -63,46 +63,16 @@ No physical millimeters inferred. The output is a REVIEWABLE PROPOSAL, not a fab
 """
 )
 
-_model_details = {}
-
-
 def models():
     try:
-        with httpx.Client(timeout=5, trust_env=False) as client:
-            response = client.get(OLLAMA + "/api/tags")
-            response.raise_for_status()
-            from concurrent.futures import ThreadPoolExecutor
-
-            def inspect(m):
-                key = (m["name"], m.get("digest"))
-                if key in _model_details:
-                    return _model_details[key]
-                try:
-                    r = client.post(OLLAMA + "/api/show", json={"model": m["name"]})
-                    r.raise_for_status()
-                    details = r.json()
-                    value = {
-                        "name": m["name"],
-                        "vision": "vision" in details.get("capabilities", []),
-                        "family": details.get("details", {}).get("family"),
-                    }
-                    _model_details[key] = value
-                    return value
-                except (httpx.HTTPError, ValueError):
-                    return {
-                        "name": m["name"],
-                        "vision": None,
-                        "family": m.get("details", {}).get("family"),
-                        "error": "No se pudieron consultar sus capacidades. Actualiza la lista.",
-                    }
-
-            with ThreadPoolExecutor(max_workers=4) as pool:
-                available = list(pool.map(inspect, response.json().get("models", [])))
-            return {"online": True, "models": available}
-    except (httpx.HTTPError, ValueError):
-        return {"online": False, "models": []}
+        selection = httpx.selected()
+        return {'online': True, 'models': [{'name': selection['model'],
+            'vision': selection['vision'], 'family': 'global'}]}
+    except (httpx.HTTPError, RuntimeError, ValueError) as exc:
+        return {'online': False, 'models': [], 'error': str(exc)}
 
 
+@httpx.global_model
 def analyze(model, images, inventory, meshes, prior_examples, evidence=None):
     schema = Proposal.model_json_schema()
     keys = [r["key"] for r in inventory["items"]]
