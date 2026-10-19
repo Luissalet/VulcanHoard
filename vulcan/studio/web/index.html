@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="es" data-hoard-app="vulcan">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vulcan's Hoard</title>
+  <link rel="icon" href="/fusion-static/favicon.ico">
+  <link rel="stylesheet" href="/fusion-static/hoard-theme.css">
+  <link rel="stylesheet" href="/fusion-static/style.css">
+  <link rel="stylesheet" href="/fusion-static/family.css">
+  <link rel="stylesheet" href="/fusion-static/product-theme.css">
+  <script type="module" src="/fusion-static/studio.js"></script>
+  <script type="module" src="/api/copilot/launcher.js"></script>
+</head>
+<body>
+  <aside class="sidebar">
+    <a class="wordmark hoard-brand" href="/" aria-label="Inicio"><img src="/fusion-static/icon-192.png" alt="" width="42" height="42"><span>Vulcan's Hoard</span></a>
+    <nav aria-label="Secciones"><a class="nav-link current" href="#functions">Funciones</a><a class="nav-link" href="#projects">Proyectos compartidos</a><div id="module-nav"></div></nav>
+    <a class="hub-link" href="http://127.0.0.1:8810">Hoard Hub</a>
+  </aside>
+  <main>
+    <section id="functions" aria-labelledby="functions-title">
+      <div class="title-row"><div><h1 id="functions-title">Estudio3D</h1><p>Biblioteca, figuras, siluetas, CAD, terrenos y generación3D.</p></div><button id="stop-all" type="button" class="secondary">Desactivar todas</button></div>
+      <div class="summary" role="status" aria-live="polite"><span class="indicator" aria-hidden="true"></span><span id="summary">Conectando…</span></div>
+      <p id="error" role="alert" hidden></p>
+      <div id="modules" aria-label="Funciones independientes" aria-busy="true"></div>
+    </section>
+    <section id="projects" aria-labelledby="projects-title">
+      <h2 id="projects-title">Proyectos compartidos</h2>
+      <p>Reúne los objetos y las revisiones de tus piezas. Los archivos conservan su formato y su ubicación.</p>
+      <form id="project-form"><label for="project-title">Nombre del proyecto</label><div class="project-input"><input id="project-title" name="title" required maxlength="200"><button type="submit">Crear proyecto</button></div></form>
+      <div id="project-list" aria-live="polite"></div>
+    </section>
+    <footer><h2>Tus datos</h2><p>Desactivar una función detiene su motor y conserva sus datos. Todas las funciones y sus automatismos están apagados en la primera apertura.</p><p>Las funciones activadas recuerdan tu elección. Consultar el catálogo de herramientas mantiene los motores apagados.</p></footer>
+  </main>
+</body>
+</html>

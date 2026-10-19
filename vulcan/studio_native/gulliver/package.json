@@ -1,0 +1,30 @@
+{
+  "name": "gulliver-hoard",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Printable 3D map models: relief, buildings, water and roads from open data, tiled for the printer bed.",
+  "scripts": {
+    "client": "vite",
+    "build": "vite build",
+    "start": "python -m gulliver_hoard",
+    "test": "python -m pytest -q",
+    "test:ui": "node --test client/copilot-context.test.mjs",
+    "mcp": "python mcp_server.py"
+  },
+  "dependencies": {
+    "leaflet": "^1.9.4",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "three": "^0.170.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.0",
+    "@vitejs/plugin-react": "^4.4.0",
+    "tailwindcss": "^4.1.0",
+    "vite": "^6.3.0"
+  },
+  "engines": {
+    "node": ">=22.13"
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "base_revision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "request_seq": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "layer_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,64}$"
+    },
+    "mode": {
+      "enum": [
+        "contain_canvas",
+        "search_position",
+        "scale_at_position",
+        "fit_subtree"
+      ]
+    },
+    "fixed_center_world_mm": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "type": "number"
+          }
+        }
+      ]
+    },
+    "quality": {
+      "enum": [
+        "interactive",
+        "balanced",
+        "precise"
+      ]
+    },
+    "seed": {
+      "type": "integer",
+      "minimum": 0
+    }
+  },
+  "required": [
+    "base_revision",
+    "request_seq",
+    "layer_id",
+    "mode",
+    "fixed_center_world_mm",
+    "quality",
+    "seed"
+  ],
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Fit job request"
+}

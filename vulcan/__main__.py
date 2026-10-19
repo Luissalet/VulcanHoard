@@ -7,7 +7,7 @@ from .hoard_link.service import run_main
 
 
 def main() -> int:
-    return run_main(service="vulcan-hoard", package="vulcan", default_port=5186, app_factory="vulcan.main:create_app",
+    return run_main(service="vulcan-hoard", package="vulcan", default_port=5186, app_factory="vulcan.studio.app:create_app",
                     data_dir_env="VULCAN_DATA_DIR", port_env="VULCAN_PORT", title="Vulcan's Hoard", open_browser_default=False)
 
 

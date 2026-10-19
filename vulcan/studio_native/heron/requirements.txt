@@ -1,0 +1,7 @@
+cadquery==2.8.0
+trimesh==5.1.1
+fastapi>=0.115,<1
+uvicorn>=0.30,<1
+httpx>=0.27,<1
+mcp>=1.26,<2
+# The shared Hoard Link library is vendored in heron/hoard_link.

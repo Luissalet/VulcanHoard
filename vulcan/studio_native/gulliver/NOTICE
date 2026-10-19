@@ -1,0 +1,25 @@
+Gulliver's Hoard builds models from open data. Credit these sources when you share a model or a print:
+
+- Map data (buildings, water, streets, railways, green areas, place search):
+  © OpenStreetMap contributors, available under the Open Database Licence (ODbL) — https://www.openstreetmap.org/copyright
+- Elevation in Spain: Modelo Digital del Terreno © Instituto Geográfico Nacional de España, CC BY 4.0 — https://www.ign.es
+- Buildings in Spain (footprints and floors): © Dirección General del Catastro, INSPIRE Buildings download service —
+  https://www.catastro.hacienda.gob.es (free reuse with attribution)
+- Trees in Spain, rock, meadows and woods in Spanish mountains and the direction of crop rows in Spanish fields: read from the PNOA orthophoto © Instituto Geográfico Nacional de España, CC BY 4.0 — https://pnoa.ign.es
+- Farm parcels in Spain: © Dirección General del Catastro, INSPIRE Cadastral Parcels download service (free reuse with attribution)
+- Building footprints worldwide: Microsoft Global ML Building Footprints, ODbL — https://github.com/microsoft/GlobalMLBuildingFootprints
+- Roofs and heights in Africa, South and South-East Asia and Latin America: Google Open Buildings 2.5D Temporal, CC BY 4.0 or
+  ODbL at the user's choice — https://sites.research.google/gr/open-buildings/temporal/
+- Tree heights worldwide: High Resolution Canopy Height Maps © Meta and World Resources Institute, CC BY 4.0 —
+  https://registry.opendata.aws/dataforgood-fb-forests/
+- Land cover worldwide: © ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) processed by ESA
+  WorldCover consortium, CC BY 4.0 — https://esa-worldcover.org
+- Building heights from laser surface models (where open): AHN4 © Rijkswaterstaat (CC0, Netherlands); LiDAR HD © IGN France
+  (Licence Ouverte); LIDAR Composite DSM © Environment Agency (Open Government Licence, England); DOM © Geobasis NRW
+  (dl-de/zero-2.0); swissSURFACE3D Raster © swisstopo (OGD); DSM © Digitaal Vlaanderen (Flanders); DOM © Kartverket /
+  Geonorge (Norway); NMPT © GUGiK (Poland); MDS PNOA-LiDAR © Instituto Geográfico Nacional (CC BY 4.0 scne.es, Spain);
+  LiDAR DSM © Gobierno de Navarra, IDENA (CC BY 4.0); LiDAR 2017 © Diputación Foral de Gipuzkoa (open data); LiDAR 2018-19
+  © Gobierno de Cantabria / IGN-CNIG; DHM © Klimadatastyrelsen / Dataforsyningen (Denmark, with the user's own token)
+- Elevation elsewhere: Terrain Tiles (Mapzen / Amazon Web Services Open Data), built from SRTM, EU-DEM, USGS 3DEP,
+  ETOPO1 and other sources, each under its own terms — https://registry.opendata.aws/terrain-tiles/
+- Base maps shown in the interface (display only): OpenStreetMap, OpenTopoMap (CC-BY-SA), PNOA © IGN España, Esri World Imagery.
