@@ -92,7 +92,7 @@ def test_existing_writer_conflicts_without_waiting(tmp_path):
 
 
 @pytest.mark.skipif(os.name != 'nt', reason='Windows mandatory read-sharing contract')
-@pytest.mark.parametrize('ending', ['complete', 'cancel', 'error', 'head', 'range'])
+@pytest.mark.parametrize('ending', ['complete', 'cancel', 'error', 'head', 'range', 'multiple', 'unsatisfiable'])
 def test_download_owns_read_lease_until_asgi_body_cleanup(tmp_path, ending):
     source, projects, identity, row = fixture(tmp_path)
     messages = []
@@ -110,7 +110,9 @@ def test_download_owns_read_lease_until_asgi_body_cleanup(tmp_path, ending):
             return {'type':'http.disconnect'}
         scope = {'type':'http', 'asgi':{'spec_version':'2.4'},
                  'method':'HEAD' if ending == 'head' else 'GET',
-                 'headers':[(b'range', b'bytes=0-3')] if ending == 'range' else [],
+                 'headers':[(b'range', {'range':b'bytes=0-3', 'multiple':b'bytes=0-3,10-12',
+                                        'unsatisfiable':b'bytes=999-1000'}[ending])]
+                     if ending in ('range', 'multiple', 'unsatisfiable') else [],
                  'extensions':{'http.response.pathsend':{}}}
         response = RetainedResponse(row)
         if ending in ('cancel', 'error'):
@@ -124,6 +126,11 @@ def test_download_owns_read_lease_until_asgi_body_cleanup(tmp_path, ending):
     if ending == 'range':
         assert messages[0]['status'] == 206
         assert b''.join(x.get('body', b'') for x in messages) == b'comp'
+    if ending == 'multiple':
+        assert messages[0]['status'] == 206
+        assert b'comp' in b''.join(x.get('body', b'') for x in messages)
+    if ending == 'unsatisfiable':
+        assert messages[0]['status'] == 416
     source.write_bytes(b'new-revision-after-response')
 
 
@@ -181,3 +188,55 @@ def test_cancelled_acquisition_joins_and_closes_its_late_handle(tmp_path, monkey
             await caller
     asyncio.run(run())
     source.write_bytes(b'after-late-handle-closed')
+
+
+@pytest.mark.skipif(os.name != 'nt', reason='Windows mandatory read-sharing contract')
+@pytest.mark.parametrize('operation', ['read', 'seek'])
+def test_download_never_reopens_and_joins_late_descriptor_io(tmp_path, monkeypatch, operation):
+    source, projects, identity, row = fixture(tmp_path)
+    from vulcan.studio import retained_file as implementation
+    import anyio
+    original = implementation.open_verified
+    entered, release, finished, closed = (threading.Event() for _ in range(4))
+    class Tracked:
+        def __init__(self, stream): self.stream = stream
+        def fileno(self): return self.stream.fileno()
+        def close(self):
+            self.stream.close()
+            closed.set()
+        def io(self, method, *args):
+            if method == operation:
+                entered.set()
+                assert release.wait(10)
+            try:
+                return getattr(self.stream, method)(*args)
+            finally:
+                if method == operation:
+                    finished.set()
+        def read(self, size): return self.io('read', size)
+        def seek(self, offset): return self.io('seek', offset)
+    monkeypatch.setattr(implementation, 'open_verified', lambda row: Tracked(original(row)))
+    async def forbidden_open(*args, **kwargs):
+        pytest.fail('Download must reuse the verified descriptor, not reopen the pathname')
+    monkeypatch.setattr(anyio, 'open_file', forbidden_open)
+    async def run():
+        async def send(message): pass
+        async def receive(): await asyncio.Future()
+        scope = {'type':'http', 'asgi':{'spec_version':'2.4'}, 'method':'GET',
+                 'headers':[(b'range', b'bytes=0-3')] if operation == 'seek' else [],
+                 'extensions':{'http.response.pathsend':{}}}
+        caller = asyncio.create_task(RetainedResponse(row)(scope, receive, send))
+        await asyncio.to_thread(entered.wait)
+        caller.cancel()
+        await asyncio.sleep(0)
+        caller.cancel()
+        await asyncio.sleep(0)
+        assert not caller.done() and not finished.is_set() and not closed.is_set()
+        with pytest.raises(PermissionError):
+            source.write_bytes(b'cannot-overwrite-pending-native-io')
+        release.set()
+        with pytest.raises(asyncio.CancelledError):
+            await caller
+    asyncio.run(run())
+    assert finished.is_set() and closed.is_set()
+    source.write_bytes(b'after-native-io-and-handle-closed')

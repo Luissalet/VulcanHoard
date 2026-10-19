@@ -87,16 +87,45 @@ async def verify_retained(stream, row):
     checking.result()
 
 
+class BorrowedReader:
+    def __init__(self, stream):
+        self.stream = stream
+
+    async def operation(self, method, *args):
+        working = asyncio.create_task(asyncio.to_thread(method, *args))
+        await join_tasks([working])
+        return working.result()
+
+    async def read(self, size):
+        return await self.operation(self.stream.read, size)
+
+    async def seek(self, offset):
+        return await self.operation(self.stream.seek, offset)
+
+
+class BorrowedFileResponse(FileResponse):
+    def __init__(self, row, stream):
+        super().__init__(row['path'], filename=Path(row['path']).name,
+                         stat_result=os.fstat(stream.fileno()),
+                         headers={'ETag': '"' + row['sha256'] + '"'})
+        self.reader = BorrowedReader(stream)
+
+    @asynccontextmanager
+    async def _open_file(self):
+        # Starlette >=1.9 routes simple and multipart ranges through this hook.
+        # Reuse the verified descriptor; never acquire another delegated handle.
+        yield self.reader
+
+
 class RetainedResponse(Response):
     def __init__(self, row):
         super().__init__()
         self.row = row
 
     async def __call__(self, scope, receive, send):
-        async with retained_file(self.row):
+        async with retained_file(self.row) as stream:
             # Keep the read lease until all ASGI body/range/HEAD/error cleanup.
-            response = FileResponse(self.row['path'], filename=Path(self.row['path']).name,
-                                    headers={'ETag': '"' + self.row['sha256'] + '"'})
+            response = BorrowedFileResponse(self.row, stream)
             child_scope = {**scope, 'extensions': {key:value for key,value in scope.get('extensions', {}).items()
                                                    if key != 'http.response.pathsend'}}
             await response(child_scope, receive, send)
