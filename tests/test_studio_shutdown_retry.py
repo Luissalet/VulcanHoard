@@ -2,11 +2,60 @@
 import asyncio
 from contextlib import asynccontextmanager
 import socket
+import sys
 
 from fastapi import FastAPI
 import pytest
 
 from vulcan.studio.app import Module
+
+
+def test_library_retains_real_global_http_client_until_close_succeeds(tmp_path, monkeypatch):
+    from vulcan.studio.native import create_native
+    from vulcan.hoard_link import family
+    monkeypatch.setattr(family, 'emit', lambda *args, **kwargs: False)
+    connect = socket.socket.connect
+    pair = getattr(socket.socketpair, '__code__', None)
+    def offline(sock, *args, **kwargs):
+        frame = sys._getframe(1)
+        while frame:
+            if frame.f_code is pair:
+                return connect(sock, *args, **kwargs)
+            frame = frame.f_back
+        raise OSError('No outbound service in global-client closure QA')
+    async def scenario():
+        monkeypatch.setattr(socket.socket, 'connect', offline)
+        owner = Module({'id': 'library'}, tmp_path,
+                       lambda key, path, automatic: create_native(key, path, port=64836, automatic=False))
+        await owner.set_enabled(True)
+        app = owner.app
+        link = app.state.services.link
+        await asyncio.to_thread(link.sync._run, lambda inner: asyncio.sleep(0))
+        client, thread = link.sync._inner._client, link.sync._thread
+        original = client.aclose
+        attempts = []
+        async def fail_twice():
+            attempts.append('close')
+            if len(attempts) < 3:
+                raise OSError('Real inner HTTP client remains open')
+            await original()
+        monkeypatch.setattr(client, 'aclose', fail_twice)
+        try:
+            for count in (1, 2):
+                with pytest.raises(OSError):
+                    await owner.set_enabled(False)
+                assert len(attempts) == count and not client.is_closed
+                assert owner.app is app and owner.stopping
+                assert link.sync._inner is not None and thread.is_alive()
+            await owner.set_enabled(False)
+            assert client.is_closed and link._client.is_closed
+            assert not thread.is_alive() and link.sync._inner is None
+            assert len(attempts) == 3 and owner.app is None
+        finally:
+            if owner.app is not None:
+                monkeypatch.setattr(client, 'aclose', original)
+                await app.state.retry_shutdown()
+    asyncio.run(scenario())
 
 
 def test_unknown_failed_lifespan_remains_owned(tmp_path):
