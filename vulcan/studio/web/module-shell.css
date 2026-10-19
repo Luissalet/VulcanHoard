@@ -1,0 +1,10 @@
+@font-face { font-family: Cinzel; src: url('/fusion-static/fonts/Cinzel.ttf') format('truetype'); font-weight: 400 900; font-display: swap; }
+@font-face { font-family: 'Source Sans 3'; src: url('/fusion-static/fonts/SourceSans3.woff2') format('woff2'); font-weight: 200 900; font-display: swap; }
+.fusion-bar { min-height: 46px; display: flex; align-items: center; gap: 24px; padding: 6px 22px; background: var(--hoard-sunken); border-bottom: 1px solid var(--hoard-border); font: 14px/1.4 var(--hoard-font-sans); color: var(--hoard-text-muted); }
+.fusion-bar a { display: inline-flex; align-items: center; gap: 10px; color: var(--hoard-accent); text-decoration: none; text-underline-offset: 4px; }
+.fusion-bar a:first-child { font: 600 14px/1.4 var(--hoard-font-serif); }
+.fusion-bar img { border-radius: 5px; }
+.fusion-bar a:hover { text-decoration: underline; }
+.fusion-bar .fusion-functions { margin-left: auto; font-weight: 600; }
+.fusion-bar a:focus-visible { outline: 2px solid var(--hoard-accent); outline-offset: 3px; }
+@media (max-width: 550px) { .fusion-bar { gap: 12px; padding: 6px 12px; font-size: 12px; } .fusion-bar span { display: none; } .fusion-bar a:first-child { font-size: 12px; } }

@@ -1,0 +1,365 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:silhouettes:project:v2",
+  "title": "Silhouettes editor document v2",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 2
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,64}$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "units": {
+      "const": "mm"
+    },
+    "canvas": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "width_mm": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 5000
+        },
+        "height_mm": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 5000
+        },
+        "padding_mm": {
+          "$ref": "#/$defs/padding"
+        }
+      },
+      "required": [
+        "width_mm",
+        "height_mm",
+        "padding_mm"
+      ]
+    },
+    "default_extrusion_mm": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "stack_gap_mm": {
+      "type": "number",
+      "minimum": 0
+    },
+    "assets": {
+      "type": "object",
+      "maxProperties": 100,
+      "additionalProperties": {
+        "$ref": "#/$defs/asset"
+      }
+    },
+    "layers": {
+      "type": "object",
+      "maxProperties": 100,
+      "additionalProperties": {
+        "$ref": "#/$defs/layer"
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "id",
+    "name",
+    "revision",
+    "units",
+    "canvas",
+    "default_extrusion_mm",
+    "stack_gap_mm",
+    "assets",
+    "layers"
+  ],
+  "$defs": {
+    "pose": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tx": {
+          "type": "number"
+        },
+        "ty": {
+          "type": "number"
+        },
+        "scale": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 100000
+        },
+        "angle_deg": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "tx",
+        "ty",
+        "scale",
+        "angle_deg"
+      ]
+    },
+    "padding": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "top": {
+          "type": "number",
+          "minimum": 0
+        },
+        "right": {
+          "type": "number",
+          "minimum": 0
+        },
+        "bottom": {
+          "type": "number",
+          "minimum": 0
+        },
+        "left": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "top",
+        "right",
+        "bottom",
+        "left"
+      ]
+    },
+    "fit": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "target": {
+          "enum": [
+            "canvas",
+            "parent_shape",
+            "parent_hole"
+          ]
+        },
+        "hole_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "padding_mm": {
+          "type": "number",
+          "minimum": 0
+        },
+        "avoid_siblings": {
+          "type": "boolean"
+        },
+        "sibling_gap_mm": {
+          "type": "number",
+          "minimum": 0
+        },
+        "auto_scale_while_dragging": {
+          "type": "boolean"
+        },
+        "allow_rotation": {
+          "type": "boolean"
+        },
+        "rotation_half_range_deg": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 180
+        }
+      },
+      "required": [
+        "target",
+        "hole_id",
+        "padding_mm",
+        "avoid_siblings",
+        "sibling_gap_mm",
+        "auto_scale_while_dragging",
+        "allow_rotation",
+        "rotation_half_range_deg"
+      ]
+    },
+    "asset": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,64}$"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "source_filename": {
+          "type": "string",
+          "maxLength": 260,
+          "description": "Original upload filename (for layer naming and UI)."
+        },
+        "source_type": {
+          "enum": [
+            "png",
+            "svg"
+          ]
+        },
+        "source_uri": {
+          "type": "string",
+          "pattern": "^assets/[A-Za-z0-9_-]+/source\\.(png|svg)$"
+        },
+        "canonical_svg_uri": {
+          "type": "string",
+          "pattern": "^assets/[A-Za-z0-9_-]+/canonical\\.svg$"
+        },
+        "source_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "source_viewbox": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": {
+            "type": "number"
+          }
+        },
+        "mm_per_source_unit": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "normalization_pose": {
+          "$ref": "#/$defs/pose"
+        },
+        "geometry_hash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "trace_settings": {
+          "type": "object"
+        },
+        "curve_tolerance_source": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "canonical_svg": {
+          "type": "string",
+          "description": "Runtime-only: canonical SVG text for the 2D viewport (task 07). Stripped before persistence by _clean_for_save."
+        },
+        "local_bounds": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": {
+            "type": "number"
+          },
+          "description": "Filled-geometry bounds in local mm (centred at origin after normalization). Used by the 2D viewport and inspector."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "source_type",
+        "source_uri",
+        "canonical_svg_uri",
+        "source_sha256",
+        "source_viewbox",
+        "mm_per_source_unit",
+        "normalization_pose",
+        "geometry_hash",
+        "trace_settings",
+        "curve_tolerance_source"
+      ]
+    },
+    "layer": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,64}$"
+        },
+        "asset_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,64}$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "parent_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "order": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "stack_rank": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "pose": {
+          "$ref": "#/$defs/pose"
+        },
+        "visible": {
+          "type": "boolean"
+        },
+        "locked": {
+          "type": "boolean"
+        },
+        "export_enabled": {
+          "type": "boolean"
+        },
+        "flip_h": {
+          "type": "boolean",
+          "description": "Mirror the layer horizontally in local space (x → −x) before pose."
+        },
+        "extrusion_mm": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          ]
+        },
+        "fit": {
+          "$ref": "#/$defs/fit"
+        }
+      },
+      "required": [
+        "id",
+        "asset_id",
+        "name",
+        "parent_id",
+        "order",
+        "stack_rank",
+        "pose",
+        "visible",
+        "locked",
+        "export_enabled",
+        "extrusion_mm",
+        "fit"
+      ]
+    }
+  }
+}

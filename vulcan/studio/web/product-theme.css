@@ -1,0 +1,11 @@
+/* The live family palette is canonical; DESIGN.md predates the shared theme. */
+::selection { background:var(--hoard-accent-soft); color:var(--hoard-text); }
+:focus-visible { outline:2px solid var(--hoard-accent); outline-offset:3px; }
+input { caret-color:var(--hoard-accent); }
+.project-input { display:flex; gap:12px; margin:8px 0 24px; }
+.project-input input { min-width:0; flex:1; padding:10px; background:var(--hoard-bg); color:var(--hoard-text); border:1px solid var(--hoard-line); border-radius:6px; font:inherit; }
+#projects { margin-top:48px; padding-top:24px; border-top:1px solid var(--line); scroll-margin-top:20px; }
+#project-list article { padding:16px 0; border-bottom:1px solid var(--line); }
+#project-list h3 { margin:0 0 8px; }
+.module-error { overflow-wrap:anywhere; }
+@media(max-width:600px) { .project-input { flex-direction:column; } }

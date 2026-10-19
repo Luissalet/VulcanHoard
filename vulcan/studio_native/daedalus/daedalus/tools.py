@@ -1,0 +1,36 @@
+def tool(name,description,properties=None,required=None):
+    return {'name':name,'description':description,'inputSchema':{'type':'object','properties':properties or {},'required':required or []}}
+
+JOB={'job_id':{'type':'string','description':'ID of a job returned by this Hoard'}}
+TOOLS=[
+ tool('image_import','Import a local reference image into Daedalus.',{'path':{'type':'string'}},['path']),
+ tool('model_generate','Queue real image-to-3D generation distributed across four GPUs. Returns a job ID; inspect its status.',
+      {'image_id':{'type':'string'},'title':{'type':'string'},'resolution':{'type':'integer','enum':[512,1024],'default':512},
+       'seed':{'type':'integer','default':42},'remove_background':{'type':'boolean','default':True}},['image_id']),
+ tool('model_refine','Create a separate refined version. Choose backend explicitly: UltraShape is image-guided, DetailGen is the legacy default. Compare the result through comparison_url; improvement is not guaranteed.',
+      {**JOB,'backend':{'type':'string','enum':['detail','ultra'],'default':'detail'},
+       'tokens':{'type':'integer','enum':[2048,8192,32768],'default':2048},
+       'alignment_degrees':{'type':'integer','enum':[0,90,180,270],'description':'Rotate a COPY to match the reference front; output is returned to the original pose. Default:0 Detail,90 Ultra.'},
+       'steps':{'type':'integer','minimum':1,'default':50},'seed':{'type':'integer','default':42},
+       'transfer_materials':{'type':'boolean','default':True}},['job_id']),
+ tool('jobs_list','List persisted jobs and their actual results.'),
+ tool('model_repair','Queue CPU mesh repair as a preserved new version: voxel volume reconstruction or classic cleanup and boundary/intersection repair. Inspect processing.closure_verified and topology; thickness/supports still need slicer review.',
+      {**JOB,'method':{'type':'string','enum':['volume','surface'],'default':'volume','description':'Volume reconstructs a closed voxel surface; surface uses classic cleanup. Volume may smooth fine details or merge nearby parts.'},
+       'voxel_resolution':{'type':'integer','enum':[128,256,384],'default':256},
+       'detail_faces':{'type':['integer','null'],'minimum':1000,'default':1000000,'description':'Working triangle budget before repair; null preserves full source detail.'},
+       'remove_small_components':{'type':'boolean','default':False}},['job_id']),
+ tool('model_optimize','Queue a preserved CPU game version: triangle budget, packed UV charts and baked PBR textures. Inspect actual face count, budget_met, file size and comparison; does not add rigging.',
+      {**JOB,'target_faces':{'type':'integer','minimum':100,'default':50000},
+       'texture_size':{'type':'integer','enum':[512,1024,2048,4096],'default':2048}},['job_id']),
+ tool('model_upscale','Run the learned 1024 TRELLIS stage from a completed native 512 original and its saved shape latent. Preserves the original; generates new geometry and PBR materials. Returns a job ID and comparison link.',
+      {**JOB,'steps':{'type':'integer','minimum':1,'default':12},'seed':{'type':'integer','default':42}},['job_id']),
+ tool('job_get','Read generation/refinement/upscaling/repair/optimization progress, measurements and links. full_comparison_url compares complete geometry; full_clay is a lazily cached uniform material derivative, preview remains default.',JOB,['job_id']),
+ tool('job_cancel','Cancel this queued or running job; never stops another model service.',JOB,['job_id']),
+ tool('model_versions','List originals and later versions for the same reference image.',JOB,['job_id']),
+ tool('model_rename','Rename a saved job.',{**JOB,'title':{'type':'string'}},['job_id','title']),
+ tool('model_export','Export GLB (meters), STL or PLY (millimeters), with an explicit longest-side size.',
+      {**JOB,'format':{'type':'string','enum':['glb','stl','ply'],'default':'glb'},'size_mm':{'type':'number','default':100},
+       'full':{'type':'boolean','default':False}},['job_id']),
+ tool('models_status','Read local weight availability and the actual four GPU inventory.'),
+ tool('models_configure','Set the folder containing generator/, refiner/ and optional ultra/ weights; does not download or load a model.',
+      {'model_dir':{'type':'string'}},['model_dir'])]

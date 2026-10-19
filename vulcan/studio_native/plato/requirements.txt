@@ -1,0 +1,11 @@
+flask>=3.0,<4
+pillow>=10.0,<13
+numpy>=1.26,<3
+vtracer==1.0.0a4
+trimesh>=4.11,<6
+shapely>=2.1,<3
+mapbox-earcut==2.0.0
+svg.path>=6.3,<8
+networkx>=3.0,<4
+scipy>=1.15,<2
+jsonschema>=4.18,<5
