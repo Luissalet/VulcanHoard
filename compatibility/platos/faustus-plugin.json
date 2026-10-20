@@ -1,0 +1,64 @@
+{
+  "schema": 1,
+  "id": "platos",
+  "name": "Plato's Hoard \u00b7 Vulcan's Hoard",
+  "purpose": "Create, edit and export documents through Plato's Hoard's editor API.",
+  "capabilities": [
+    "documents",
+    "editor",
+    "exports"
+  ],
+  "placeholders": [
+    "COMPAT_DIR",
+    "VULCAN_DIR",
+    "OWNER_URL",
+    "APP_URL",
+    "TOKEN_FILE",
+    "DATA_DIR",
+    "PYTHON"
+  ],
+  "defaults": {
+    "VULCAN_DIR": "{COMPAT_DIR}/../..",
+    "OWNER_URL": "http://127.0.0.1:5186",
+    "APP_URL": "{OWNER_URL}/compat/plato",
+    "TOKEN_FILE": "{VULCAN_DIR}/data/mcp-token",
+    "DATA_DIR": "{VULCAN_DIR}/data/native/plato/data",
+    "PYTHON": "{VULCAN_DIR}/venv/Scripts/python.exe"
+  },
+  "app": {
+    "url_default": "{APP_URL}",
+    "ui_url": null,
+    "health": {
+      "path": "/api/health",
+      "expect": {
+        "service": "vulcan-hoard"
+      }
+    }
+  },
+  "mcp": {
+    "transport": "stdio",
+    "command": "{PYTHON}",
+    "args": [
+      "-I",
+      "-m",
+      "vulcan.compat_mcp",
+      "--module",
+      "plato"
+    ],
+    "env": {
+      "VULCAN_URL": "{OWNER_URL}",
+      "VULCAN_TOKEN_FILE": "{TOKEN_FILE}"
+    }
+  },
+  "x-family": {
+    "standalone": false,
+    "agent_contract": true,
+    "absorbed_by": {
+      "id": "vulcan",
+      "module": "plato",
+      "standalone": false,
+      "repository": "https://github.com/Luissalet/VulcanHoard"
+    }
+  },
+  "notes": "Capabilities and native data belong to Vulcan's Hoard. Modules are enabled explicitly in the owner."
+}
