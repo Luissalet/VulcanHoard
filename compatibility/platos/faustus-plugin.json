@@ -2,11 +2,15 @@
   "schema": 1,
   "id": "platos",
   "name": "Plato's Hoard \u00b7 Vulcan's Hoard",
-  "purpose": "Create, edit and export documents through Plato's Hoard's editor API.",
+  "purpose": "Turn 2D images into editable layered silhouettes and printable 3D relief; export PNG, SVG and extruded STL through the native editor.",
   "capabilities": [
     "documents",
     "editor",
-    "exports"
+    "exports",
+    "silhouette-editor",
+    "layered-relief",
+    "svg-export",
+    "stl-export"
   ],
   "placeholders": [
     "COMPAT_DIR",
