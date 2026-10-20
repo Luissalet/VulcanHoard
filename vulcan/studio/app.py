@@ -167,6 +167,8 @@ def create_app(data_dir=None, port=None, factory=None, catalog=None):
                 await module.set_enabled(False)
 
     app = FastAPI(title="Vulcan's Hoard", lifespan=lifespan)
+    from ..compat_mcp import install
+    install(app)
     app.state.modules, app.state.projects, app.state.token, app.state.data_dir = modules, projects, token, data_dir
     install_guard(app, port_getter=lambda: port, allowed_env='VULCAN_ALLOWED_HOSTS')
     install_copilot(app, 'vulcan', data_dir, app_name="Vulcan's Hoard", inject=False)
