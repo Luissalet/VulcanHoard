@@ -164,3 +164,8 @@ Covers geometry extraction on generated meshes (cube, sphere, open box, two-body
 ## License
 
 GPL-3.0 combined studio. Original component grants and notices are retained; see [NOTICE-STUDIO.md](NOTICE-STUDIO.md).
+
+
+## Native connections
+
+Former MCP and Hub identities can use the incorporated cold compatibility adapters without the retired repositories. See [native connections](docs/NATIVE-CONNECTIONS.md). Modules still require explicit activation.
