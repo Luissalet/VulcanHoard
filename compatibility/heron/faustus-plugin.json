@@ -1,0 +1,70 @@
+{
+  "schema": 1,
+  "id": "heron",
+  "name": "Heron's Hoard \u00b7 Vulcan's Hoard",
+  "purpose": "Measured parametric CAD: declarative solid primitives, Boolean operations, rotations, fillets, editable recipes and verified STEP/STL exports with three orthographic/isometric views. Complements artistic modelling and model catalogues.",
+  "capabilities": [
+    "parametric-cad",
+    "measured-solids",
+    "boolean-geometry",
+    "editable-cad-recipes",
+    "step-export",
+    "stl-export",
+    "stl-watertight-check",
+    "step-roundtrip",
+    "cad-views"
+  ],
+  "placeholders": [
+    "COMPAT_DIR",
+    "VULCAN_DIR",
+    "OWNER_URL",
+    "APP_URL",
+    "TOKEN_FILE",
+    "DATA_DIR",
+    "PYTHON"
+  ],
+  "defaults": {
+    "VULCAN_DIR": "{COMPAT_DIR}/../..",
+    "OWNER_URL": "http://127.0.0.1:5186",
+    "APP_URL": "{OWNER_URL}/compat/heron",
+    "TOKEN_FILE": "{VULCAN_DIR}/data/mcp-token",
+    "DATA_DIR": "{VULCAN_DIR}/data/native/heron/data",
+    "PYTHON": "{VULCAN_DIR}/venv/Scripts/python.exe"
+  },
+  "app": {
+    "url_default": "{APP_URL}",
+    "ui_url": null,
+    "health": {
+      "path": "/api/health",
+      "expect": {
+        "service": "vulcan-hoard"
+      }
+    }
+  },
+  "mcp": {
+    "transport": "stdio",
+    "command": "{PYTHON}",
+    "args": [
+      "-I",
+      "-m",
+      "vulcan.compat_mcp",
+      "--module",
+      "heron"
+    ],
+    "env": {
+      "VULCAN_URL": "{OWNER_URL}",
+      "VULCAN_TOKEN_FILE": "{TOKEN_FILE}"
+    }
+  },
+  "x-family": {
+    "standalone": false,
+    "agent_contract": true,
+    "absorbed_by": {
+      "id": "vulcan",
+      "module": "heron",
+      "standalone": false,
+      "repository": "https://github.com/Luissalet/VulcanHoard"
+    }
+  },
+  "notes": "Capabilities and native data belong to Vulcan's Hoard. Modules are enabled explicitly in the owner."
+}

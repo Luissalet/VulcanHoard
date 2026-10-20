@@ -1,0 +1,79 @@
+{
+  "schema": 1,
+  "id": "daedalus",
+  "name": "Daedalus's Hoard \u00b7 Vulcan's Hoard",
+  "purpose": "Generate local 3D models from images across four GPUs, optionally refine a separate version, compare geometry and export explicitly scaled GLB, STL or PLY files.",
+  "capabilities": [
+    "image-to-3d",
+    "four-gpu-generation",
+    "3d-refinement",
+    "image-guided-refinement",
+    "reference-alignment",
+    "model-versions",
+    "3d-viewer",
+    "pbr-materials",
+    "glb-export",
+    "stl-export",
+    "ply-export",
+    "scaled-export",
+    "job-cancellation",
+    "latent-shape-upscaling",
+    "full-geometry-comparison",
+    "mesh-repair",
+    "game-mesh-optimization",
+    "cpu-material-baking"
+  ],
+  "placeholders": [
+    "COMPAT_DIR",
+    "VULCAN_DIR",
+    "OWNER_URL",
+    "APP_URL",
+    "TOKEN_FILE",
+    "DATA_DIR",
+    "PYTHON"
+  ],
+  "defaults": {
+    "VULCAN_DIR": "{COMPAT_DIR}/../..",
+    "OWNER_URL": "http://127.0.0.1:5186",
+    "APP_URL": "{OWNER_URL}/compat/daedalus",
+    "TOKEN_FILE": "{VULCAN_DIR}/data/mcp-token",
+    "DATA_DIR": "{VULCAN_DIR}/data/native/daedalus/data",
+    "PYTHON": "{VULCAN_DIR}/venv/Scripts/python.exe"
+  },
+  "app": {
+    "url_default": "{APP_URL}",
+    "ui_url": null,
+    "health": {
+      "path": "/api/health",
+      "expect": {
+        "service": "vulcan-hoard"
+      }
+    }
+  },
+  "mcp": {
+    "transport": "stdio",
+    "command": "{PYTHON}",
+    "args": [
+      "-I",
+      "-m",
+      "vulcan.compat_mcp",
+      "--module",
+      "daedalus"
+    ],
+    "env": {
+      "VULCAN_URL": "{OWNER_URL}",
+      "VULCAN_TOKEN_FILE": "{TOKEN_FILE}"
+    }
+  },
+  "x-family": {
+    "standalone": false,
+    "agent_contract": true,
+    "absorbed_by": {
+      "id": "vulcan",
+      "module": "daedalus",
+      "standalone": false,
+      "repository": "https://github.com/Luissalet/VulcanHoard"
+    }
+  },
+  "notes": "Capabilities and native data belong to Vulcan's Hoard. Modules are enabled explicitly in the owner."
+}
