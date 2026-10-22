@@ -6686,7 +6686,7 @@
   },
   {
     "name": "daedalus_model_generate",
-    "description": "Queue real image-to-3D generation distributed across four GPUs. Returns a job ID; inspect its status.",
+    "description": "Queue local image-to-3D: trellis uses four GPUs; triposr is a single-GPU vertex-colored draft. Both preserve results as separate versions. Returns a job ID; inspect actual status, memory and geometry.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -6711,6 +6711,36 @@
         "remove_background": {
           "type": "boolean",
           "default": true
+        },
+        "generator": {
+          "type": "string",
+          "enum": [
+            "trellis",
+            "triposr"
+          ],
+          "default": "trellis"
+        },
+        "draft_resolution": {
+          "type": "integer",
+          "enum": [
+            128,
+            256
+          ],
+          "default": 128,
+          "description": "TripoSR mesh grid only; not TRELLIS resolution."
+        },
+        "draft_gpu": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0,
+          "description": "Physical GPU index for the draft; obtains a Hub lease."
+        },
+        "source_job_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Optional completed version of the SAME image, retained as comparison parent. Creates new geometry; never overwrites the source."
         }
       },
       "required": [
@@ -7011,7 +7041,7 @@
   },
   {
     "name": "daedalus_models_status",
-    "description": "Read local weight availability and the actual four GPU inventory.",
+    "description": "Read local weight availability, draft-runtime configuration and GPU inventory; loads no models.",
     "inputSchema": {
       "type": "object",
       "properties": {},
@@ -7022,12 +7052,19 @@
   },
   {
     "name": "daedalus_models_configure",
-    "description": "Set the folder containing generator/, refiner/ and optional ultra/ weights; does not download or load a model.",
+    "description": "Set the local model folder and optional draft Python executable; does not download or load a model.",
     "inputSchema": {
       "type": "object",
       "properties": {
         "model_dir": {
           "type": "string"
+        },
+        "draft_python": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Python executable in the installed draft environment; omit to preserve current setting."
         }
       },
       "required": [

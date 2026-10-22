@@ -39,8 +39,14 @@ def files(tmp_path) -> dict:
 def services(tmp_path):
     svc = Services(make_config(tmp_path))
     svc.worker.start()
-    yield svc
-    svc.stop()
+    original_link = svc.link
+    try:
+        yield svc
+    finally:
+        # Domain tests replace the link with deliberately narrow model fakes.
+        # Teardown must close the actual transport constructed by this fixture.
+        svc.link = original_link
+        svc.stop()
 
 
 @pytest.fixture
@@ -58,4 +64,8 @@ def client(tmp_path):
     app = create_app(make_config(tmp_path))
     with TestClient(app, base_url="http://127.0.0.1") as test_client:
         test_client.services = app.state.services
-        yield test_client
+        original_link = app.state.services.link
+        try:
+            yield test_client
+        finally:
+            app.state.services.link = original_link

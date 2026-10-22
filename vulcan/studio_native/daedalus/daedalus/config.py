@@ -17,6 +17,7 @@ class Config:
         default=Path('D:/LocalAI/HoardStorage/daedalus-models') if os.name=='nt' else Path.home()/'.local/share/daedalus/models'
         self.models=Path(os.environ.get('DAEDALUS_MODEL_DIR') or settings.get('model_dir') or default).resolve()
         self.python=os.environ.get('DAEDALUS_ENGINE_PYTHON')
+        self.draft_python=os.environ.get('DAEDALUS_DRAFT_PYTHON') or settings.get('draft_python') or self.python
         self.port=int(os.environ.get('DAEDALUS_PORT','8830'))
         self.gpus=[1,2,3,0]
 
@@ -29,6 +30,7 @@ class Config:
                        'refiner/image_encoder_1/model.safetensors','refiner/image_encoder_1/config.json',
                        'refiner/feature_extractor_1/preprocessor_config.json','refiner/scheduler/scheduler_config.json',
                        'refiner/noise_scheduler/scheduler_config.json'],
-            'ultra':['ultra/ultrashape_v1.pt','ultra/weights-proof.json']}
+            'ultra':['ultra/ultrashape_v1.pt','ultra/weights-proof.json'],
+            'draft':['triposr/model.ckpt','triposr/config.yaml','triposr/image-encoder-config.json','triposr/weights-proof.json']}
         return {name:{'ready':all((model_root/path).is_file() for path in paths),
                       'missing':[path for path in paths if not (model_root/path).is_file()]} for name,paths in files.items()}

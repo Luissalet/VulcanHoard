@@ -1,0 +1,78 @@
+{
+  "repository": "VAST-AI-Research/TripoSR",
+  "revision": "107cefdc244c39106fa830359024f6a2f1c78871",
+  "licenses": [
+    "MIT",
+    "Apache-2.0"
+  ],
+  "files": [
+    {
+      "source": "tsr/models/isosurface.py",
+      "blob_sha": "076321b81f573ab95a6c7d5328f6366e0f33c38e",
+      "target": "daedalus/geometry/draft_model/models/isosurface.py",
+      "modifications": [
+        "CPU scikit-image marching cubes, native xyz axes; no custom CUDA build"
+      ]
+    },
+    {
+      "source": "tsr/models/nerf_renderer.py",
+      "blob_sha": "0cf3ab6e31f79c3af8e75384f48c0e874621c2b8",
+      "target": "daedalus/geometry/draft_model/models/nerf_renderer.py",
+      "modifications": []
+    },
+    {
+      "source": "tsr/models/network_utils.py",
+      "blob_sha": "470c92b9a99901e93dee2b98e80eea53cfdf3f9d",
+      "target": "daedalus/geometry/draft_model/models/network_utils.py",
+      "modifications": []
+    },
+    {
+      "source": "tsr/models/tokenizers/image.py",
+      "blob_sha": "d4034b25a7b2e8f38630fd69a0bae75ed2a5edb0",
+      "target": "daedalus/geometry/draft_model/models/tokenizers/image.py",
+      "modifications": [
+        "Local encoder config only, no HF requests"
+      ]
+    },
+    {
+      "source": "tsr/models/tokenizers/triplane.py",
+      "blob_sha": "ecdd7fd2201c974bb70b18a90a633287b814886f",
+      "target": "daedalus/geometry/draft_model/models/tokenizers/triplane.py",
+      "modifications": []
+    },
+    {
+      "source": "tsr/models/transformer/attention.py",
+      "blob_sha": "34bd99778ce168cb68192c183814f098a3d08e67",
+      "target": "daedalus/geometry/draft_model/models/transformer/attention.py",
+      "modifications": []
+    },
+    {
+      "source": "tsr/models/transformer/basic_transformer_block.py",
+      "blob_sha": "1ea41b0192b6fbb368fe3a587b7c04b0253d23b3",
+      "target": "daedalus/geometry/draft_model/models/transformer/basic_transformer_block.py",
+      "modifications": []
+    },
+    {
+      "source": "tsr/models/transformer/transformer_1d.py",
+      "blob_sha": "a98d0fb98136ea873aef708717a809e434e7ca14",
+      "target": "daedalus/geometry/draft_model/models/transformer/transformer_1d.py",
+      "modifications": []
+    },
+    {
+      "source": "tsr/system.py",
+      "blob_sha": "bcdb69b2e5c85b3c0ffebd7ff82fc4fe7b3d543e",
+      "target": "daedalus/geometry/draft_model/system.py",
+      "modifications": [
+        "Local-only model/config loading; tensor-only checkpoint load"
+      ]
+    },
+    {
+      "source": "tsr/utils.py",
+      "blob_sha": "9758f2e44cd4091f2124929edc89b59e98fff667",
+      "target": "daedalus/geometry/draft_model/utils.py",
+      "modifications": [
+        "Native namespace; remove hosted-background/unused video/front-end helpers"
+      ]
+    }
+  ]
+}

@@ -4,9 +4,13 @@ def tool(name,description,properties=None,required=None):
 JOB={'job_id':{'type':'string','description':'ID of a job returned by this Hoard'}}
 TOOLS=[
  tool('image_import','Import a local reference image into Daedalus.',{'path':{'type':'string'}},['path']),
- tool('model_generate','Queue real image-to-3D generation distributed across four GPUs. Returns a job ID; inspect its status.',
+ tool('model_generate','Queue local image-to-3D: trellis uses four GPUs; triposr is a single-GPU vertex-colored draft. Both preserve results as separate versions. Returns a job ID; inspect actual status, memory and geometry.',
       {'image_id':{'type':'string'},'title':{'type':'string'},'resolution':{'type':'integer','enum':[512,1024],'default':512},
-       'seed':{'type':'integer','default':42},'remove_background':{'type':'boolean','default':True}},['image_id']),
+       'seed':{'type':'integer','default':42},'remove_background':{'type':'boolean','default':True},
+       'generator':{'type':'string','enum':['trellis','triposr'],'default':'trellis'},
+       'draft_resolution':{'type':'integer','enum':[128,256],'default':128,'description':'TripoSR mesh grid only; not TRELLIS resolution.'},
+       'draft_gpu':{'type':'integer','minimum':0,'default':0,'description':'Physical GPU index for the draft; obtains a Hub lease.'},
+       'source_job_id':{'type':['string','null'],'description':'Optional completed version of the SAME image, retained as comparison parent. Creates new geometry; never overwrites the source.'}},['image_id']),
  tool('model_refine','Create a separate refined version. Choose backend explicitly: UltraShape is image-guided, DetailGen is the legacy default. Compare the result through comparison_url; improvement is not guaranteed.',
       {**JOB,'backend':{'type':'string','enum':['detail','ultra'],'default':'detail'},
        'tokens':{'type':'integer','enum':[2048,8192,32768],'default':2048},
@@ -31,6 +35,6 @@ TOOLS=[
  tool('model_export','Export GLB (meters), STL or PLY (millimeters), with an explicit longest-side size.',
       {**JOB,'format':{'type':'string','enum':['glb','stl','ply'],'default':'glb'},'size_mm':{'type':'number','default':100},
        'full':{'type':'boolean','default':False}},['job_id']),
- tool('models_status','Read local weight availability and the actual four GPU inventory.'),
- tool('models_configure','Set the folder containing generator/, refiner/ and optional ultra/ weights; does not download or load a model.',
-      {'model_dir':{'type':'string'}},['model_dir'])]
+ tool('models_status','Read local weight availability, draft-runtime configuration and GPU inventory; loads no models.'),
+ tool('models_configure','Set the local model folder and optional draft Python executable; does not download or load a model.',
+      {'model_dir':{'type':'string'},'draft_python':{'type':['string','null'],'description':'Python executable in the installed draft environment; omit to preserve current setting.'}},['model_dir'])]

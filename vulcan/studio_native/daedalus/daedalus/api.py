@@ -30,6 +30,10 @@ class GenerateInput(BaseModel):
     resolution:Literal[512,1024]=512
     seed:int=Field(default=42,ge=0,le=2**63-1)
     remove_background:bool=True
+    generator:Literal['trellis','triposr']='trellis'
+    draft_resolution:Literal[128,256]=128
+    draft_gpu:int=Field(default=0,ge=0)
+    source_job_id:str|None=None
 
 class RefineInput(BaseModel):
     backend:Literal['detail','ultra']='detail'
@@ -122,10 +126,21 @@ def create_app(data_dir=None,runner=None,port=None,automatic=False):
         image=store.image(request.image_id)
         if not image:
             raise HTTPException(404,'Importa primero la imagen de referencia.')
-        if runner is None and not config.model_status()['generator']['ready']:
+        if request.source_job_id:
+            source=store.job(request.source_job_id)
+            if not source or source['status']!='complete' or source['image_id']!=image['id']:
+                raise HTTPException(409,'La versión para comparar debe estar terminada y usar la misma imagen de referencia.')
+        component='draft' if request.generator=='triposr' else 'generator'
+        if request.generator=='triposr' and request.resolution!=512:
+            raise HTTPException(400,'El borrador usa su propio detalle de malla; la resolución TRELLIS 1024 no se aplica.')
+        if runner is None and not config.model_status()[component]['ready']:
             raise HTTPException(409,'No se encuentran todos los pesos del generador. Revisa la carpeta de modelos.')
+        if runner is None and request.generator=='triposr' and (not config.draft_python or not Path(config.draft_python).is_file()):
+            raise HTTPException(409,'Instala el entorno de borradores y configura DAEDALUS_DRAFT_PYTHON.')
+        if runner is None and request.generator=='triposr' and request.draft_gpu not in {device['index'] for device in model_status()['devices']}:
+            raise HTTPException(400,'No se encuentra la gráfica elegida para el borrador.')
         title=request.title.strip() or Path(image['name']).stem or 'Modelo sin título'
-        job=store.create('generate',image['id'],title,request.model_dump(exclude={'image_id','title'}))
+        job=store.create('generate',image['id'],title,request.model_dump(exclude={'image_id','title','source_job_id'}),parent_id=request.source_job_id)
         app.state.manager.enqueue(job['id'])
         return public_job(job)
 
@@ -134,6 +149,13 @@ def create_app(data_dir=None,runner=None,port=None,automatic=False):
         if not parent or parent['status']!='complete':
             raise HTTPException(409,'Elige una generación terminada para crear una versión refinada.')
         request=RefineInput.model_validate(body)
+        original=parent
+        while original.get('parent_id') and original['kind'] in {'refine','repair','optimize'}:
+            original=store.job(original['parent_id'])
+            if not original:
+                raise HTTPException(409,'La generación de origen ya no está disponible.')
+        if original['params'].get('generator')=='triposr' and request.transfer_materials:
+            raise HTTPException(400,'El refinador no puede conservar el aspecto de este borrador. Desactiva Conservar aspecto para crear una versión distinta; Para juegos permite hornear sus colores.')
         if request.backend=='detail' and request.tokens==32768:
             raise HTTPException(400,'DetailGen admite las pasadas de 2048 u 8192 latentes.')
         component='ultra' if request.backend=='ultra' else 'refiner'
@@ -148,7 +170,7 @@ def create_app(data_dir=None,runner=None,port=None,automatic=False):
 
     def submit_upscale(identity,body):
         parent=store.job(identity)
-        if not parent or parent['status']!='complete' or parent['kind']!='generate' or parent['params'].get('resolution')!=512:
+        if not parent or parent['status']!='complete' or parent['kind']!='generate' or parent['params'].get('resolution')!=512 or parent['params'].get('generator')=='triposr':
             raise HTTPException(409,'Elige una generación original de 512 terminada para ampliarla.')
         if not (config.jobs/identity/'latents.pt').is_file():
             raise HTTPException(409,'Esta generación no conserva los datos internos necesarios para ampliarla.')
@@ -185,6 +207,7 @@ def create_app(data_dir=None,runner=None,port=None,automatic=False):
         except (OSError,ValueError,subprocess.TimeoutExpired):
             pass
         return {'models':config.model_status(),'devices':devices,'selected_gpus':config.gpus,
+                'draft_runtime_configured':bool(config.draft_python and Path(config.draft_python).is_file()),
                 'refinement_note':'El refinado crea otra versión; no garantiza una mejora.'}
 
     @app.post('/api/images')
@@ -357,17 +380,24 @@ def create_app(data_dir=None,runner=None,port=None,automatic=False):
         path=Path(str(body.get('model_dir',''))).expanduser().resolve()
         if not path.is_dir():
             raise HTTPException(400,'No se encuentra esa carpeta de modelos.')
+        draft_python=body.get('draft_python',config.draft_python)
+        if draft_python and not Path(draft_python).expanduser().is_file():
+            raise HTTPException(400,'No se encuentra el ejecutable del entorno de borradores.')
         with settings_lock:
+            settings_path=config.data/'settings.json'
+            saved=json.loads(settings_path.read_text(encoding='utf-8')) if settings_path.is_file() else {}
+            saved.update(model_dir=str(path),draft_python=str(Path(draft_python).expanduser().resolve()) if draft_python else None)
             temporary=config.data/'settings.json.tmp'
-            temporary.write_text(json.dumps({'model_dir':str(path)}),encoding='utf-8')
+            temporary.write_text(json.dumps(saved),encoding='utf-8')
             temporary.replace(config.data/'settings.json')
             config.models=path
-            return {'model_dir':str(path),'models':config.model_status()}
+            config.draft_python=saved['draft_python']
+            return {'model_dir':str(path),'draft_python':config.draft_python,'models':config.model_status()}
 
     @app.get('/api/settings')
     def settings():
         with settings_lock:
-            return {'model_dir':str(config.models),'models':config.model_status()}
+            return {'model_dir':str(config.models),'draft_python':config.draft_python,'models':config.model_status()}
 
     @app.patch('/api/settings')
     def save_settings(body:dict):
