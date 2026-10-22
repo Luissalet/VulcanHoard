@@ -60,6 +60,8 @@ class JobManager:
                 folder.mkdir(exist_ok=True)
                 spec={**job['params'],'kind':job['kind'],'image':image['path'],'output_dir':str(folder),
                       'model_root':str(self.config.models),'physical_gpus':self.config.gpus,'job_id':identity}
+                if job['kind']=='generate' and job['params'].get('generator')=='triposr':
+                    spec['physical_gpus']=[job['params'].get('draft_gpu',0)]
                 if job['kind'] in {'refine','repair','optimize'}:
                     parent=self.store.job(job['parent_id'])
                     if not parent or parent['status']!='complete':
@@ -120,8 +122,9 @@ class JobManager:
         while not cancel.is_set():
             try:
                 with ExitStack() as stack:
-                    for gpu in self.config.gpus:
-                        reservation=stack.enter_context(lease(vram_mb=7000 if gpu==0 else 13000,
+                    draft=spec['kind']=='generate' and spec.get('generator')=='triposr'
+                    for gpu in spec.get('physical_gpus',self.config.gpus):
+                        reservation=stack.enter_context(lease(vram_mb=7000 if draft or gpu==0 else 13000,
                             purpose=f'Daedalus {spec["kind"]} {spec["job_id"]}',owner='daedalus',
                             gpu=gpu,timeout_s=3,autostart=False))
                         if reservation.via!='hub' or reservation.state!='granted':
@@ -136,7 +139,10 @@ class JobManager:
         raise proc.Cancelled()
 
     def run_worker(self,spec,on_event,cancel,request,cpu=False):
-        env=proc.build_env(CUDA_VISIBLE_DEVICES='' if cpu else ','.join(map(str,self.config.gpus)),CUDA_DEVICE_ORDER='PCI_BUS_ID')
+        draft=spec['kind']=='generate' and spec.get('generator')=='triposr'
+        env=proc.build_env(CUDA_VISIBLE_DEVICES='' if cpu else ','.join(map(str,spec.get('physical_gpus',self.config.gpus))),CUDA_DEVICE_ORDER='PCI_BUS_ID')
+        if draft:
+            env.update(HF_HUB_OFFLINE='1',TRANSFORMERS_OFFLINE='1')
         log_path=Path(spec['output_dir'])/'engine.log'
         with log_path.open('w',encoding='utf-8') as log:
             def line(text):
@@ -147,7 +153,8 @@ class JobManager:
                     return
                 if event.get('event')=='progress':
                     on_event(event)
-            result=proc.run_streaming([self.config.python or sys.executable,'-u','-m','vulcan.studio_native.daedalus.daedalus.worker',str(request)],
+            python=(self.config.draft_python if draft else self.config.python) or sys.executable
+            result=proc.run_streaming([python,'-u','-m','vulcan.studio_native.daedalus.daedalus.worker',str(request)],
                 on_line=line,cancel=cancel,timeout=None,cwd=Path(__file__).resolve().parents[4],env=env)
         if result:
             detail=Path(spec['output_dir'])/'failure.json'

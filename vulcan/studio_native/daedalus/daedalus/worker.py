@@ -94,7 +94,6 @@ def publish(spec):
     import numpy as np
     import trimesh
     from scipy.spatial import cKDTree
-    from .geometry import materials,normals
     folder=Path(spec['output_dir'])
     result=json.loads((folder/'result.json').read_text())
     if spec['kind']=='refine':
@@ -117,6 +116,7 @@ def publish(spec):
         result.update({key:details[key] for key in ['vertices','faces','watertight']})
     progress('preparing_export',.87)
     if (folder/'pbr-voxels.npz').exists():
+        from .geometry import materials,normals
         materials.run(folder)
         progress('smoothing_preview',.94)
         normals.run(folder)
@@ -142,7 +142,8 @@ def publish(spec):
             'block_calls':result.get('block_calls',{}),'refiner_tokens':spec.get('tokens'),
             'refiner_backend':spec.get('backend','detail') if spec['kind']=='refine' else None,
             'alignment_degrees':spec.get('alignment_degrees',0),'refiner_steps':spec.get('steps',50) if spec['kind']=='refine' else None,
-            'upscale_source':result.get('upscale_source')}
+            'upscale_source':result.get('upscale_source'),'generator':result.get('generator','trellis' if spec['kind'] in {'generate','upscale'} else None),
+            'model_provenance':result.get('model_provenance'),'mesh_resolution':result.get('mesh_resolution')}
 
 def main():
     spec=json.loads(Path(sys.argv[1]).read_text(encoding='utf-8'))
@@ -160,6 +161,17 @@ def main():
         progress('preparing_image',.005)
         prepare_input(spec)
         progress('loading_models',.01)
+        if spec['kind']=='generate' and spec.get('generator')=='triposr':
+            from .geometry import draft_generation
+            draft_generation.run(spec,progress)
+            result=publish(spec)
+            result['materials']='vertex-colors'
+            result['seconds_total']=time.perf_counter()-begin
+            temporary=folder/'artifacts.json.tmp'
+            temporary.write_text(json.dumps(result,indent=2),encoding='utf-8')
+            temporary.replace(folder/'artifacts.json')
+            progress('complete',1)
+            return
         if spec['kind'] in {'generate','upscale'}:
             from .geometry import generation as engine
         elif spec.get('backend')=='ultra':

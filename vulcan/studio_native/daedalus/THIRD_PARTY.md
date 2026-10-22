@@ -4,6 +4,8 @@ Daedalus incorporates detached source and its own execution pipeline. Historical
 
 | Component | Origin / revision | License and use |
 | --- | --- | --- |
+| Single-GPU draft network | TripoSR `107cefdc244c39106fa830359024f6a2f1c78871`; files and modifications in `docs/triposr-incorporation.json` | MIT, with retained Apache-2.0 transformer notices; full copies in `licenses/TRIPOSR-*`. Incorporated local network, not a CLI or another checkout. Local-only model/config loading and CPU scikit-image surface extraction replace remote config access and torchmcubes. |
+| Draft weights / encoder configuration | `stabilityai/TripoSR` `5b521936b01fbe1890f6f9baed0254ab6351c04a`; `facebook/dino-vitb16` `f205d5d8e640a89a2b8ef0369670dfc37cc07fc2` | Published MIT model and Apache-2.0 encoder config. Weights are separate; setup retains the model card, full digests and immutable URLs. No weights redistributed with the application. |
 | Sparse transformer, surface VAE, sparse operations, DINOv3 architecture implementation | ComfyUI `95539f56344958339e39b7582a476267d489b0ee`, paths in `docs/source-incorporation.json` | GPL-3.0, root `LICENSE`; incorporated and modified imports, tensor helpers and model placement. |
 | Generator model weights | Comfy-Org/TRELLIS2 `430a9d09b2416687018c8fe8edced2ad4858a439`, based on Microsoft TRELLIS.2 | Published MIT model files; licenses and immutable weight proof retained in the separate model store. |
 | Generator visual encoder weights | DINOv3 | Custom DINOv3 License, copy in `licenses/DINOv3-LICENSE.md`; do not describe the whole pipeline as MIT. |
