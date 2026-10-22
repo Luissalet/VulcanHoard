@@ -140,7 +140,7 @@ class JobManager:
 
     def run_worker(self,spec,on_event,cancel,request,cpu=False):
         draft=spec['kind']=='generate' and spec.get('generator')=='triposr'
-        env=proc.build_env(CUDA_VISIBLE_DEVICES='' if cpu else ','.join(map(str,spec.get('physical_gpus',self.config.gpus))),CUDA_DEVICE_ORDER='PCI_BUS_ID')
+        env=proc.build_env(CUDA_VISIBLE_DEVICES='-1' if cpu else ','.join(map(str,spec.get('physical_gpus',self.config.gpus))),CUDA_DEVICE_ORDER='PCI_BUS_ID')
         if draft:
             env.update(HF_HUB_OFFLINE='1',TRANSFORMERS_OFFLINE='1')
         log_path=Path(spec['output_dir'])/'engine.log'
@@ -154,7 +154,9 @@ class JobManager:
                 if event.get('event')=='progress':
                     on_event(event)
             python=(self.config.draft_python if draft else self.config.python) or sys.executable
-            result=proc.run_streaming([python,'-u','-m','vulcan.studio_native.daedalus.daedalus.worker',str(request)],
+            command=([python,'-I','-u',str(Path(__file__).with_name('worker.py')),str(request)] if draft else
+                     [python,'-u','-m','vulcan.studio_native.daedalus.daedalus.worker',str(request)])
+            result=proc.run_streaming(command,
                 on_line=line,cancel=cancel,timeout=None,cwd=Path(__file__).resolve().parents[4],env=env)
         if result:
             detail=Path(spec['output_dir'])/'failure.json'
