@@ -1,6 +1,7 @@
 const $=id=>document.getElementById(id);
 const activeStates=new Set(['queued','waiting','running','cancelling']);
 const kindNames={generate:'Original',refine:'Refinado',upscale:'Ampliado a 1024',repair:'Reparación',optimize:'Para juegos'};
+function versionLabel(job){if(job?.kind==='generate')return job.params.generator==='triposr'?`Borrador · ${job.params.draft_resolution}`:`TRELLIS · ${job.params.resolution}`;return kindNames[job?.kind]||'Versión'}
 const stageNames={checking_mesh:'Comprobando la malla',simplifying_mesh:'Reduciendo la geometría',repairing_mesh:'Reparando la malla',unwrapping_mesh:'Preparando las texturas',baking_materials:'Conservando los materiales',queued:'En cola',waiting_resources:'Esperando las gráficas',loading_models:'Cargando el motor',preparing_image:'Preparando la imagen',preparing_geometry:'Preparando la geometría',building_structure:'Construyendo la estructura',generating_shape:'Generando la forma',adding_detail:'Añadiendo detalle',generating_materials:'Generando los materiales',decoding_materials:'Preparando los materiales',decoding_mesh:'Construyendo la malla',refining_shape:'Refinando la forma',preparing_export:'Preparando los archivos',smoothing_preview:'Terminando la vista del modelo',complete:'Terminado',cancelled:'Cancelado',cancelling:'Cancelando',error:'No ha terminado',interrupted:'Interrumpido'};
 const initialQuery=new URLSearchParams(location.search);
 const initialCompare=initialQuery.get('compare')==='1';
@@ -53,7 +54,7 @@ function renderSelected(){
   $('compare-toggle').disabled=!(job?.status==='complete'&&job.parent_id);
   $('compare-toggle').textContent=compare?'Una sola versión':'Comparar original';
   $('compare-toggle').setAttribute('aria-pressed',String(compare));
-  $('baseline-wrap').hidden=!compare;$('model-label').hidden=!compare;$('model-label').textContent=kindNames[job?.kind]||'Versión';
+  $('baseline-wrap').hidden=!compare;$('model-label').hidden=!compare;$('model-label').textContent=versionLabel(job);$('baseline-label').textContent=versionLabel(rootJob(job));
   if(ready){modelSource($('model'),display,state.clay);if(compare)modelSource($('baseline'),rootJob(job),state.clay);const metrics=display.result.metrics;$('geometry-info').textContent=state.full?`${number(metrics.faces)} caras · geometría completa`:`${number(metrics.faces)} caras · vista de ${number(metrics.preview_faces)} caras`;$('mesh-state').textContent=metrics.watertight?'Malla cerrada':'Malla abierta';}
   else{$('geometry-info').textContent='Gira con el ratón y acerca con la rueda.';$('mesh-state').textContent='';$('model').removeAttribute('src')}
   $('refinement-section').hidden=job?.status!=='complete';const draftSource=generationJob(job)?.params.generator==='triposr';const transfer=$('transfer-materials');if(draftSource&&!transfer.disabled)state.transferPreference=transfer.checked;if(!draftSource&&transfer.disabled)transfer.checked=state.transferPreference??true;transfer.disabled=draftSource;if(draftSource)transfer.checked=false;$('draft-refine-note').hidden=!draftSource;$('upscale-controls').hidden=!(job?.status==='complete'&&job.kind==='generate'&&job.params.resolution===512&&job.params.generator!=='triposr');$('export-section').hidden=job?.status!=='complete';
