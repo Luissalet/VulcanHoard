@@ -6,6 +6,16 @@ import sys
 import time
 import traceback
 
+# A separately versioned content interpreter must not import the server's
+# site-packages through cwd/PYTHONPATH. Direct isolated execution exposes only
+# our package subtree, so its binary dependencies come from its own environment.
+if not __package__:
+    import types
+    package=types.ModuleType('vulcan')
+    package.__path__=[str(Path(__file__).resolve().parents[3])]
+    sys.modules['vulcan']=package
+    __package__='vulcan.studio_native.daedalus.daedalus'
+
 def progress(stage,value):
     print(json.dumps({'event':'progress','stage':stage,'progress':value}),flush=True)
 

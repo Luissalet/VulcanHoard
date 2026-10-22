@@ -76,9 +76,12 @@ def test_draft_worker_uses_native_module_and_offline_single_gpu_environment(tmp_
     spec={'kind':'generate','generator':'triposr','physical_gpus':[2],'output_dir':str(tmp_path)}
     assert manager.run_worker(spec,lambda event:None,threading.Event(),tmp_path/'request.json')=={'done':True}
     assert captured['command'][0]=='draft-python'
-    assert captured['command'][3]=='vulcan.studio_native.daedalus.daedalus.worker'
+    assert captured['command'][1:3]==['-I','-u']
+    assert Path(captured['command'][3]).name=='worker.py'
     assert captured['env']['CUDA_VISIBLE_DEVICES']=='2'
     assert captured['env']['HF_HUB_OFFLINE']=='1' and captured['env']['TRANSFORMERS_OFFLINE']=='1'
+    manager.run_worker(spec,lambda event:None,threading.Event(),tmp_path/'request.json',cpu=True)
+    assert captured['env']['CUDA_VISIBLE_DEVICES']=='-1'
 
 
 def test_draft_settings_and_cold_catalog_keep_same_native_schema(tmp_path):
@@ -108,3 +111,22 @@ def test_draft_reference_keeps_source_and_one_pixel_foreground(tmp_path):
     result=np.asarray(prepare_reference(source))
     assert np.any(np.all(result==[255,0,0],axis=-1))
     assert source.read_bytes()==before
+
+
+def test_isolated_worker_imports_own_geometry_without_cwd_binary_leaks(tmp_path):
+    import os
+    import subprocess
+    import sys
+    from vulcan.studio_native.daedalus.daedalus import worker
+    poison=tmp_path/'server-site-packages';poison.mkdir()
+    (poison/'numpy.py').write_text("raise RuntimeError('server binary leaked')",encoding='utf-8')
+    (poison/'vulcan.py').write_text("raise RuntimeError('wrong package')",encoding='utf-8')
+    output=tmp_path/'output';output.mkdir()
+    request=tmp_path/'request.json'
+    request.write_text(json.dumps({'kind':'repair','output_dir':str(output),'mesh':str(tmp_path/'missing.glb')}),encoding='utf-8')
+    result=subprocess.run([sys.executable,'-I','-u',str(Path(worker.__file__).resolve()),str(request)],
+                          cwd=poison,env={**os.environ,'PYTHONPATH':str(poison)},capture_output=True,text=True,timeout=60)
+    assert result.returncode==1,result.stdout
+    error=json.loads((output/'failure.json').read_text())
+    assert error['type']=='FileNotFoundError',(error,result.stderr)
+    assert 'server binary leaked' not in result.stderr
