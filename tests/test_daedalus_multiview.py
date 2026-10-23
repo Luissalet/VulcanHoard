@@ -87,3 +87,12 @@ def test_multiview_settings_keep_other_runtime_and_cold_native_schema(tmp_path):
     native=next(tool for tool in TOOLS if tool['name']=='model_generate_multiview')
     cold=next(tool for tool in native_catalog() if tool['module']=='daedalus' and tool['native_name']=='model_generate_multiview')
     assert cold['inputSchema']==native['inputSchema']
+
+
+def test_multiview_backbone_subpackages_are_discovered_for_installation():
+    from setuptools import find_packages
+    root=Path(__file__).resolve().parents[1]
+    packages=set(find_packages(where=str(root),include=['vulcan*']))
+    source=root/'vulcan/studio_native/daedalus/daedalus/geometry/multiview_model'
+    required={'.'.join(path.parent.relative_to(root).parts) for path in source.rglob('*.py')}
+    assert required <= packages
