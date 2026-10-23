@@ -57,6 +57,8 @@ def prepare_input(spec):
         return
     if spec['kind']!='generate':
         return
+    if spec.get('generator')=='multiview':
+        return
     import numpy as np
     from PIL import Image
     from scipy.ndimage import binary_propagation
@@ -171,6 +173,19 @@ def main():
         progress('preparing_image',.005)
         prepare_input(spec)
         progress('loading_models',.01)
+        if spec['kind']=='generate' and spec.get('generator')=='multiview':
+            from .geometry import multiview_generation
+            multiview_generation.run(spec,progress)
+            result=publish(spec)
+            result['materials']='none'
+            result['files']['multiview']='multiview.json'
+            result['files']['view_assignment']='view-assignment.npz'
+            result['seconds_total']=time.perf_counter()-begin
+            temporary=folder/'artifacts.json.tmp'
+            temporary.write_text(json.dumps(result,indent=2),encoding='utf-8')
+            temporary.replace(folder/'artifacts.json')
+            progress('complete',1)
+            return
         if spec['kind']=='generate' and spec.get('generator')=='triposr':
             from .geometry import draft_generation
             draft_generation.run(spec,progress)

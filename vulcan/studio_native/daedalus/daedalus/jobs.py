@@ -62,6 +62,12 @@ class JobManager:
                       'model_root':str(self.config.models),'physical_gpus':self.config.gpus,'job_id':identity}
                 if job['kind']=='generate' and job['params'].get('generator')=='triposr':
                     spec['physical_gpus']=[job['params'].get('draft_gpu',0)]
+                if job['kind']=='generate' and job['params'].get('generator')=='multiview':
+                    views=[self.store.image(value) for value in job['params']['image_ids']]
+                    if not all(views):
+                        raise ValueError('Una de las vistas ya no está disponible.')
+                    spec['images']=[view['path'] for view in views]
+                    spec['physical_gpus']=[job['params'].get('gpu',1)]
                 if job['kind'] in {'refine','repair','optimize'}:
                     parent=self.store.job(job['parent_id'])
                     if not parent or parent['status']!='complete':
@@ -123,8 +129,9 @@ class JobManager:
             try:
                 with ExitStack() as stack:
                     draft=spec['kind']=='generate' and spec.get('generator')=='triposr'
+                    multiview=spec['kind']=='generate' and spec.get('generator')=='multiview'
                     for gpu in spec.get('physical_gpus',self.config.gpus):
-                        reservation=stack.enter_context(lease(vram_mb=7000 if draft or gpu==0 else 13000,
+                        reservation=stack.enter_context(lease(vram_mb=11000 if multiview else 7000 if draft or gpu==0 else 13000,
                             purpose=f'Daedalus {spec["kind"]} {spec["job_id"]}',owner='daedalus',
                             gpu=gpu,timeout_s=3,autostart=False))
                         if reservation.via!='hub' or reservation.state!='granted':
@@ -140,8 +147,9 @@ class JobManager:
 
     def run_worker(self,spec,on_event,cancel,request,cpu=False):
         draft=spec['kind']=='generate' and spec.get('generator')=='triposr'
+        multiview=spec['kind']=='generate' and spec.get('generator')=='multiview'
         env=proc.build_env(CUDA_VISIBLE_DEVICES='-1' if cpu else ','.join(map(str,spec.get('physical_gpus',self.config.gpus))),CUDA_DEVICE_ORDER='PCI_BUS_ID')
-        if draft:
+        if draft or multiview:
             env.update(HF_HUB_OFFLINE='1',TRANSFORMERS_OFFLINE='1')
         log_path=Path(spec['output_dir'])/'engine.log'
         with log_path.open('w',encoding='utf-8') as log:
@@ -153,8 +161,8 @@ class JobManager:
                     return
                 if event.get('event')=='progress':
                     on_event(event)
-            python=(self.config.draft_python if draft else self.config.python) or sys.executable
-            command=([python,'-I','-u',str(Path(__file__).with_name('worker.py')),str(request)] if draft else
+            python=(self.config.multiview_python if multiview else self.config.draft_python if draft else self.config.python) or sys.executable
+            command=([python,'-I','-u',str(Path(__file__).with_name('worker.py')),str(request)] if draft or multiview else
                      [python,'-u','-m','vulcan.studio_native.daedalus.daedalus.worker',str(request)])
             result=proc.run_streaming(command,
                 on_line=line,cancel=cancel,timeout=None,cwd=Path(__file__).resolve().parents[4],env=env)

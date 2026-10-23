@@ -1,0 +1,98 @@
+[
+  {
+    "repo": "xibushu/UniForge3D",
+    "revision": "a084333f2aae0213e85b9a4541752d1221d618db",
+    "filename": "pipeline.json",
+    "path": "UniForge3D/pipeline.json",
+    "size": 15830,
+    "sha256": "f3002e8981741581c3e10d101bb7e1491f205d8c2a2b30cfd8afe2e54c054767"
+  },
+  {
+    "repo": "xibushu/UniForge3D",
+    "revision": "a084333f2aae0213e85b9a4541752d1221d618db",
+    "filename": "README.md",
+    "path": "UniForge3D/README.md",
+    "size": 731,
+    "sha256": "98702a2f238651be0232a60692ffc64f7bce99790a30979dd3c969e122975a7c"
+  },
+  {
+    "repo": "xibushu/UniForge3D",
+    "revision": "a084333f2aae0213e85b9a4541752d1221d618db",
+    "filename": "uniforge3d/stage1/uniforge3d_stage1_structure_joint_model.pt",
+    "path": "UniForge3D/uniforge3d/stage1/uniforge3d_stage1_structure_joint_model.pt",
+    "size": 1234004742,
+    "sha256": "a4079cc6f0b0748d3afb301717eddf532ed4f5ddb80f37bb9294a290ee89f824"
+  },
+  {
+    "repo": "xibushu/UniForge3D",
+    "revision": "a084333f2aae0213e85b9a4541752d1221d618db",
+    "filename": "uniforge3d/vggt/uniforge3d_stage1_structure_vggt_backbone.pt",
+    "path": "UniForge3D/uniforge3d/vggt/uniforge3d_stage1_structure_vggt_backbone.pt",
+    "size": 4632306609,
+    "sha256": "a3844cfc95b5ab6d4f002e0bce967bb7184489169531963b45134cb51eb3c5c1"
+  },
+  {
+    "repo": "xibushu/UniForge3D",
+    "revision": "a084333f2aae0213e85b9a4541752d1221d618db",
+    "filename": "uniforge3d/vggt/uniforge3d_shape_texture_vggt_conditioner.pt",
+    "path": "UniForge3D/uniforge3d/vggt/uniforge3d_shape_texture_vggt_conditioner.pt",
+    "size": 3898562754,
+    "sha256": "ecc0915beb86ee0b027ac65ca78e2abb29ad6fe140d904e487c9c3f4120f6902"
+  },
+  {
+    "repo": "xibushu/UniForge3D",
+    "revision": "a084333f2aae0213e85b9a4541752d1221d618db",
+    "filename": "uniforge3d/shape512/uniforge3d_stage2_shape512_denoiser.pt",
+    "path": "UniForge3D/uniforge3d/shape512/uniforge3d_stage2_shape512_denoiser.pt",
+    "size": 5468197230,
+    "sha256": "121abea6b1fc1ec2e1c47ef0f102089574a6a718e8ca8dbc2426ebee738e0f51"
+  },
+  {
+    "repo": "xibushu/UniForge3D",
+    "revision": "a084333f2aae0213e85b9a4541752d1221d618db",
+    "filename": "uniforge3d/shape512/uniforge3d_stage2_shape512_vggt_adapter.pt",
+    "path": "UniForge3D/uniforge3d/shape512/uniforge3d_stage2_shape512_vggt_adapter.pt",
+    "size": 251868386,
+    "sha256": "dcaffa7cbea19b0670ae0fded3864a65e151ac0d663c338f374492d20d65e55d"
+  },
+  {
+    "repo": "microsoft/TRELLIS.2-4B",
+    "revision": "af44b45f2e35a493886929c6d786e563ec68364d",
+    "filename": "ckpts/ss_flow_img_dit_1_3B_64_bf16.safetensors",
+    "path": "TRELLIS.2-4B/ckpts/ss_flow_img_dit_1_3B_64_bf16.safetensors",
+    "size": 2584426920,
+    "sha256": "ca01377c485bec418076d38ee80166d32dc776d744f2553b835cba1e97a7abf6"
+  },
+  {
+    "repo": "microsoft/TRELLIS.2-4B",
+    "revision": "af44b45f2e35a493886929c6d786e563ec68364d",
+    "filename": "ckpts/shape_dec_next_dc_f16c32_fp16.json",
+    "path": "TRELLIS.2-4B/ckpts/shape_dec_next_dc_f16c32_fp16.json",
+    "size": 678,
+    "sha256": "5f1b856dffce79466fb18f5f0eefc08f08c673b24b3c05b20359c0b6d318a209"
+  },
+  {
+    "repo": "microsoft/TRELLIS.2-4B",
+    "revision": "af44b45f2e35a493886929c6d786e563ec68364d",
+    "filename": "ckpts/shape_dec_next_dc_f16c32_fp16.safetensors",
+    "path": "TRELLIS.2-4B/ckpts/shape_dec_next_dc_f16c32_fp16.safetensors",
+    "size": 948490494,
+    "sha256": "e3b718d3e43e4f8780e9a24ac6fff231811a67e3b058e336e10fe654c911d581"
+  },
+  {
+    "repo": "microsoft/TRELLIS-image-large",
+    "revision": "25e0d31ffbebe4b5a97464dd851910efc3002d96",
+    "filename": "ckpts/ss_dec_conv3d_16l8_fp16.json",
+    "path": "TRELLIS-image-large/ckpts/ss_dec_conv3d_16l8_fp16.json",
+    "size": 245,
+    "sha256": "646781293f1cda74720de85d1cef50a957fb4aebd9a4bd014e454e32f2330ac5"
+  },
+  {
+    "repo": "microsoft/TRELLIS-image-large",
+    "revision": "25e0d31ffbebe4b5a97464dd851910efc3002d96",
+    "filename": "ckpts/ss_dec_conv3d_16l8_fp16.safetensors",
+    "path": "TRELLIS-image-large/ckpts/ss_dec_conv3d_16l8_fp16.safetensors",
+    "size": 147591972,
+    "sha256": "1c76d4a40519aa2d711cc263a8404105231ac26db31d946bed48b84fee79009a"
+  }
+]
