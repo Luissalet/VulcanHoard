@@ -6,6 +6,7 @@ import { FormatChip, TagEditor } from "../components/ui.jsx";
 import { FORMAT_LABEL, UNITS_LABEL, bytes, dims, listingText, num, when } from "../format.js";
 import { useDraft } from "../useDraft.js";
 import { useCopilotContext, useCopilotRefresh } from "../copilot.js";
+import CadParameters from "../components/CadParameters.jsx";
 
 const Viewer = lazy(() => import("../components/Viewer.jsx")); // three.js loads only on the model page
 
@@ -62,7 +63,7 @@ export default function Modelo({ param }) {
   const [similarError, setSimilarError] = useState("");
   const similarRequest = useRef(0);
 
-  const load = () => {
+  const load = ({ preserve = false } = {}) => {
     const request = ++loadRequest.current;
     if (!Number.isSafeInteger(id) || id <= 0) {
       setModel(null); setError("Modelo no disponible.");
@@ -76,7 +77,7 @@ export default function Modelo({ param }) {
         metadata.receive({ name: m.name || "", notes: m.notes || "", collection: m.collection || "" });
         setError(null);
       })
-      .catch((e) => { if (owner.current === id && request === loadRequest.current) { setModel(null); setError(e.message); } });
+      .catch((e) => { if (owner.current === id && request === loadRequest.current) { if (preserve) notify(`No se pudo actualizar la ficha: ${e.message}`); else { setModel(null); setError(e.message); } } });
   };
   useCopilotRefresh(load);
   useCopilotContext({ model_id: param, editor: { kind: "model", fields: { ...metadata.fields, listing: listingDraft.fields }, dirty_fields: [...metadata.dirty, ...listingDraft.dirty.map((field) => `listing.${field}`)] } }, `model:${param}`);
@@ -164,6 +165,7 @@ export default function Modelo({ param }) {
       <div className="grid gap-5 lg:grid-cols-[minmax(0,3fr)_minmax(280px,2fr)]">
         <div className="min-w-0">
           {model.status === "ok" ? <Suspense fallback={<div className="viewer"><div className="hud">Cargando visor…</div></div>}><Viewer model={model} /></Suspense> : <Thumb model={model} className="rounded-lg border" />}
+          <CadParameters key={id} id={id} onRegenerated={() => load({ preserve: true })} />
 
           <section className="panel-white mt-4">
             <h2 className="text-[16px] font-semibold">Ficha para la tienda</h2>
