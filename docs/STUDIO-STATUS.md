@@ -1,5 +1,11 @@
 # Studio integration status
 
+## Multiview candidate, task1185 — 23 October2026
+
+The detached local joint geometry candidate exposes161 cold tools in total. It has285 passing CPU tests, strict local mmap checkpoint loading below1GB resident memory without inference, numerical encoder/attention/convolution checks, and native API/MCP/UI transport with an explicitly synthetic CPU runner. No GPU model or reconstruction quality is certified by that fixture. Full local generation, editable-output inspection and formal review remain pending; the candidate is not integrated into main. Public checkpoints are pinned and verified; inference has no external API or paid service. See `vulcan/studio_native/daedalus/docs/multiview.md`.
+
+## Historical integration record, task928
+
 Fisiones task928: CAS3 source candidate awaiting independent review. It has not been integrated into the installed app, published or approved for real data relocation.
 
 The studio owns the incorporated public sources of Gepetto, Daedalus, Plato, Heron and Gulliver. Existing Vulcan library functions remain available. All six modules and their automation start OFF; cold API/MCP discovery exposes160 tools without importing native engines, opening stores or spawning workers. Explicit activation preserves the complete native interfaces and formats under one owner. Shared projects retain native IDs, revisions, artifact hashes and library references.
