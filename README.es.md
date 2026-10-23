@@ -1,5 +1,11 @@
 # Vulcan's Hoard
 
+**Fichas → Catálogo combinado** prepara metadatos nativos de fichas de carpetas y
+modelos, con carpeta opcional y ámbito independiente de los filtros de la tabla.
+Copiar y descargar comparten el texto JSON nativo completo. La vista previa cuenta
+entradas, no mallas únicas; distingue estado de carpeta y origen de ficha de modelo.
+El precio orientativo conserva su texto. No incluye mallas ni publica productos.
+
 Estudio 3D con funciones independientes: biblioteca de modelos (Vulcan), figuras y relieve editable con proyectos Blender (Gepetto), generación y refinado de mallas desde imágenes (Daedalus), composición de siluetas y extrusión (Plato), CAD con medidas (Heron) y terrenos/ciudades imprimibles (Gulliver). El código, los editores, los motores, los formatos y las API nativas están incorporados aquí.
 
 Las seis funciones y sus automatismos están **apagados** en la primera apertura. Abre Vulcan expresamente y activa sólo lo que vayas a usar. Consultar el catálogo MCP no arranca la app, motores, bases de datos ni vigilantes. Se recuerdan tus elecciones explícitas; activar generación no reanuda su cola histórica salvo que actives sus automatismos.

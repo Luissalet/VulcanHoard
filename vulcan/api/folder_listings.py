@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 from .deps import services
+from ..family_tools import export_catalog
 
 router = APIRouter(prefix="/api/folder-listings")
+
+
+@router.get("/catalog")
+def catalog(request: Request, folder: str = Query("", max_length=2000)):
+    return export_catalog(services(request), folder)
 
 
 class ListingIn(BaseModel):

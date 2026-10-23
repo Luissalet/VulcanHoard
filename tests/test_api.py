@@ -21,6 +21,21 @@ def test_health_and_status(client):
     assert client.get("/").status_code in (200, 503)
 
 
+def test_combined_catalog_http_keeps_native_full_json_and_large_ids(client, monkeypatch):
+    from vulcan.api import folder_listings
+
+    value = {"ok": True, "count": 2, "folder": "Dragones", "note": None, "listings": [
+        {"ref": "hoard://vulcan/folder/1", "kind": "folder", "status": "draft", "model_ids": [9007199254740993]},
+        {"ref": "hoard://vulcan/model/9007199254740993", "kind": "model", "status": "manual", "price": "5 USD orientativos", "description": "ñ" * 25000},
+    ]}
+    calls = []
+    monkeypatch.setattr(folder_listings, "export_catalog", lambda services, folder: calls.append((services, folder)) or value)
+    response = client.get("/api/folder-listings/catalog", params={"folder": "Dragones"})
+    assert response.status_code == 200 and response.json() == value
+    assert "9007199254740993" in response.text and len(response.content) > 25000
+    assert calls == [(client.services, "Dragones")]
+
+
 def test_roots_crud_and_validation(client, library):
     assert client.post("/api/roots", json={"path": "/no/such/folder"}).status_code == 400
     assert client.post("/api/roots", json={}).status_code == 400

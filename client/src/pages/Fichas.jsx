@@ -5,6 +5,7 @@ import { Empty, PageHeader } from "../components/ui.jsx";
 import { splitTags } from "../format.js";
 import { useDraft } from "../useDraft.js";
 import { useCopilotContext, useCopilotRefresh } from "../copilot.js";
+import ListingCatalog from "../components/ListingCatalog.jsx";
 
 const STATUS_LABEL = { none: "Sin ficha", draft: "Borrador", checked: "Revisada", approved: "Aprobada" };
 const STATUS_CLASS = { none: "chip", draft: "chip chip-accent", checked: "chip", approved: "chip chip-ok" };
@@ -120,6 +121,7 @@ export default function Fichas() {
   return (
     <div>
       <PageHeader title="Fichas" description="Cada carpeta con modelos es un producto: título, descripción en inglés y 20 etiquetas en cults3d.json." />
+      <ListingCatalog />
       <div className="panel mb-4 flex flex-wrap items-center gap-2">
         <select className="field w-auto" value={rootId} onChange={(e) => setRootId(e.target.value)} aria-label="Carpeta raíz">
           <option value="">Todas las carpetas raíz</option>

@@ -1,5 +1,5 @@
 // Thin fetch wrapper: JSON in/out, `{ error }` bodies become exceptions.
-async function request(method, path, { params, body } = {}) {
+async function request(method, path, { params, body, raw = false } = {}) {
   const url = new URL(path, window.location.origin);
   for (const [key, value] of Object.entries(params || {})) {
     if (value !== undefined && value !== null && value !== "" && value !== false) url.searchParams.set(key, value);
@@ -17,10 +17,11 @@ async function request(method, path, { params, body } = {}) {
     data = { error: text };
   }
   if (!response.ok) throw new Error((data && data.error) || `Error ${response.status}`);
-  return data;
+  return raw ? text : data;
 }
 
 export const api = {
+  catalogText: (folder) => request("GET", "/api/folder-listings/catalog", { params: { folder }, raw: true }),
   cadInfo: (id) => request("GET", `/api/cad/${id}`),
   cadRegenerate: (id, params) => request("POST", `/api/cad/${id}/regenerate`, { body: { params } }),
   cadCreateVariant: (body) => request("POST", "/api/cad/from-text", { body }),
