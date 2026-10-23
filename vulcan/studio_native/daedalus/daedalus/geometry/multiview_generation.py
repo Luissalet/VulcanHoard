@@ -66,14 +66,11 @@ def release_model(model):
 
 
 @contextmanager
-def resident(factory, device, *, low_precision=True):
+def resident(factory, device):
     model = factory()
     try:
         if isinstance(model, torch.nn.Module):
             assert_materialized(model)
-            if low_precision:
-                # Preserve complex RoPE buffers; Module.to(dtype=...) would cast them.
-                model.bfloat16()
         model.to(device)
         yield model
     finally:
@@ -124,9 +121,8 @@ def run(spec, progress):
     del model, dit, noise
     stage('decoding_structure', .34)
     with resident(lambda: load_decoder(structure['decoder']['checkpoint']), device) as decoder:
-        with torch.autocast('cuda', dtype=torch.bfloat16):
-            logits = decode_sparse_structure(decoder, latent.to(device), structure['decoder'].get('normalization'))
-            coords32, coords64 = (coords.cpu() for coords in decoded_coordinates(logits))
+        logits = decode_sparse_structure(decoder, latent.to(device), structure['decoder'].get('normalization'))
+        coords32, coords64 = (coords.cpu() for coords in decoded_coordinates(logits))
     del decoder, latent, logits
     stage('matching_views', .4)
     shape = config['structured_latent_512']
@@ -136,7 +132,7 @@ def run(spec, progress):
             return StructuredLatentConditioner(**config['conditioner'])
 
     with resident(lambda: load_adapter(shape), device) as adapter:
-        with resident(conditioner_factory, device, low_precision=False) as conditioner:
+        with resident(conditioner_factory, device) as conditioner:
             condition = conditioner.encode(
                 adapter, dino_features=dino.to(device), vggt_images=batch.vggt_images.to(device),
                 structure_conditioned_coords=coords64.to(device), input_masks=batch.input_masks.to(device),
@@ -151,8 +147,7 @@ def run(spec, progress):
     del model, condition, dino, batch
     stage('decoding_mesh', .82)
     with resident(lambda: load_decoder(shape['decoder']['checkpoint'], resolution=512), device) as decoder:
-        with torch.autocast('cuda', dtype=torch.bfloat16):
-            mesh = decode_shape_latent(decoder, shape_latent.to(device), shape['decoder'].get('normalization'))[0]
+        mesh = decode_shape_latent(decoder, shape_latent.to(device), shape['decoder'].get('normalization'))[0]
         vertices = mesh.vertices.cpu().numpy()
         faces = mesh.faces.cpu().numpy()
     del decoder, shape_latent, mesh
