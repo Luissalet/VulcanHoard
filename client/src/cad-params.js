@@ -21,3 +21,8 @@ export function cadParamChanges(params, fields) {
   }
   return { changes, error: "" };
 }
+
+export function cadVariantRequest(info, fields, name) {
+  const { changes, error } = cadParamChanges(info.params, fields);
+  return { body: error ? null : { spec: info.spec, name: name.trim() || null, params: changes, save: true }, error };
+}

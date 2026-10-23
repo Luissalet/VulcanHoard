@@ -23,6 +23,7 @@ async function request(method, path, { params, body } = {}) {
 export const api = {
   cadInfo: (id) => request("GET", `/api/cad/${id}`),
   cadRegenerate: (id, params) => request("POST", `/api/cad/${id}/regenerate`, { body: { params } }),
+  cadCreateVariant: (body) => request("POST", "/api/cad/from-text", { body }),
   copilotContext: (body) => request("POST", "/api/copilot/context", { body }),
   status: () => request("GET", "/api/status"),
   stats: () => request("GET", "/api/stats"),
