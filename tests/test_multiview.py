@@ -166,3 +166,25 @@ def test_resident_preserves_mixed_precision_until_owned_model_release():
         assert model.output.weight.dtype == torch.float32
         assert model.phase.dtype == torch.complex64 and model.phase.imag.item() == 2
     assert all(value.is_meta for value in list(source.parameters()) + list(source.buffers()))
+
+
+@pytest.mark.parametrize('axis', [0, 1, 2])
+def test_dual_grid_rejects_flattened_boundary_aliases(axis):
+    from vulcan.studio_native.daedalus.daedalus.geometry.surface_vae import flexible_dual_grid_to_mesh
+    # Exact XYZ lookup is the oracle: each emitted quad must have four real cells.
+    import itertools
+    dims = (2, 3, 4)
+    coords = torch.tensor(list(itertools.product(*(range(size) for size in dims))), dtype=torch.int32)
+    flags = torch.zeros((len(coords), 3), dtype=torch.bool)
+    flags[:, axis] = True
+    _, faces = flexible_dual_grid_to_mesh(coords, torch.full((len(coords), 3), .5),
+        flags, torch.ones((len(coords), 1)), aabb=[[0, 0, 0], list(dims)], grid_size=list(dims))
+    expected_quads = dims[axis]
+    for other in range(3):
+        if other != axis:
+            expected_quads *= dims[other] - 1
+    assert len(faces) == 2 * expected_quads
+    for triangle in faces:
+        vertices = coords[triangle.long()]
+        assert (vertices.max(0).values - vertices.min(0).values <= 1).all()
+        assert vertices[:, axis].unique().numel() == 1

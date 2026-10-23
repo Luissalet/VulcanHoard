@@ -929,7 +929,9 @@ def flexible_dual_grid_to_mesh(
     conn_flat.add_(cv[:, 2].long())
 
     conn_indices = torch_hashmap.lookup_flat(conn_flat).reshape(M, 4).int()
-    connected_voxel_valid = (conn_indices >= 0).all(dim=1)   # -1 = missing neighbor
+    # Flattening an out-of-range coordinate can alias a cell in the next row.
+    in_bounds = ((connected_voxel >= 0) & (connected_voxel < grid_size)).all(dim=2).all(dim=1)
+    connected_voxel_valid = (conn_indices >= 0).all(dim=1) & in_bounds
     quad_indices = conn_indices[connected_voxel_valid].int()                             # (L, 4)
 
     # Chain in-place — each op in the original allocated a fresh N*3 fp32 tensor.
