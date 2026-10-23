@@ -5,6 +5,7 @@ from pathlib import Path
 
 import torch
 from safetensors.torch import load_file
+from .checkpoints import assign_checkpoint
 
 from .joint_dit_vggt_stage1 import JointDiTVGGTStage1Model
 from .lora import attach_stage1_lora
@@ -34,7 +35,7 @@ def load_trainable_weights(model, state):
     missing = required - state.keys()
     if missing:
         raise RuntimeError(f'Missing training weights: {sorted(missing)[:20]}')
-    result = model.load_state_dict(state, strict=False, assign=True)
+    result = assign_checkpoint(model, state, strict=False)
     if result.unexpected_keys:
         raise RuntimeError(f'Unexpected training weights: {result.unexpected_keys[:20]}')
 
@@ -45,10 +46,10 @@ def load_structure(spec):
     weights = spec['weights']
     dit = read_weights(weights['dit_base'])
     dit.setdefault('rope_phases', model.dit.rope_phases)
-    model.dit.load_state_dict(dit, strict=True, assign=True)
+    assign_checkpoint(model.dit, dit)
     vggt = {name.removeprefix('model.'): value for name, value in read_weights(weights['vggt_base']).items()}
     vggt = {name: value for name, value in vggt.items() if not name.startswith('camera_head.') and name != 'aggregator.patch_embed.mask_token'}
-    model.vggt.load_state_dict(vggt, strict=True, assign=True)
+    assign_checkpoint(model.vggt, vggt)
     attach_stage1_lora(model.dit, **weights['dit_lora'])
     attach_stage1_lora(model.vggt, **weights['vggt_lora'])
     state = {
@@ -67,15 +68,15 @@ def load_flow(spec):
         model = VGGTConditionedSLatFlowModel(**spec['model']['args'])
         model.denoiser.requires_grad_(False)
         model.denoiser = get_peft_model(model.denoiser, LoraConfig(**spec['weights']['lora']))
-    model.denoiser.load_state_dict(read_weights(spec['weights']['checkpoint']), strict=True, assign=True)
-    model.adapter.load_state_dict(read_weights(spec['weights']['adapter_checkpoint']), strict=True, assign=True)
+    assign_checkpoint(model.denoiser, read_weights(spec['weights']['checkpoint']))
+    assign_checkpoint(model.adapter, read_weights(spec['weights']['adapter_checkpoint']))
     return assert_materialized(model)
 
 
 def load_adapter(spec):
     with torch.device('meta'):
         model = VGGT4LayerDINOAdapter(**spec['model']['args']['adapter_args'])
-    model.load_state_dict(read_weights(spec['weights']['adapter_checkpoint']), strict=True, assign=True)
+    assign_checkpoint(model, read_weights(spec['weights']['adapter_checkpoint']))
     return assert_materialized(model)
 
 
@@ -85,7 +86,7 @@ def load_decoder(checkpoint, *, resolution=None):
     classes = {'FlexiDualGridVaeDecoder': FlexiDualGridVaeDecoder, 'SparseStructureDecoder': SparseStructureDecoder}
     with torch.device('meta'):
         model = classes[config['name']](**config['args'])
-    model.load_state_dict(read_weights(checkpoint + '.safetensors'), strict=True, assign=True)
+    assign_checkpoint(model, read_weights(checkpoint + '.safetensors'))
     if resolution is not None:
         model.set_resolution(resolution)
     return assert_materialized(model)

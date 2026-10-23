@@ -126,3 +126,43 @@ def test_native_encoder_matches_reference_feature_path_for_small_model():
         expected = F.layer_norm(hidden, hidden.shape[-1:])
         actual = native(pixels, skip_norm_elementwise=True)[0]
     torch.testing.assert_close(actual, expected, atol=1e-5, rtol=1e-5)
+
+
+class MixedPrecisionFixture(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.body = torch.nn.Linear(4, 4, dtype=torch.float16)
+        self.output = torch.nn.Linear(4, 2, dtype=torch.float32)
+        self.register_buffer('phase', torch.tensor([1 + 2j], dtype=torch.complex64))
+
+    def forward(self, value):
+        return self.output(self.body(value.half()).float())
+
+
+def test_meta_checkpoint_assignment_matches_normal_copy_precision_and_output():
+    from vulcan.studio_native.daedalus.daedalus.geometry.multiview_model.models.checkpoints import assign_checkpoint
+    torch.manual_seed(71)
+    source = MixedPrecisionFixture()
+    # Checkpoint storage and the inference constructor need not share a dtype.
+    checkpoint = {name: value.float() if value.is_floating_point() else value.clone()
+                  for name, value in source.state_dict().items()}
+    reference = MixedPrecisionFixture()
+    reference.load_state_dict(checkpoint)  # Independent normal-copy semantics.
+    with torch.device('meta'):
+        assigned = MixedPrecisionFixture()
+    assign_checkpoint(assigned, checkpoint)
+    for name, expected in reference.state_dict().items():
+        torch.testing.assert_close(assigned.state_dict()[name], expected, rtol=0, atol=0)
+    pixels = torch.randn(3, 4)
+    torch.testing.assert_close(assigned(pixels), reference(pixels), rtol=0, atol=0)
+    assert assigned.phase.imag.item() == 2
+
+
+def test_resident_preserves_mixed_precision_until_owned_model_release():
+    from vulcan.studio_native.daedalus.daedalus.geometry.multiview_generation import resident
+    source = MixedPrecisionFixture()
+    with resident(lambda: source, 'cpu') as model:
+        assert model.body.weight.dtype == torch.float16
+        assert model.output.weight.dtype == torch.float32
+        assert model.phase.dtype == torch.complex64 and model.phase.imag.item() == 2
+    assert all(value.is_meta for value in list(source.parameters()) + list(source.buffers()))

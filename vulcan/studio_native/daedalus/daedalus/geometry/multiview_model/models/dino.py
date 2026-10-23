@@ -4,6 +4,7 @@ from pathlib import Path
 
 import torch
 from safetensors.torch import load_file
+from .checkpoints import assign_checkpoint
 
 from vulcan.studio_native.daedalus.daedalus.geometry import ops
 from vulcan.studio_native.daedalus.daedalus.geometry.image_encoder import DINOv3ViTModel
@@ -15,7 +16,7 @@ class DinoV3Encoder(torch.nn.Module):
         config_path = Path(__file__).resolve().parents[2] / 'image-encoder-config.json'
         config = json.loads(config_path.read_text(encoding='utf-8'))
         self.model = DINOv3ViTModel(config, torch.float32, 'meta', ops.disable_weight_init)
-        self.model.load_state_dict(load_file(str(checkpoint)), strict=True, assign=True)
+        assign_checkpoint(self.model, load_file(str(checkpoint)))
         head_dim = config['hidden_size'] // config['num_attention_heads']
         self.model.rope_embeddings.inv_freq = 1 / config['rope_theta'] ** torch.arange(
             0, 1, 4 / head_dim, dtype=torch.float32, device='cpu',
