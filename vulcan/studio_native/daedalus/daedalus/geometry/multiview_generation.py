@@ -54,6 +54,15 @@ def cropped_image(image):
     return image.convert('RGBA')
 
 
+def finalize_mesh(vertices, faces):
+    # Model coordinates use Z up; the studio's GLB viewer uses Y up.
+    mesh = trimesh.Trimesh(vertices=vertices[:, [1, 2, 0]], faces=faces, process=False)
+    mesh.update_faces(mesh.unique_faces() & mesh.nondegenerate_faces())
+    mesh.remove_unreferenced_vertices()
+    mesh.fix_normals(multibody=True)
+    return mesh
+
+
 def release_model(model):
     if isinstance(model, torch.nn.Module):
         model.to_empty(device='meta')
@@ -158,10 +167,7 @@ def run(spec, progress):
     del decoder, shape_latent, mesh
     if not len(faces) or not np.isfinite(vertices).all():
         raise RuntimeError('Multiview decoder returned an empty or non-finite mesh')
-    # Model coordinates use Z up; the studio's GLB viewer uses Y up.
-    output_vertices = vertices[:, [1, 2, 0]]
-    output_mesh = trimesh.Trimesh(vertices=output_vertices, faces=faces, process=False)
-    output_mesh.remove_unreferenced_vertices()
+    output_mesh = finalize_mesh(vertices, faces)
     for extension in ('glb', 'stl', 'ply'):
         output_mesh.export(folder / f'model.{extension}')
     np.savez_compressed(folder / 'geometry.npz', vertices=vertices, faces=faces)
@@ -172,11 +178,13 @@ def run(spec, progress):
         'weights_license': 'CC-BY-NC-4.0', 'joint_multiview': True,
         'precision': 'declared FP32/FP16 weights; BF16 autocast for encoding and sampling',
         'resolution': 512, 'textures': False,
+        'surface_processing': 'remove duplicate/degenerate faces and orient connected triangles; no hole filling',
         'input': 'foreground alpha or already cropped images', 'views': references,
     }
     (folder / 'multiview.json').write_text(json.dumps(provenance, indent=2), encoding='utf-8')
     result = {
         'vertices': len(output_mesh.vertices), 'faces': len(output_mesh.faces), 'watertight': bool(output_mesh.is_watertight),
+        'winding_consistent': bool(output_mesh.is_winding_consistent),
         'seconds_total': time.perf_counter() - started, 'generator': 'multiview',
         'model_provenance': provenance, 'stage_times': timings,
         'memory': [{'logical_gpu': 0, 'peak_allocated_mib': torch.cuda.max_memory_allocated(device) / 2**20}],
