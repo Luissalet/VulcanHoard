@@ -188,3 +188,21 @@ def test_dual_grid_rejects_flattened_boundary_aliases(axis):
         vertices = coords[triangle.long()]
         assert (vertices.max(0).values - vertices.min(0).values <= 1).all()
         assert vertices[:, axis].unique().numel() == 1
+
+
+def test_dual_grid_closed_cube_exports_consistent_outward_surface():
+    import itertools
+    from vulcan.studio_native.daedalus.daedalus.geometry.surface_vae import flexible_dual_grid_to_mesh
+    from vulcan.studio_native.daedalus.daedalus.geometry.multiview_generation import finalize_mesh
+    coords = torch.tensor(list(itertools.product(range(2), repeat=3)), dtype=torch.int32)
+    flags = torch.zeros((8, 3), dtype=torch.bool)
+    for index, xyz in enumerate(coords.tolist()):
+        for axis in range(3):
+            flags[index, axis] = all(xyz[other] == 0 for other in range(3) if other != axis)
+    vertices, faces = flexible_dual_grid_to_mesh(coords, torch.full((8, 3), .5), flags,
+        torch.ones((8, 1)), aabb=[[0, 0, 0], [2, 2, 2]], grid_size=2)
+    mesh = finalize_mesh(vertices.numpy(), faces.numpy())
+    assert len(mesh.faces) == 12 and len(mesh.vertices) == 8
+    assert mesh.is_watertight and mesh.is_winding_consistent
+    assert mesh.volume == pytest.approx(1) and mesh.area == pytest.approx(6)
+    np.testing.assert_array_equal(mesh.bounds, [[.5, .5, .5], [1.5, 1.5, 1.5]])
