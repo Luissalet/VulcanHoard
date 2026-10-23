@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { api } from "../api.js";
-import { cadDraftValues, cadParamChanges } from "../cad-params.js";
+import { cadAcknowledgedFields, cadDraftValues, cadParamChanges } from "../cad-params.js";
 import { useDraft } from "../useDraft.js";
 import { useCopilotContext, useCopilotRefresh } from "../copilot.js";
 
@@ -19,6 +19,8 @@ export default function CadParameters({ id, onRegenerated }) {
   const [result, setResult] = useState(null);
   const [renderVersion, setRenderVersion] = useState(0);
   const draft = useDraft(id, {});
+  const currentFields = useRef(draft.fields);
+  currentFields.current = draft.fields;
   const generation = useRef(0), mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; generation.current++; }; }, []);
   const read = async () => {
@@ -38,14 +40,14 @@ export default function CadParameters({ id, onRegenerated }) {
   const regenerate = async (event) => {
     event.preventDefault();
     if (!names.length || invalid) return;
-    const sent = Object.fromEntries(names.map((name) => [name, draft.fields[name]]));
+    const snapshot = { ...draft.fields };
     generation.current++; setBusy(true); setError(""); setLoading(false);
     try {
       const value = await api.cadRegenerate(id, changes);
       if (!mounted.current) return;
       setResult(value);
       const saved = cadDraftValues(value.params);
-      draft.acknowledge(sent, saved); draft.receive(saved);
+      draft.acknowledge(cadAcknowledgedFields(snapshot, currentFields.current), saved); draft.receive(saved);
       setInfo((previous) => ({ ...previous, params: value.params, spec: value.spec, measures: value.measures, verification: value.verification }));
       setRenderVersion((version) => version + 1);
       await Promise.all([read(), onRegenerated()]);

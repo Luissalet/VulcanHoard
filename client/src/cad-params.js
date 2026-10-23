@@ -1,5 +1,15 @@
 export const cadDraftValues = (params) => Object.fromEntries(params.map((param) => [param.name, String(param.value ?? "")]));
 
+// Equivalent formatting belongs to the submitted snapshot, even for a derived
+// field omitted from the API payload. Real edits made while saving stay local.
+export function cadAcknowledgedFields(snapshot, current) {
+  return Object.fromEntries(Object.entries(snapshot).map(([name, value]) => [name,
+    String(value).trim() && String(current[name] ?? "").trim() &&
+    Number.isFinite(Number(value)) && Number(value) === Number(current[name])
+      ? current[name] : value,
+  ]));
+}
+
 // Send numerical edits only: resending a derived value would replace its expression.
 export function cadParamChanges(params, fields) {
   const changes = {};
