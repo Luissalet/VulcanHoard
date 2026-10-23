@@ -103,7 +103,7 @@ export default function Viewer({ model }) {
     };
 
     setState({ phase: "loading", error: null });
-    load(model.format, `/api/models/${model.id}/file`)
+    load(model.format, `/api/models/${model.id}/file?v=${encodeURIComponent(model.sha256 || "")}`)
       .then((loaded) => {
         if (disposed) return dispose(loaded);
         object = prepare(loaded);
@@ -123,7 +123,7 @@ export default function Viewer({ model }) {
       renderer.dispose();
       renderer.domElement.remove();
     };
-  }, [model?.id, model?.format]);
+  }, [model?.id, model?.format, model?.sha256]);
 
   return (
     <div className="viewer" ref={host} aria-label="Visor 3D">
