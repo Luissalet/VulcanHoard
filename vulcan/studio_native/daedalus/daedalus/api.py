@@ -179,6 +179,8 @@ def create_app(data_dir=None,runner=None,port=None,automatic=False):
             if not original:
                 raise HTTPException(409,'La generación de origen ya no está disponible.')
         if original['params'].get('generator') in {'triposr','multiview'} and request.transfer_materials:
+            if original['params'].get('generator')=='multiview':
+                raise HTTPException(400,'Esta reconstrucción no contiene materiales. Desactiva Conservar aspecto para crear una versión refinada separada.')
             raise HTTPException(400,'El refinador no puede conservar el aspecto de este borrador. Desactiva Conservar aspecto para crear una versión distinta; Para juegos permite hornear sus colores.')
         if request.backend=='detail' and request.tokens==32768:
             raise HTTPException(400,'DetailGen admite las pasadas de 2048 u 8192 latentes.')
