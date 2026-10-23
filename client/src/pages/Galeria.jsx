@@ -5,6 +5,7 @@ import ModelCard from "../components/ModelCard.jsx";
 import { Empty, PageHeader } from "../components/ui.jsx";
 import { FORMAT_LABEL, SORT_OPTIONS, num } from "../format.js";
 import { useCopilotContext, useCopilotRefresh } from "../copilot.js";
+import DuplicateGroups from "../components/DuplicateGroups.jsx";
 
 const PAGE = 60;
 const KEYS = ["q", "root", "format", "tag", "collection", "album", "watertight", "has_listing", "dupes", "sort"];
@@ -108,6 +109,8 @@ export default function Galeria({ query }) {
           <button type="button" className="btn md:hidden" onClick={() => setShowFilters((v) => !v)}>Filtros{active ? ` (${active})` : ""}</button>
         </div>
       </PageHeader>
+
+      <DuplicateGroups />
 
       {empty ? (
         <Empty title="Todavía no hay modelos" action={<a className="btn btn-primary" href="#/carpetas">Añadir una carpeta</a>}>
