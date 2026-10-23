@@ -90,6 +90,8 @@ def run(spec, progress):
         raise ValueError('Multiview geometry needs at least two views of the same object')
     config = local_config(spec['model_root'])
     device = torch.device('cuda:0')
+    # An isolated worker starts cold; memory counters require the CUDA allocator.
+    torch.cuda.init()
     torch.manual_seed(int(spec.get('seed', 42)))
     torch.cuda.reset_peak_memory_stats(device)
     references = []
