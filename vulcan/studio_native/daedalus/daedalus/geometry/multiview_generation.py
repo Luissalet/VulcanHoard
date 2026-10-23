@@ -123,6 +123,9 @@ def run(spec, progress):
     with resident(lambda: load_decoder(structure['decoder']['checkpoint']), device) as decoder:
         logits = decode_sparse_structure(decoder, latent.to(device), structure['decoder'].get('normalization'))
         coords32, coords64 = (coords.cpu() for coords in decoded_coordinates(logits))
+        np.savez_compressed(folder / 'structure.npz', latent=latent.float().numpy(),
+                            logits=logits.float().cpu().numpy(),
+                            coords32=coords32.numpy(), coords64=coords64.numpy())
     del decoder, latent, logits
     stage('matching_views', .4)
     shape = config['structured_latent_512']
@@ -144,6 +147,8 @@ def run(spec, progress):
     selected_view = condition['cond']['selected_view'].cpu()
     with resident(lambda: load_flow(shape), device) as model:
         shape_latent = sample_shape_latent(model, coords32.to(device), condition, shape['sampler']).cpu()
+    np.savez_compressed(folder / 'shape-latent.npz',
+                        coords=shape_latent.coords.numpy(), feats=shape_latent.feats.float().numpy())
     del model, condition, dino, batch
     stage('decoding_mesh', .82)
     with resident(lambda: load_decoder(shape['decoder']['checkpoint'], resolution=512), device) as decoder:
@@ -165,7 +170,8 @@ def run(spec, progress):
         'code_revision': '8b6094780e202b8a6b1d239e0997552e18547026',
         'weights_revision': 'a084333f2aae0213e85b9a4541752d1221d618db',
         'weights_license': 'CC-BY-NC-4.0', 'joint_multiview': True,
-        'precision': 'bfloat16', 'resolution': 512, 'textures': False,
+        'precision': 'declared FP32/FP16 weights; BF16 autocast for encoding and sampling',
+        'resolution': 512, 'textures': False,
         'input': 'foreground alpha or already cropped images', 'views': references,
     }
     (folder / 'multiview.json').write_text(json.dumps(provenance, indent=2), encoding='utf-8')
