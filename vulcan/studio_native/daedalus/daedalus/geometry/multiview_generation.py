@@ -59,6 +59,8 @@ def finalize_mesh(vertices, faces):
     mesh = trimesh.Trimesh(vertices=vertices[:, [1, 2, 0]], faces=faces, process=False)
     mesh.update_faces(mesh.unique_faces() & mesh.nondegenerate_faces())
     mesh.remove_unreferenced_vertices()
+    if not len(mesh.faces):
+        raise RuntimeError('Multiview surface cleanup returned an empty mesh')
     mesh.fix_normals(multibody=True)
     return mesh
 

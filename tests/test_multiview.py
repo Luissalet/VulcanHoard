@@ -206,3 +206,10 @@ def test_dual_grid_closed_cube_exports_consistent_outward_surface():
     assert mesh.is_watertight and mesh.is_winding_consistent
     assert mesh.volume == pytest.approx(1) and mesh.area == pytest.approx(6)
     np.testing.assert_array_equal(mesh.bounds, [[.5, .5, .5], [1.5, 1.5, 1.5]])
+
+
+def test_surface_cleanup_rejects_all_degenerate_faces():
+    from vulcan.studio_native.daedalus.daedalus.geometry.multiview_generation import finalize_mesh
+    vertices = np.array([[0, 0, 0], [1, 0, 0], [2, 0, 0]], dtype=float)
+    with pytest.raises(RuntimeError, match='cleanup returned an empty mesh'):
+        finalize_mesh(vertices, np.array([[0, 1, 2]]))
