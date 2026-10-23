@@ -2,7 +2,7 @@
 
 ## Multiview candidate, task1185 — 23 October2026
 
-The detached local joint geometry candidate exposes161 cold tools in total. It has285 passing CPU tests, strict local mmap checkpoint loading below1GB resident memory without inference, numerical encoder/attention/convolution checks, and native API/MCP/UI transport with an explicitly synthetic CPU runner. No GPU model or reconstruction quality is certified by that fixture. Full local generation, editable-output inspection and formal review remain pending; the candidate is not integrated into main. Public checkpoints are pinned and verified; inference has no external API or paid service. See `vulcan/studio_native/daedalus/docs/multiview.md`.
+The detached local joint geometry candidate exposes161 cold tools in total. A real native MCP job completed on physical GPU2 in172.64s, exported GLB/STL/PLY, and imported into Blender at100mm with editable BLEND/FBX output. Its cup geometry failed visual quality: the structure was clipped before final decoding. Subsequent fixes preserve the reference FP32/FP16 weight policy, retain intermediate tensors, reject out-of-grid neighbor aliases and orient exported triangles. Another controlled model run and formal review remain pending; the candidate is not integrated into main. The full CPU suite at8537037 returned291 passes and one scanner thumbnail-count failure, which passed in an isolated rerun; this is not a full-suite pass. Public checkpoints are pinned and verified; inference has no external API or paid service. See `vulcan/studio_native/daedalus/docs/multiview.md`.
 
 ## Historical integration record, task928
 
