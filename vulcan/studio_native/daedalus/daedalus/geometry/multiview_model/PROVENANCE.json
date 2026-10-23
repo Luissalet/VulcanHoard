@@ -34,7 +34,7 @@
       "source": "uniforge3d/models/dino.py",
       "git_blob": "4f7afdef60e623c54bd23da6d559d72204de472a",
       "original_sha256": "55abbbc7fdac47448ba7f5a710a1e2349198c68120d9ddfbfd2cdae3c2190f79",
-      "incorporated_sha256": "04ab8e2a913f5130928fe0a3bea1e2cdb396b5194c2cee719b5c534fd37a836e",
+      "incorporated_sha256": "831c8dba0a57ee17b8e7d2a13101930c077adee20b7411e371a9a533e1588e00",
       "retained": true
     },
     {
@@ -48,7 +48,7 @@
       "source": "uniforge3d/models/loaders.py",
       "git_blob": "64c45df88dab7b73d542c189a3eeaa791bc0f287",
       "original_sha256": "fd32ea311e23b9f1fd6dc1888f8286bfeea3ebe6cf5f2ad1b27690a04f6bfa8f",
-      "incorporated_sha256": "58302ac036e28d8a6bafda9bdc665c885aa70d06b463e9a812a64556c1dd9ddd",
+      "incorporated_sha256": "f8f794e60c539c2fbe3a9b452a085bdc5e150eab347fa131ff72a322fe26e5ec",
       "retained": true
     },
     {
