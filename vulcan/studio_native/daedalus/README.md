@@ -10,7 +10,7 @@ El refinado crea otra geometría y puede perder huecos o detalles. Permite elegi
 
 ## Reconstrucción multivista, candidato1185
 
-La ruta conjunta local recibe varias vistas ordenadas del mismo objeto y produce geometría512, sin texturas. El formulario, API y MCP conservan todas las referencias; se reserva una sola GPU. Pasan las comprobacionesCPU y de transporte; el ensayoGPU completo y la calidad de reconstrucción siguen pendientes. No se declara equivalencia con la demo de referencia. Preparación, alcance y licencias en [docs/multiview.md](docs/multiview.md). El borrador de unaGPU y las rutas anteriores se conservan.
+La ruta conjunta local recibe varias vistas ordenadas del mismo objeto y produce geometría512, sin texturas. El formulario, API y MCP conservan todas las referencias; se reserva una sola GPU. La primera generación real terminó y se pudo exportar y editar en Blender, pero la taza salió cortada y deforme. Se han corregido discrepancias de precisión y superficie; falta repetir el ensayo y comprobar su calidad. No se declara equivalencia con la demo de referencia ni una función lista para uso. Preparación, alcance y licencias en [docs/multiview.md](docs/multiview.md). El borrador de unaGPU y las rutas anteriores se conservan.
 
 ## Ejecución
 
