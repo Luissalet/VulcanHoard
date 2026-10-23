@@ -171,3 +171,33 @@ def test_token_file_written_at_startup(client):
     token_path = client.services.config.token_path
     assert token_path.is_file() and token_path.read_text().strip() == client.services.token and len(client.services.token) >= 32
     assert time.time() - token_path.stat().st_mtime < 600
+
+
+def test_group_review_preserves_native_connected_members_and_exact_canonical_rows(client, tmp_path):
+    import hashlib
+    from fixtures import cube
+    from vulcan.agent_tools import call_tool
+    from vulcan.geometry import inspect_file
+
+    folder = tmp_path / "connected"
+    folder.mkdir()
+    root, _ = client.services.roots.add("Connected fixture", str(folder), None, None, False, "none")
+    ids = []
+    first_bytes = cube((20, 30, 40)).export(file_type="stl")
+    for name, payload in (("A", first_bytes), ("B", cube((20.12, 30, 40)).export(file_type="stl")),
+                          ("C", cube((20.24, 30, 40)).export(file_type="stl")), ("A_same", first_bytes)):
+        path = folder / (name + ".stl")
+        path.write_bytes(payload)
+        stat = path.stat()
+        ids.append(client.services.models.upsert(root.id, path.name, path,
+                   {"size": stat.st_size, "mtime": stat.st_mtime, "created": stat.st_ctime, "modified": stat.st_mtime},
+                   hashlib.sha256(payload).hexdigest(), inspect_file(path)))
+    client.services.models.refresh_dupes()
+    exact = client.get("/api/dupes", params={"kind": "exact", "limit": 50}).json()
+    assert exact["count"] == 1 and [m["id"] for m in exact["groups"][0]["models"]] == [ids[0], ids[3]]
+    near = client.get("/api/dupes", params={"kind": "near", "limit": 50}).json()
+    assert near["count"] == 1 and [m["id"] for m in near["groups"][0]["models"]] == ids[:3]
+    assert ids[2] not in [m["id"] for m in client.services.dupes.for_model(client.services.models.get(ids[0]))["near"]]
+    native = call_tool(client.services, "models_dupes", {"kind": "near", "limit": 50})
+    assert {key: native[key] for key in ("kind", "count", "groups")} == near
+    assert native["note"] is None

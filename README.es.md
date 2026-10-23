@@ -1,5 +1,10 @@
 # Vulcan's Hoard
 
+**Galería → Revisar grupos** muestra grupos del índice por hash exacto o medidas
+parecidas, con miembros y enlaces a sus fichas, independiente de los filtros.
+Consulta metadatos sin reanalizar mallas ni mover/borrar archivos. Los grupos de
+parecidos enlazan sugerencias y no confirman que todos sus miembros sean copias.
+
 **Fichas → Catálogo combinado** prepara metadatos nativos de fichas de carpetas y
 modelos, con carpeta opcional y ámbito independiente de los filtros de la tabla.
 Copiar y descargar comparten el texto JSON nativo completo. La vista previa cuenta

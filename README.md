@@ -1,5 +1,10 @@
 # Vulcan's Hoard
 
+**Gallery → Review groups** shows existing indexed exact-hash groups or heuristic
+near groups with their members and model links, independently of gallery filters.
+It reads metadata without reanalyzing meshes or moving/deleting files. Near groups
+can connect pairwise suggestions and are not a claim that every member is a copy.
+
 **Listings → Combined catalog** prepares native folder and model listing metadata,
 optionally within a folder. Its scope is independent of the listings table filters.
 Copy and download share the complete native JSON text; preview counts entries,
