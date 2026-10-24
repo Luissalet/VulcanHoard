@@ -8,9 +8,9 @@ import { useCopilotContext, useCopilotRefresh } from "../copilot.js";
 import DuplicateGroups from "../components/DuplicateGroups.jsx";
 
 const PAGE = 60;
-const KEYS = ["q", "root", "format", "tag", "collection", "album", "watertight", "has_listing", "dupes", "sort"];
+const KEYS = ["q", "root", "format", "tag", "collection", "album", "watertight", "has_listing", "dupes", "sort", "bbox_min", "bbox_max"];
 
-function readFilters(query) {
+export function readFilters(query) {
   const out = {};
   for (const key of KEYS) {
     const value = query.get(key);
@@ -19,11 +19,19 @@ function readFilters(query) {
   return out;
 }
 
-function writeFilters(filters) {
+export function writeFilters(filters) {
   const qs = new URLSearchParams();
   for (const [key, value] of Object.entries(filters)) if (value !== undefined && value !== "" && value !== null) qs.set(key, value);
   const text = qs.toString();
   window.location.hash = `#/galeria${text ? `?${text}` : ""}`;
+}
+
+export function galleryContext(filters, q, range) {
+  return { root_id: filters.root, album_id: filters.album, editor: {
+    kind: "search", fields: { q, ...range },
+    dirty_fields: [q !== (filters.q || "") ? "q" : null,
+      ...Object.keys(range).filter((name) => range[name] !== (filters[name] ?? ""))].filter(Boolean),
+  } };
 }
 
 function FilterGroup({ title, children }) {
@@ -48,6 +56,7 @@ export default function Galeria({ query }) {
   const { status } = useApp();
   const filters = useMemo(() => readFilters(query), [query]);
   const [q, setQ] = useState(filters.q || "");
+  const [range, setRange] = useState({ bbox_min: filters.bbox_min ?? "", bbox_max: filters.bbox_max ?? "" });
   const [facets, setFacets] = useState(null);
   const [roots, setRoots] = useState([]);
   const [result, setResult] = useState(null);
@@ -55,10 +64,13 @@ export default function Galeria({ query }) {
   const [offset, setOffset] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
   const [revision, setRevision] = useState(0);
-  useCopilotContext({ root_id: filters.root, album_id: filters.album, editor: { kind: "search", fields: { q }, dirty_fields: q !== (filters.q || "") ? ["q"] : [] } }, "search");
+  const [error, setError] = useState(null);
+  const [retry, setRetry] = useState(0);
+  useCopilotContext(galleryContext(filters, q, range), "search");
   useCopilotRefresh(() => { setOffset(0); setRevision((value) => value + 1); });
 
   useEffect(() => setQ(filters.q || ""), [filters.q]);
+  useEffect(() => setRange({ bbox_min: filters.bbox_min ?? "", bbox_max: filters.bbox_max ?? "" }), [filters.bbox_min, filters.bbox_max]);
   useEffect(() => {
     api.facets().then(setFacets).catch(() => {});
     api.roots().then((r) => setRoots(r.roots)).catch(() => {});
@@ -73,6 +85,7 @@ export default function Galeria({ query }) {
     if (offset > 0 && result?.key !== key) return undefined; // offset left over from the previous filters: the reset above re-runs this
     let cancelled = false;
     setLoading(true);
+    setError(null);
     const params = { ...filters, limit: PAGE, offset };
     if (params.watertight !== undefined) params.watertight = params.watertight === "1" ? "true" : "false";
     if (params.has_listing !== undefined) params.has_listing = params.has_listing === "1" ? "true" : "false";
@@ -80,14 +93,17 @@ export default function Galeria({ query }) {
     api.models(params)
       .then((r) => {
         if (cancelled) return;
-        setResult((prev) => ({ ...r, key, models: offset > 0 && prev ? [...prev.models, ...r.models] : r.models }));
+        setResult((prev) => ({ ...r, key, models: offset > 0 && prev?.key === key ? [...prev.models, ...r.models] : r.models }));
       })
-      .catch(() => {})
+      .catch((e) => { if (!cancelled) setError({ key, offset, message: e.message }); })
       .finally(() => !cancelled && setLoading(false));
     return () => {
       cancelled = true;
     };
-  }, [key, offset, status?.counts?.models, revision]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [key, offset, status?.counts?.models, revision, retry]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const shown = result?.key === key ? result : null;
+  const shownError = error?.key === key ? error.message : null;
 
   const set = (patch) => writeFilters({ ...filters, ...patch });
   const toggle = (key, value) => set({ [key]: filters[key] === String(value) ? undefined : value });
@@ -124,6 +140,20 @@ export default function Galeria({ query }) {
               <button type="button" className="btn btn-sm" onClick={() => setShowFilters(false)}>Cerrar</button>
             </div>
             {active > 0 && <button type="button" className="btn-link mb-3 text-[12px]" onClick={() => writeFilters({ q: filters.q, sort: filters.sort })}>Quitar filtros ({active})</button>}
+            <form className="mb-5" onSubmit={(event) => { event.preventDefault(); set(range); }}>
+              <fieldset className="min-w-0">
+                <legend className="mb-2 font-semibold text-[13px]">Tamaño registrado</legend>
+                <label className="label" htmlFor="bbox-min">Lado mayor mínimo (mm)</label>
+                <input id="bbox-min" className="field mb-2" type="number" min="0" step="any" aria-describedby="bbox-help" value={range.bbox_min} onChange={(event) => setRange((old) => ({ ...old, bbox_min: event.target.value }))} />
+                <label className="label" htmlFor="bbox-max">Lado mayor máximo (mm)</label>
+                <input id="bbox-max" className="field" type="number" min="0" step="any" aria-describedby="bbox-help" value={range.bbox_max} onChange={(event) => setRange((old) => ({ ...old, bbox_max: event.target.value }))} />
+                <p id="bbox-help" className="help my-2">Mayor de X, Y y Z de la caja alineada a ejes, en mm registrados. Vacío: sin límite. No garantiza encaje ni unidades físicas correctas.</p>
+                <div className="flex flex-wrap gap-2">
+                  <button type="submit" className="btn btn-sm">Aplicar rango</button>
+                  {(filters.bbox_min !== undefined || filters.bbox_max !== undefined) && <button type="button" className="btn-link text-[12px]" onClick={() => set({ bbox_min: undefined, bbox_max: undefined })}>Quitar sólo rango</button>}
+                </div>
+              </fieldset>
+            </form>
             {roots.length > 1 && (
               <FilterGroup title="Carpeta raíz">
                 <div className="filter-list">{roots.map((r) => <Option key={r.id} active={filters.root === String(r.id)} onClick={() => toggle("root", r.id)} label={r.name} />)}</div>
@@ -158,20 +188,23 @@ export default function Galeria({ query }) {
               <button type="submit" className="btn btn-primary">Buscar</button>
               {filters.q && <button type="button" className="btn" onClick={() => set({ q: undefined, sort: undefined })}>Limpiar</button>}
             </form>
-            {result && (
+            {(filters.bbox_min !== undefined || filters.bbox_max !== undefined) && <p className="help mb-2">Rango aplicado del lado mayor: {filters.bbox_min ?? "sin mínimo"} – {filters.bbox_max ?? "sin máximo"} mm registrados (límites incluidos).</p>}
+            {shownError && <div role="alert" className="panel mb-3"><p>{shownError}</p>{shown && <p className="help">{error.offset > 0 ? "Se conservan los modelos ya cargados de estos filtros; no se pudo cargar la página siguiente." : "Se conservan los modelos de estos filtros; no se pudo actualizar la consulta."}</p>}<button type="button" className="btn btn-sm mt-2" onClick={() => setRetry((value) => value + 1)}>Reintentar</button></div>}
+            {!shown && !shownError && <p role="status" className="help mb-3">Cargando modelos de los filtros aplicados…</p>}
+            {shown && (
               <p className="help mb-3 num">
-                {num(result.total)} modelo{result.total === 1 ? "" : "s"}{filters.q ? ` para «${filters.q}»` : ""}{filters.tag ? ` · etiqueta ${filters.tag}` : ""}{filters.collection ? ` · carpeta ${filters.collection}` : ""}
+                {num(shown.total)} modelo{shown.total === 1 ? "" : "s"}{filters.q ? ` para «${filters.q}»` : ""}{filters.tag ? ` · etiqueta ${filters.tag}` : ""}{filters.collection ? ` · carpeta ${filters.collection}` : ""}
               </p>
             )}
-            {result && result.models.length === 0 && !loading && (
+            {shown && shown.models.length === 0 && !loading && (
               <Empty title="Ningún modelo coincide">Prueba con menos palabras, otra etiqueta o quita algún filtro.</Empty>
             )}
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-              {(result?.models || []).map((m) => <ModelCard key={m.id} model={m} />)}
+              {(shown?.models || []).map((m) => <ModelCard key={m.id} model={m} />)}
             </div>
-            {result && result.models.length < result.total && (
+            {shown && shown.models.length < shown.total && (
               <div className="mt-5 text-center">
-                <button type="button" className="btn" disabled={loading} onClick={() => setOffset(result.models.length)}>{loading ? "Cargando…" : `Ver más (${num(result.total - result.models.length)} restantes)`}</button>
+                <button type="button" className="btn" disabled={loading} onClick={() => shownError ? setRetry((value) => value + 1) : setOffset(shown.models.length)}>{loading ? "Cargando…" : `Ver más (${num(shown.total - shown.models.length)} restantes)`}</button>
               </div>
             )}
           </section>
