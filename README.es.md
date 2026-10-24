@@ -1,5 +1,14 @@
 # Vulcan's Hoard
 
+**Galería → Filtros → Tamaño registrado** permite aplicar mínimo/máximo al lado
+mayor de la caja envolvente en mm registrados, incluidos los límites. Vacío omite
+ese límite; cero se conserva. Aplicar o quitar sólo el rango mantiene los demás
+filtros y la búsqueda sin enviar. El rango aplicado queda en la URL (Atrás del
+navegador lo recupera) y en el contexto, separado del borrador. Lee medidas
+indexadas: no orienta, escala ni certifica encaje o unidades físicas de un STL.
+Medidas desconocidas no satisfacen un límite numérico. Carga/error/reintento
+identifican los criterios; un fallo de página extra conserva los modelos válidos.
+
 **Galería → Revisar grupos** muestra grupos del índice por hash exacto o medidas
 parecidas, con miembros y enlaces a sus fichas, independiente de los filtros.
 Consulta metadatos sin reanalizar mallas ni mover/borrar archivos. Los grupos de

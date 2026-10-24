@@ -1,5 +1,14 @@
 # Vulcan's Hoard
 
+**Gallery → Filters → Recorded size** filters by the minimum/maximum largest
+bounding-box side in recorded mm, inclusively. Blank leaves that bound unset;
+zero is retained. Apply range and clear only range keep the other filters and
+pending search text. Applied bounds stay in the URL (browser Back restores them)
+and copilot context, separately from pending input. This reads indexed measures;
+it does not orient, scale or certify printer fit or physical units of an STL.
+Unknown extents do not match a numeric bound. Loading/error/retry identifies the
+current criteria; a failed extra page keeps the already loaded matching models.
+
 **Gallery → Review groups** shows existing indexed exact-hash groups or heuristic
 near groups with their members and model links, independently of gallery filters.
 It reads metadata without reanalyzing meshes or moving/deleting files. Near groups
