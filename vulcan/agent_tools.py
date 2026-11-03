@@ -541,6 +541,10 @@ from .mesh_agent_tools import MESH_TOOLS  # noqa: E402 - LOD variants, look, web
 
 TOOLS += MESH_TOOLS
 
+from .asset_agent_tools import ASSET_TOOLS  # noqa: E402 - destination profiles, asset inspection and preparation
+
+TOOLS += ASSET_TOOLS
+
 TOOLS_BY_NAME = {tool.name: tool for tool in TOOLS}
 
 

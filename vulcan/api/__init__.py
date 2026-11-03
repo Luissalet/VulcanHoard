@@ -1,6 +1,7 @@
 """API routers."""
 
 from .agent import router as agent_router
+from .asset_inspection import router as asset_inspection_router
 from .cad import router as cad_router
 from .collections import router as collections_router
 from .copilot import router as copilot_router
@@ -12,4 +13,4 @@ from .roots import router as roots_router
 from .status import router as status_router
 
 ROUTERS = [status_router, roots_router, models_router, mesh_tools_router, collections_router, folder_listings_router, organize_router, cad_router,
-           agent_router, copilot_router]
+           agent_router, copilot_router, asset_inspection_router]

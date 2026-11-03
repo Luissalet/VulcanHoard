@@ -73,4 +73,12 @@ export const api = {
   openInSlicer: (body) => request("POST", "/api/slicers/open", { body }),
   thumbUrl: (model) => (model.has_thumb ? `/api/models/${model.id}/thumb?v=${model.sha256?.slice(0, 8) || ""}` : null),
   fileUrl: (id) => `/api/models/${id}/file`,
+  assetTargets: () => request("GET", "/api/asset-targets"),
+  createAssetTarget: (body) => request("POST", "/api/asset-targets", { body }),
+  saveAssetTarget: (id, body) => request("PUT", `/api/asset-targets/${encodeURIComponent(id)}`, { body }),
+  deleteAssetTarget: (id) => request("DELETE", `/api/asset-targets/${encodeURIComponent(id)}`),
+  assetInspect: (id, target) => request("GET", `/api/models/${id}/inspection`, { params: { target } }),
+  assetPrepare: (body) => request("POST", "/api/asset-preparations", { body }),
+  assetPreparations: (modelId) => request("GET", "/api/asset-preparations", { params: { model_id: modelId } }),
+  assetPreparationFileUrl: (id) => `/api/asset-preparations/${id}/file`,
 };
