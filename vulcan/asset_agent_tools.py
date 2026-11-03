@@ -117,7 +117,7 @@ ASSET_TOOLS: list[Tool] = [
          TargetSaveArgs, ann(False, False, True), run_target_save),
     Tool("asset_inspect", "Draft report: what stops a 3D asset meeting a destination profile, measured. Keywords: inspeccionar activo.\n"
          "Measures a library model or file (STL/OBJ/3MF/GLB/glTF) on CPU: triangles, bytes, bodies, open edges, units, UVs, materials, textures, "
-         "animations; each marked observed, not available in the format or not measured. Checks link to measurements; separates defects, "
+         "animations (3MF colour groups/textures included); each marked observed, not available in the format or not measured. The FDM wall rule is a sampled inward-ray estimate (p5) on closed meshes. The report locates defects: open-edge loops, bodies, thin regions (coordinates in mm). Checks link to measurements; separates defects, "
          "recommendations (with losses) and the plan. Writes nothing.\nSinónimos: qué le impide, auditar activo, comprobar para web, para imprimir.",
          SourceArgs, ann(True), run_inspect),
     Tool("asset_prepare", "Prepare a verified variant for a destination profile; the original is untouched (write). Keywords: preparar.\n"
