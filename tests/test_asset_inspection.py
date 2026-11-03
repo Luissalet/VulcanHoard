@@ -4,6 +4,7 @@ and a textured GLB keeps or explicitly loses its UVs. Every output is re-measure
 (binary STL header / the GLB's own JSON accessors). Synthetic meshes only; all data invented."""
 
 import hashlib
+import io
 import json
 import struct
 import sys
@@ -18,7 +19,7 @@ from vulcan import asset_targets as at
 from vulcan.agent_tools import TOOLS_BY_NAME, call_tool
 from vulcan.family_tools import import_file
 
-from fixtures import open_box
+from fixtures import multi_body, open_box
 
 
 def sha(path):
@@ -134,7 +135,7 @@ def test_compliant_fixture_is_left_unchanged(services, folder):
     assert draft["kind"] == "draft" and draft["summary"]["compliant"] and draft["defects"] == [] and draft["operations"] == []
     statuses = {c["rule"]: c["status"] for c in draft["checks"]}
     assert statuses["require_watertight"] == "pass" and statuses["max_bodies"] == "pass"
-    assert statuses["min_wall_mm"] == "not_evaluated" and statuses["units"] == "not_evaluated"  # never claimed as passed
+    assert statuses["min_wall_mm"] == "pass" and statuses["units"] == "not_evaluated"  # wall measured (solid block: 10 mm); units never claimed
     assert not draft["summary"]["fully_verified"]
     for check in draft["checks"]:
         assert check["measurement"] in draft["measurements"] or check["status"] == "not_evaluated"
@@ -376,3 +377,148 @@ def test_rest_defaults_to_spanish_and_tools_to_english(client, folder, services)
     assert tool_default["method"].startswith("CPU only") and tool_es["method"].startswith("Solo CPU")
     names = call_tool(services, "asset_targets_list", {"lang": "es"})["profiles"]
     assert [p["name"] for p in names[:2]] == ["Configurador web", "Impresión FDM"]
+
+
+# ---------- walls, defect locations and 3MF colours ----------
+def hollow_box(outer=20.0, wall=2.0) -> trimesh.Trimesh:
+    """A closed hollow box: outer shell plus an inverted inner shell, so the material is a `wall` thick skin."""
+    inner = trimesh.creation.box(extents=(outer - 2 * wall,) * 3)
+    inner.invert()
+    return trimesh.util.concatenate([trimesh.creation.box(extents=(outer,) * 3), inner])
+
+
+def inspected(folder, name, mesh, target="fdm-print", **extra):
+    path = folder / name
+    mesh.export(path)
+    profile = {"id": target, "output_format": "stl", "name": target, "purpose": "print", "rules": {"min_wall_mm": 0.8, "require_watertight": True, **extra}}
+    return ai.report(profile, ai.inspect_file(path, with_walls=True))
+
+
+def test_hollow_box_wall_is_measured_as_a_sampled_estimate(folder):
+    draft = inspected(folder, "hueca.stl", hollow_box())
+    wall = draft["measurements"]["geometry.wall_thickness"]
+    assert wall["status"] == "observed"
+    detail = wall["value"]
+    assert detail["min_mm"] == pytest.approx(2.0, abs=0.01) and detail["p5_mm"] == pytest.approx(2.0, abs=0.01) and detail["median_mm"] == pytest.approx(2.0, abs=0.01)
+    assert detail["samples"] == 24 and detail["is_bound"] is False and detail["method"] == "inward_ray_sample" and detail["basis"] == "p5"
+    check = next(c for c in draft["checks"] if c["rule"] == "min_wall_mm")
+    assert check["status"] == "pass" and check["observed"] == pytest.approx(2.0, abs=0.01) and "5" in check["reason"]
+    again = inspected(folder, "hueca2.stl", hollow_box())["measurements"]["geometry.wall_thickness"]["value"]
+    assert again == detail  # deterministic with the fixed seed
+
+
+def test_thin_plate_fails_the_wall_rule_and_lists_where(folder):
+    draft = inspected(folder, "placa.stl", trimesh.creation.box(extents=(50, 50, 0.4)))
+    check = next(c for c in draft["checks"] if c["rule"] == "min_wall_mm")
+    assert check["status"] == "fail" and check["observed"] == pytest.approx(0.4, abs=0.01) and check["limit"] == 0.8
+    assert [d["rule"] for d in draft["defects"]] == ["min_wall_mm"] and draft["blockers"]
+    thin = draft["locations"]["thin_regions"]
+    assert thin and thin[0]["thickness_mm"] == pytest.approx(0.4, abs=0.01) and len(thin[0]["centroid_mm"]) == 3 and isinstance(thin[0]["face"], int)
+    assert draft["locations"]["overlay"]["points"]
+
+
+def test_open_mesh_has_no_evaluable_wall_and_its_loops_are_located(folder):
+    draft = inspected(folder, "abierta.stl", open_box())
+    assert draft["measurements"]["geometry.min_wall_mm"]["status"] == "not_measured"
+    assert "open" in draft["measurements"]["geometry.min_wall_mm"]["source"]
+    assert next(c for c in draft["checks"] if c["rule"] == "min_wall_mm")["status"] == "not_evaluated"
+    loops = draft["locations"]["open_loops"]
+    assert draft["locations"]["open_loops_total"] == 1 and len(loops) == 1
+    loop = loops[0]
+    assert loop["id"] == "L1" and loop["edges"] == 4 and loop["length_mm"] == pytest.approx(100, abs=0.01)
+    assert loop["bbox_mm"]["min"][:2] == pytest.approx([-12.5, -12.5]) and loop["bbox_mm"]["max"][2] == pytest.approx(12.5)
+    assert loop["centroid_mm"][2] == pytest.approx(12.5)
+    overlay = draft["locations"]["overlay"]["loops"]
+    assert overlay[0]["id"] == "L1" and len(overlay[0]["segments"]) == 4 * 6
+
+
+def test_two_bodies_are_listed_with_bbox_and_volume(folder):
+    draft = inspected(folder, "dos.stl", multi_body())
+    bodies = draft["locations"]["bodies"]
+    assert draft["locations"]["bodies_total"] == 2 == draft["measurements"]["geometry.bodies"]["value"]
+    assert [b["id"] for b in bodies] == ["B1", "B2"] and all(b["closed"] for b in bodies)
+    cube = next(b for b in bodies if b["triangles"] == 12)
+    assert cube["volume_mm3"] == pytest.approx(8000, rel=1e-6) and cube["bbox_mm"]["max"][0] == pytest.approx(10)
+    assert len(draft["locations"]["overlay"]["bodies"]) == 2
+
+
+def test_wall_stays_not_evaluated_without_a_ray_engine(folder, monkeypatch):
+    from vulcan import asset_walls
+
+    monkeypatch.setattr(asset_walls, "ray_engine", lambda: None)
+    draft = inspected(folder, "sin_motor.stl", trimesh.creation.box(extents=(20, 20, 10)))
+    check = next(c for c in draft["checks"] if c["rule"] == "min_wall_mm")
+    assert check["status"] == "not_evaluated" and "ray engine" in check["reason"]
+    assert draft["measurements"]["geometry.min_wall_mm"]["status"] == "not_measured"
+
+
+def test_wall_texts_exist_in_both_languages(folder):
+    path = folder / "placa.stl"
+    trimesh.creation.box(extents=(50, 50, 0.4)).export(path)
+    rules = {"id": "p", "name": "p", "purpose": "print", "output_format": "stl", "rules": {"min_wall_mm": 0.8}}
+    es = ai.report(rules, ai.inspect_file(path, with_walls=True, lang="es"), lang="es")
+    en = ai.report(rules, ai.inspect_file(path, with_walls=True, lang="en"), lang="en")
+    assert es["defects"][0]["message"] != en["defects"][0]["message"] and "pared" in es["defects"][0]["message"] and "wall" in en["defects"][0]["message"]
+    assert [c["status"] for c in es["checks"]] == [c["status"] for c in en["checks"]] and es["defects"][0]["rule"] == en["defects"][0]["rule"]
+
+
+def minimal_3mf(path, textured=False):
+    """A cube as a 3MF whose triangles point at a colorgroup (and optionally a texture2d + texture2dgroup)."""
+    import zipfile
+
+    box = trimesh.creation.box(extents=(10, 10, 10))
+    vertices = "".join(f'<vertex x="{x}" y="{y}" z="{z}"/>' for x, y, z in box.vertices)
+    triangles = "".join(f'<triangle v1="{a}" v2="{b}" v3="{c}" pid="2" p1="{i % 2}"/>' for i, (a, b, c) in enumerate(box.faces))
+    texture = ""
+    if textured:
+        texture = ('<m:texture2d id="5" path="/3D/Texture/skin.png" contenttype="image/png"/>'
+                   '<m:texture2dgroup id="6" texid="5"><m:tex2coord u="0" v="0"/><m:tex2coord u="1" v="0"/><m:tex2coord u="0" v="1"/></m:texture2dgroup>')
+    model = ('<?xml version="1.0" encoding="UTF-8"?><model unit="millimeter" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02" '
+             'xmlns:m="http://schemas.microsoft.com/3dmanufacturing/material/2015/02"><resources>'
+             '<basematerials id="1"><base name="Rojo mate" displaycolor="#CC2222FF"/><base name="Azul" displaycolor="#2244CC"/></basematerials>'
+             f'<m:colorgroup id="2"><m:color color="#FF0000FF"/><m:color color="#00FF00FF"/></m:colorgroup>{texture}'
+             f'<object id="3" type="model"><mesh><vertices>{vertices}</vertices><triangles>{triangles}</triangles></mesh></object>'
+             '</resources><build><item objectid="3"/></build></model>')
+    rels = ('<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            '<Relationship Target="/3D/3dmodel.model" Id="rel0" Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel"/></Relationships>')
+    types = ('<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+             '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+             '<Default Extension="model" ContentType="application/vnd.ms-package.3dmanufacturing-3dmodel+xml"/>'
+             '<Default Extension="png" ContentType="image/png"/></Types>')
+    with zipfile.ZipFile(path, "w") as z:
+        z.writestr("[Content_Types].xml", types)
+        z.writestr("_rels/.rels", rels)
+        z.writestr("3D/3dmodel.model", model)
+        if textured:
+            buffer = io.BytesIO()
+            Image.new("RGB", (64, 32), (10, 200, 10)).save(buffer, "PNG")
+            z.writestr("3D/Texture/skin.png", buffer.getvalue())
+    return path
+
+
+def test_3mf_colours_and_textures_are_read_from_the_xml(folder):
+    m = ai.inspect_file(minimal_3mf(folder / "color.3mf"))["measurements"]
+    assert m["attributes.vertex_colors"]["status"] == "observed" and m["attributes.vertex_colors"]["value"] is True
+    assert m["attributes.materials"]["value"] == 2 and m["attributes.textures"]["value"] == 0
+    detail = m["attributes.colors_3mf"]["value"]
+    assert detail["colours"] == ["#FF0000FF", "#00FF00FF"] and detail["triangles"] == detail["triangles_with_property"] == 12
+    assert detail["base_materials"][0] == {"name": "Rojo mate", "color": "#CC2222FF"} and detail["base_materials"][1]["color"] == "#2244CC"
+    assert m["attributes.uvs"]["value"] is False and m["attributes.texture_max_px"]["status"] == "observed"
+    textured = ai.inspect_file(minimal_3mf(folder / "tex.3mf", textured=True))["measurements"]
+    assert textured["attributes.textures"]["value"] == 1 and textured["attributes.texture_sizes"]["value"] == [[64, 32]]
+    assert textured["attributes.texture_max_px"]["value"] == 64 and textured["attributes.uvs"]["value"] is True
+    assert textured["attributes.colors_3mf"]["value"]["textures"][0]["path"] == "/3D/Texture/skin.png"
+
+
+def test_unreadable_3mf_xml_stays_not_measured(folder):
+    import zipfile
+
+    path = folder / "roto.3mf"
+    with zipfile.ZipFile(path, "w") as z:
+        z.writestr("3D/3dmodel.model", "<model><resources>")
+    with pytest.raises(Exception):  # trimesh cannot load it either: the geometry is the first failure
+        ai.inspect_file(path)
+    from vulcan import asset_3mf
+
+    with pytest.raises(ValueError):
+        asset_3mf.read_3mf_materials(path)

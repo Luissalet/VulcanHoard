@@ -67,6 +67,7 @@ export default function Modelo({ param }) {
   const [similarError, setSimilarError] = useState("");
   const similarRequest = useRef(0);
   const [glbUrl, setGlbUrl] = useState(null);
+  const [overlay, setOverlay] = useState(null);
 
   const load = ({ preserve = false } = {}) => {
     const request = ++loadRequest.current;
@@ -92,6 +93,7 @@ export default function Modelo({ param }) {
     setSimilarError("");
     setSimilarBusy(false);
     setGlbUrl(null);
+    setOverlay(null);
     setModel(null);
     load();
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -173,10 +175,10 @@ export default function Modelo({ param }) {
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,3fr)_minmax(280px,2fr)]">
         <div className="min-w-0">
-          {model.status === "ok" ? <Suspense fallback={<div className="viewer"><div className="hud">Cargando visor…</div></div>}><Viewer model={model} glbUrl={glbUrl} onCloseGlb={() => setGlbUrl(null)} /></Suspense> : <Thumb model={model} className="rounded-lg border" />}
+          {model.status === "ok" ? <Suspense fallback={<div className="viewer"><div className="hud">Cargando visor…</div></div>}><Viewer model={model} glbUrl={glbUrl} onCloseGlb={() => setGlbUrl(null)} overlay={overlay} /></Suspense> : <Thumb model={model} className="rounded-lg border" />}
           <CadParameters key={id} id={id} onRegenerated={() => load({ preserve: true })} />
           {model.status === "ok" && <SimplifyPanel model={model} />}
-          {model.status === "ok" && <AssetInspectionPanel model={model} onPreview={setGlbUrl} />}
+          {model.status === "ok" && <AssetInspectionPanel model={model} onPreview={setGlbUrl} onOverlay={(o) => { setGlbUrl(null); setOverlay(o); }} />}
 
           <section className="panel-white mt-4">
             <h2 className="text-[16px] font-semibold">Ficha para la tienda</h2>

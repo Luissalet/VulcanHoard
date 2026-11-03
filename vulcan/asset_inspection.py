@@ -33,7 +33,7 @@ from pathlib import Path
 
 import numpy as np
 
-from . import asset_targets
+from . import asset_3mf, asset_targets, asset_walls
 from .asset_texts import _, language, show
 from .hoard_link import atomic
 
@@ -237,13 +237,31 @@ def welded_mm(path: Path):
     return mesh
 
 
-def inspect_file(path: Path, max_mb: int | None = None, lang: str | None = None) -> dict:
-    """Measurements of one file. Returns {file, measurements{id: record}, notes}. Never writes, never spawns."""
+def inspect_file(path: Path, max_mb: int | None = None, lang: str | None = None, with_walls: bool = False) -> dict:
+    """Measurements of one file. Returns {file, measurements{id: record}, locations, notes}. Never writes, never spawns.
+    `with_walls` also samples the wall thickness (a profile with min_wall_mm asks for it; it costs a ray index)."""
     with language(lang):
-        return _inspect_file(Path(path), max_mb)
+        return _inspect_file(Path(path), max_mb, with_walls)
 
 
-def _inspect_file(path: Path, max_mb: int | None) -> dict:
+def _wall_records(welded, to_mm: float, open_edges: int, nonmanifold: int) -> tuple[dict, dict, dict]:
+    """(geometry.wall_thickness record, geometry.min_wall_mm record, raw result) for a welded mesh."""
+    if open_edges or nonmanifold:
+        result = {"status": "open"}
+    else:
+        result = asset_walls.wall_thickness(welded, to_mm)
+    status = result["status"]
+    if status == "ok":
+        summary = {k: result[k] for k in ("min_mm", "p5_mm", "median_mm", "samples", "samples_requested", "rays_without_hit", "seed", "weighting")}
+        summary.update(method="inward_ray_sample", basis="p5", is_bound=False, worst=result["worst"])
+        source = _("m.wall_sampled", n=result["samples"], seed=result["seed"], min=result["min_mm"], p5=result["p5_mm"], med=result["median_mm"])
+        return observed(summary, source), observed(result["p5_mm"], source), result
+    reason = {"open": _("m.wall_open"), "no_engine": _("m.wall_no_engine"), "too_big": _("m.wall_too_big", n=result.get("triangles"), limit=result.get("limit")),
+              "no_samples": _("m.wall_no_samples"), "engine_error": _("m.wall_engine_error", error=result.get("error"))}[status]
+    return not_measured(reason), not_measured(reason), result
+
+
+def _inspect_file(path: Path, max_mb: int | None, with_walls: bool = False) -> dict:
     if not path.is_file():
         raise LookupError(_("e.file_missing", path=path))
     kind = format_of(path)
@@ -275,6 +293,13 @@ def _inspect_file(path: Path, max_mb: int | None) -> dict:
     m["geometry.bbox_mm"] = observed([round(x * UNIT_TO_MM[unit], 4) for x in extents], _("m.bbox_mm_assumed" if declared is None else "m.bbox_mm", unit=unit))
     m["geometry.volume_mm3"] = (observed(round(abs(float(welded.volume)) * UNIT_TO_MM[unit] ** 3, 4), _("m.volume"))
                                 if open_edges == 0 and nonmanifold == 0 else not_measured(_("m.volume_open")))
+    locations = asset_walls.locate_defects(welded, UNIT_TO_MM[unit])
+    locations.update(unit=unit, unit_to_mm=UNIT_TO_MM[unit], thin_regions=[])
+    if with_walls:
+        m["geometry.wall_thickness"], m["geometry.min_wall_mm"], wall = _wall_records(welded, UNIT_TO_MM[unit], open_edges, nonmanifold)
+        if wall["status"] == "ok":
+            locations["thin_regions"] = [{k: w[k] for k in ("face", "thickness_mm", "centroid_mm")} for w in wall["worst"]]
+            locations["overlay"]["points"] = [{"label": f"{w['thickness_mm']} mm", "position": w["centroid"]} for w in wall["worst"]]
     from .geometry import guess_units
 
     m["units.declared"] = (observed("m", _("m.unit_gltf")) if kind in ("glb", "gltf") else
@@ -324,9 +349,22 @@ def _inspect_file(path: Path, max_mb: int | None) -> dict:
         if facts["triangles"] != triangles:
             notes.append(_("m.gltf_mismatch", a=triangles, b=facts["triangles"]))
     else:  # 3mf
-        reason = _("m.3mf_not_read")
-        for key in ("uvs", "vertex_colors", "materials", "textures"):
-            m[f"attributes.{key}"] = not_measured(reason)
+        try:
+            facts = asset_3mf.read_3mf_materials(path)
+        except ValueError as error:
+            for key in ("uvs", "vertex_colors", "materials", "textures"):
+                m[f"attributes.{key}"] = not_measured(_("m.3mf_unreadable", error=error))
+        else:
+            sizes_3mf = [t["px"] for t in facts["textures"]]
+            m["attributes.materials"] = observed(len(facts["base_materials"]), _("m.3mf_base", n=len(facts["base_materials"])))
+            m["attributes.vertex_colors"] = observed(facts["colours_total"] > 0, _("m.3mf_colours", n=facts["colours_total"], groups=facts["colour_groups"]))
+            m["attributes.textures"] = observed(len(facts["textures"]), _("m.3mf_textures"))
+            m["attributes.texture_sizes"] = observed(sizes_3mf, _("m.gltf_sizes"))
+            m["attributes.uvs"] = observed(facts["uv_coordinates"] > 0, _("m.3mf_uvs", n=facts["uv_coordinates"], groups=facts["texture_groups"]))
+            m["attributes.colors_3mf"] = observed(
+                {"base_materials": facts["base_materials"], "colours": facts["colours"], "colours_total": facts["colours_total"],
+                 "textures": facts["textures"], "triangles": facts["triangles"], "triangles_with_property": facts["triangles_with_property"],
+                 "objects_with_property": facts["objects_with_property"]}, _("m.3mf_declared"))
         m["attributes.animations"] = not_available(_("m.3mf_animations"))
         m["attributes.normals"] = not_available(_("m.3mf_normals"))
         m["attributes.scene_nodes"] = observed(len(meshes), _("m.3mf_items"))
@@ -336,7 +374,7 @@ def _inspect_file(path: Path, max_mb: int | None) -> dict:
                                           if sizes is not None else not_measured(_("m.texture_sizes_unread")))
     m["file.resource_bytes"] = observed(resource_bytes, _("m.resource_bytes"))
     m["file.total_bytes"] = observed(size + resource_bytes, _("m.total_bytes"))
-    return {"file": {"path": str(path), "format": kind, "bytes": size, "sha256": sha256_of(path)}, "measurements": m, "notes": notes,
+    return {"file": {"path": str(path), "format": kind, "bytes": size, "sha256": sha256_of(path)}, "measurements": m, "locations": locations, "notes": notes,
             "seconds": round(time.perf_counter() - started, 3), "method": _("method")}
 
 
@@ -362,7 +400,7 @@ def evaluate(profile: dict, m: dict) -> list[dict]:
         record = m.get(key) or not_measured(_("m.no_such"))
         if ok is None:
             status = "not_evaluated"
-            reason = reason or _("r.status", key=key, status=_("st." + record["status"]), source=record["source"])
+            reason = reason or _("r.status", what=key, status=_("st." + record["status"]), source=record["source"])
         else:
             status = "pass" if ok else "fail"
             if record["status"] == "not_available" and not reason:
@@ -410,8 +448,16 @@ def evaluate(profile: dict, m: dict) -> list[dict]:
         else:
             check("units", rules["units"], "units.effective", effective == rules["units"])
     if rules.get("min_wall_mm") is not None:
-        check("min_wall_mm", rules["min_wall_mm"], "geometry.min_wall_mm", None,
-              reason=_("r.wall"))
+        p5 = _value(m, "geometry.min_wall_mm")
+        detail = _value(m, "geometry.wall_thickness")
+        if p5 is None:
+            check("min_wall_mm", rules["min_wall_mm"], "geometry.min_wall_mm", None)
+        else:
+            ok = p5 >= rules["min_wall_mm"] - 1e-9
+            note = _("r.wall_basis", n=detail["samples"], p5=p5, min=detail["min_mm"], med=detail["median_mm"])
+            if ok and detail["min_mm"] < rules["min_wall_mm"] - 1e-9:
+                note += _("r.wall_min_below", min=detail["min_mm"])
+            check("min_wall_mm", rules["min_wall_mm"], "geometry.min_wall_mm", ok, observed_value=p5, reason=note)
     return checks
 
 
@@ -519,6 +565,9 @@ def plan_for(profile: dict, m: dict, checks: list[dict]) -> dict:
     if "max_extent_mm" in failed:
         blockers.append({"defect": by_rule["max_extent_mm"], "reason": _("blk.extent")})
         recommend("max_extent_mm", "scale_or_split", False, _("rec.extent"))
+    if "min_wall_mm" in failed:
+        blockers.append({"defect": by_rule["min_wall_mm"], "reason": _("blk.wall")})
+        recommend("min_wall_mm", "thicken", False, _("rec.wall"))
     if "units" in failed:
         recommend("units", "scale", True, _("rec.rescale", a=unit_from, b=unit_to))
     if _value(m, "units.assumed"):
@@ -540,7 +589,7 @@ def _defect_message(c: dict) -> str:
         observed_value, limit = str(observed_value).upper(), [str(x).upper() for x in limit]
     key = "d." + rule
     if key not in {"d.max_triangles", "d.max_file_bytes", "d.max_textures", "d.max_texture_px", "d.require_uvs_if_textured", "d.max_bodies",
-                   "d.require_watertight", "d.max_extent_mm", "d.units", "d.accepted_formats"}:
+                   "d.require_watertight", "d.max_extent_mm", "d.units", "d.accepted_formats", "d.min_wall_mm"}:
         return _("d.other", rule=rule, obs=show(observed_value), lim=show(limit))
     return _(key, obs=show(observed_value), lim=show(limit))
 
@@ -564,7 +613,7 @@ def _report(profile: dict, inspection: dict) -> dict:
                if summary["compliant"] else _("v.defects", n=summary["fail"]))
     return {"kind": "draft", "profile": {k: profile[k] for k in ("id", "name", "purpose", "output_format", "rules")}, "file": inspection["file"],
             "summary": {**summary, "verdict": verdict}, "checks": checks, **plan, "measurements": inspection["measurements"],
-            "notes": inspection["notes"], "method": inspection["method"],
+            "locations": inspection.get("locations"), "notes": inspection["notes"], "method": inspection["method"],
             "next": _("next")}
 
 
@@ -596,10 +645,14 @@ def inspect_asset(services, target: str, model_id: int | None = None, path: str 
         return _inspect_asset(services, target, model_id, path)
 
 
+def _wants_walls(profile: dict) -> bool:
+    return profile["rules"].get("min_wall_mm") is not None
+
+
 def _inspect_asset(services, target, model_id, path) -> dict:
     file, model = resolve_source(services, model_id, path)
     profile = asset_targets.get_profile(services.config.data_dir, target)
-    out = report(profile, inspect_file(file, services.config.max_file_mb))
+    out = report(profile, inspect_file(file, services.config.max_file_mb, with_walls=_wants_walls(profile)))
     out["source"] = {"model_id": model["id"] if model else None, "name": model["name"] if model else file.name, "path": str(file)}
     out["previous_preparations"] = [_brief(r) for r in list_preparations(services, sha256=out["file"]["sha256"], limit=5)]
     return out
@@ -707,7 +760,7 @@ def _prepare(services, target: str, model_id: int | None, path: str | None, acce
     file, model = resolve_source(services, model_id, path)
     profile = asset_targets.get_profile(services.config.data_dir, target)
     sha_before = sha256_of(file)
-    inspection = inspect_file(file, services.config.max_file_mb)
+    inspection = inspect_file(file, services.config.max_file_mb, with_walls=_wants_walls(profile))
     draft = report(profile, inspection)
     tolerance = max_deviation_mm if max_deviation_mm is not None else profile["rules"].get("max_deviation_mm")
     prep_id = "p" + uuid.uuid4().hex[:12]
@@ -768,7 +821,7 @@ def _prepare(services, target: str, model_id: int | None, path: str | None, acce
     receipt["recipe"]["operations"] = list(ops.values())
 
     # Independent verification: fresh load from disk, every rule re-checked, deviation sampled on welded geometry in mm.
-    after = inspect_file(out)
+    after = inspect_file(out, with_walls=_wants_walls(profile))
     checks_after = evaluate(profile, after["measurements"])
     summary_after = summarize(checks_after)
     from .simplify import measure_error
