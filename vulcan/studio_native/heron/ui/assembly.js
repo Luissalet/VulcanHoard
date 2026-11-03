@@ -10,6 +10,9 @@
     ambiguous: 'Ambiguo: hay más de una solución y no se ha elegido ninguna',
   };
   const KIND = { penetration: 'Penetración', contact: 'Contacto', clearance: 'Holgura', not_checkable: 'No comprobable' };
+  const FASTENER = { too_small: 'Agujero de paso demasiado pequeño', tap_drill: 'Agujero de roscar', clearance_ok: 'Agujero de paso suficiente' };
+  const SERIES = { fine: 'serie fina', medium: 'serie media', coarse: 'serie gruesa', loose: 'holgado' };
+  const TYPE = { fixed: 'fija', coincident: 'coincidente', distance: 'distancia', coaxial: 'coaxial', clearance: 'holgura', angle: 'ángulo', point_on_plane: 'punto en plano', point_on_axis: 'punto en eje', point_coincident: 'puntos coincidentes' };
   const STATE = { satisfied: 'se cumple', violated: 'NO se cumple', invalidated: 'invalidada', invalid_reference: 'referencia inválida', not_evaluated: 'sin evaluar' };
   let families = null, current = null;
 
@@ -135,7 +138,15 @@
     }
     out.append(views);
     out.append(make('h4', 'Relaciones y residuos'));
-    out.append(table(['Relación', 'Tipo', 'A', 'B', 'Estado', 'Residuo (mm)', 'Residuo (°)'], r.relations.map((x) => [x.id, x.type, x.a || x.component, x.b || '', stateCell(x.state), x.type === 'clearance' ? 'mín ' + fmt(x.min_mm) + ' · medido ' + fmt(x.measured_gap_mm) : fmt(x.residual_mm, 6), fmt(x.residual_deg, 6)])));
+    const wanted = (x) => (x.value_deg !== undefined ? fmt(x.value_deg, 3) + '°' : x.value_mm !== undefined ? fmt(x.value_mm, 3) + ' mm' : '—');
+    out.append(table(['Relación', 'Tipo', 'A', 'B', 'Valor', 'Estado', 'Residuo (mm)', 'Residuo (°)'], r.relations.map((x) => [x.id, TYPE[x.type] || x.type, x.a || x.component, x.b || '', wanted(x), stateCell(x.state), x.type === 'clearance' ? 'mín ' + fmt(x.min_mm) + ' · medido ' + fmt(x.measured_gap_mm) : fmt(x.residual_mm, 6), fmt(x.residual_deg, 6)])));
+    if (r.fasteners && r.fasteners.checked_screws) {
+      out.append(make('h4', 'Roscas y agujeros de paso'));
+      if (!r.fasteners.findings.length) out.append(make('p', 'Los tornillos con rosca declarada no atraviesan ningún agujero con medida conocida.', 'muted'));
+      else out.append(table(['Tornillo', 'Rosca', 'Agujero', 'Ø agujero (mm)', 'Mínimo de paso (mm)', 'Resultado'], r.fasteners.findings.map((f) => [f.screw, f.thread + ' × ' + fmt(f.pitch_mm, 2), f.hole_component + '.' + f.hole_reference, fmt(f.hole_diameter_mm, 2), fmt(f.minimum_clearance_mm, 2), make('span', (FASTENER[f.state] || f.state) + (f.series ? ' (' + (SERIES[f.series] || f.series) + ')' : ''), f.state === 'clearance_ok' ? 'ok' : f.state === 'too_small' ? 'bad' : 'warn')])));
+      for (const f of r.fasteners.findings.filter((q) => q.state === 'too_small')) out.append(make('p', `El agujero ${f.hole_component}.${f.hole_reference} (Ø${fmt(f.hole_diameter_mm, 2)} mm) es demasiado pequeño para ${f.thread}: hace falta al menos Ø${fmt(f.minimum_clearance_mm, 2)} mm. Es independiente de la penetración geométrica.`, 'bad fastener'));
+      out.append(make('p', 'La rosca es un dato declarado; el sólido sigue siendo un cilindro nominal y la holgura se juzga con la serie ISO 273.', 'muted'));
+    }
     out.append(make('h4', 'Grados de libertad'));
     if (!r.remaining_dof.length) out.append(make('p', 'No quedan movimientos libres' + (r.status === 'incompatible' ? ' entre las relaciones aceptadas.' : '.'), 'ok'));
     r.remaining_dof.forEach((d) => out.append(make('p', `${d.component}: ${d.dof} libre(s) — ` + d.motions.map((m) => m.type === 'translation' ? 'traslación [' + m.direction.map((v) => fmt(v, 2)).join(', ') + ']' : 'giro sobre eje [' + m.axis_direction.map((v) => fmt(v, 2)).join(', ') + '] por (' + m.axis_point.map((v) => fmt(v, 2)).join(', ') + ')').join('; '), 'warn dof')));
@@ -167,6 +178,7 @@
 
   el('asm-example-box').onclick = () => busy(async () => { setSpec((await loadFamilies()).examples.box_board_lid); el('asm-status').textContent = 'Ejemplo cargado: pulsa «Resolver y guardar».'; });
   el('asm-example-bracket').onclick = () => busy(async () => { setSpec((await loadFamilies()).examples.bracket_screw); el('asm-status').textContent = 'Ejemplo cargado: pulsa «Resolver y guardar».'; });
+  el('asm-example-hinge').onclick = () => busy(async () => { setSpec((await loadFamilies()).examples.hinge_panel); el('asm-status').textContent = 'Ejemplo cargado: pulsa «Resolver y guardar».'; });
   el('asm-create').onclick = () => busy(async () => { show(await call('/api/assemblies', { request_id: crypto.randomUUID(), spec: JSON.parse(el('asm-spec').value) })); });
   el('asm-list').onclick = () => busy(async () => {
     const out = el('asm-output'); out.replaceChildren();

@@ -83,7 +83,7 @@ def test_parameter_revisions_are_new_immutable_rows_with_replay_and_stale_base_r
     changes = [{'component': 'screw', 'parameter': 'length', 'value': 16}]
     second = call('assembly_set_parameters', {'id': 'br', 'base_revision': 1, 'request_id': 'br-long', 'changes': changes})
     assert second['revision'] == 2 and second['base_revision'] == 1 and second['result']['status'] == 'solved'
-    assert second['result']['components']['screw']['reference_changes']['moved_in_part'] == ['tip']
+    assert second['result']['components']['screw']['reference_changes']['moved_in_part'] == ['tip', 'tip_center']
     replay = call('assembly_set_parameters', {'id': 'br', 'base_revision': 1, 'request_id': 'br-long', 'changes': changes})
     assert replay['revision'] == 2
     stale = client.post('/api/assemblies/br/parameters', json={'base_revision': 1, 'request_id': 'br-other', 'changes': changes})

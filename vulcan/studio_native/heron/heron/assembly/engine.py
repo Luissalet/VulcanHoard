@@ -7,7 +7,7 @@ from pathlib import Path
 
 import numpy as np
 
-from . import families, interference, solver
+from . import families, fasteners, interference, solver
 from .spec import UNITS, Assembly, evaluate
 
 MANIFEST_FORMAT = 'heron-assembly-manifest'
@@ -15,7 +15,7 @@ LIMITS = ('Relations are exact rigid-body constraints between references derived
           'they say nothing about strength, fit classes or manufacturing tolerances. Face references are not '
           'promised to be stable after arbitrary edits: references are recomputed by name from the parameters and '
           'a name the new definition no longer produces is reported as invalidated. Screws are nominal cylinders '
-          'without threads. Remaining degrees of freedom keep their previous or seeded pose, which is not a choice '
+          'without modelled threads (a declared thread is metadata for clearance checks). Remaining degrees of freedom keep their previous or seeded pose, which is not a choice '
           'of solution.')
 
 
@@ -26,13 +26,13 @@ def sha256(path):
 def resolve_component(component, variables, builds):
     source = component['source']
     if source['kind'] == 'family':
-        params = families.resolve_params(source['family'], source.get('params', {}), variables, component['units'])
+        params = families.resolve_params(source['family'], source.get('params', {}), variables, component['units'], source.get('thread'))
         solid = families.build_family(source['family'], params)
         refs = {**families.family_references(source['family'], params), **families.datum_references()}
         symmetry = families.FAMILIES[source['family']].get('symmetry', [])
         revision = {'kind': 'family', 'family': source['family'], 'family_version': families.FAMILY_VERSION, 'params_mm': params,
                     'digest': families.digest({'v': families.FAMILY_VERSION, 'family': source['family'], 'params': params})}
-        return {'solid': solid, 'mesh': None, 'refs': refs, 'symmetry': symmetry, 'revision': revision}
+        return {'solid': solid, 'mesh': None, 'refs': refs, 'symmetry': symmetry, 'revision': revision, 'thread': params.get('thread')}
     if source['kind'] == 'build':
         import cadquery as cq
         if component['units'] != 'mm':
@@ -69,14 +69,33 @@ def prevalidate(spec):
     for component in spec['components']:
         if component['source']['kind'] == 'family':
             try:
-                families.resolve_params(component['source']['family'], component['source'].get('params', {}), spec['variables'], component['units'])
+                families.resolve_params(component['source']['family'], component['source'].get('params', {}), spec['variables'], component['units'],
+                                        component['source'].get('thread'))
             except ValueError as exc:
                 raise ValueError(f"{component['id']}: {exc}") from exc
     for relation in spec['relations']:
         for key in ('value', 'min'):
             if relation.get(key) is not None:
-                evaluate(relation[key], spec['variables'])
+                number = evaluate(relation[key], spec['variables'])
+                if relation['type'] == 'angle' and key == 'value' and not 0 <= number <= 180:
+                    raise ValueError(f"{relation['id']}: angle must be between 0 and 180 degrees, got {number:g}")
     return spec
+
+
+# Reference kinds accepted at each end (a, b) of a positioning relation.
+KINDS = {'coincident': (('plane',), ('plane',)), 'distance': (('plane',), ('plane',)), 'coaxial': (('axis',), ('axis',)),
+         'angle': (('plane', 'axis'), ('plane', 'axis')), 'point_on_plane': (('point',), ('plane',)),
+         'point_on_axis': (('point',), ('axis',)), 'point_coincident': (('point',), ('point',))}
+
+
+def concrete_value(relation, variables):
+    """Numeric value of a positioning relation: signed offset (distance, point_on_plane), degrees (angle) or zero."""
+    if relation['type'] in ('distance', 'angle') or (relation['type'] == 'point_on_plane' and relation.get('value') is not None):
+        number = evaluate(relation['value'], variables)
+        if relation['type'] == 'angle' and not 0 <= number <= 180:
+            raise ValueError(f"{relation['id']}: angle must be between 0 and 180 degrees, got {number:g}")
+        return number
+    return 0.0
 
 
 def _ref_split(text):
@@ -97,7 +116,7 @@ def evaluate_revision(spec, *, builds=None, previous=None, initial_poses=None, f
     previous_refs = {cid: set(info['references']) for cid, info in (previous or {}).get('components', {}).items()}
     # Relations: concrete values, reference existence and kind.
     geometric, fixed, excluded, all_rel = [], {}, [], []
-    kinds = {'coincident': 'plane', 'distance': 'plane', 'coaxial': 'axis'}
+    kinds = KINDS
     for relation in spec['relations']:
         row = dict(relation)
         if relation['type'] == 'fixed':
@@ -112,6 +131,7 @@ def evaluate_revision(spec, *, builds=None, previous=None, initial_poses=None, f
         ends = []
         for side in ('a', 'b'):
             cid, ref = _ref_split(relation[side])
+            allowed = kinds[relation['type']][0 if side == 'a' else 1]
             ends.append((cid, ref))
             if ref not in parts[cid]['refs']:
                 if ref in previous_refs.get(cid, set()):
@@ -119,8 +139,8 @@ def evaluate_revision(spec, *, builds=None, previous=None, initial_poses=None, f
                 else:
                     problem = {'state': 'invalid_reference', 'reason': f'{relation[side]} is not a reference of {cid}; available: {", ".join(sorted(parts[cid]["refs"]))}'}
                 break
-            if parts[cid]['refs'][ref]['kind'] != kinds[relation['type']]:
-                problem = {'state': 'invalid_reference', 'reason': f'{relation["type"]} needs {kinds[relation["type"]]} references; {relation[side]} is an {parts[cid]["refs"][ref]["kind"]}'}
+            if parts[cid]['refs'][ref]['kind'] not in allowed:
+                problem = {'state': 'invalid_reference', 'reason': f'{relation["type"]} needs {" or ".join(allowed)} references at {side}; {relation[side]} is {"an" if parts[cid]["refs"][ref]["kind"] == "axis" else "a"} {parts[cid]["refs"][ref]["kind"]}'}
                 break
         if problem:
             excluded.append({'id': relation['id'], **problem})
@@ -128,7 +148,7 @@ def evaluate_revision(spec, *, builds=None, previous=None, initial_poses=None, f
             continue
         if relation['type'] == 'coaxial' and relation['orientation'] not in ('aligned', 'opposed', 'either'):
             raise ValueError(f"{relation['id']}: invalid orientation")
-        value = 0.0 if relation['type'] in ('coincident', 'coaxial') else evaluate(relation['value'], variables)
+        value = concrete_value(relation, variables)
         geometric.append({'id': relation['id'], 'type': relation['type'], 'a': ends[0], 'b': ends[1], 'value': value, 'orientation': relation['orientation']})
         all_rel.append(row)
     # Initial poses: previous solved poses keep remaining freedoms where they were (minimal change).
@@ -154,6 +174,7 @@ def evaluate_revision(spec, *, builds=None, previous=None, initial_poses=None, f
         volumes = {cid: (float(p['solid'].Volume()) if p['solid'] is not None else float(abs(p['mesh'].volume)) if p['mesh'].is_watertight else 0.0) for cid, p in parts.items()}
         clash = interference.check({cid: {'solid': p['solid'], 'mesh': p['mesh'], 'volume': volumes[cid]} for cid, p in parts.items()},
                                    poses, [r for r in all_rel], spec['checks'])
+    fastener_report = fasteners.check(parts, poses, None) if solved['status'] != 'ambiguous' else {'checked_screws': 0, 'findings': [], 'note': 'Ambiguous assembly: no pose was chosen, so thread clearance was not evaluated.'}
     relation_rows = {r['id']: r for r in solved['relations']}
     report_relations = []
     for relation in all_rel:
@@ -171,8 +192,10 @@ def evaluate_revision(spec, *, builds=None, previous=None, initial_poses=None, f
                 row.update(relation_rows[relation['id']])
             else:
                 row.update(next(e for e in excluded if e['id'] == relation['id']))
-            if relation['type'] == 'distance':
+            if relation['type'] in ('distance', 'point_on_plane') and relation.get('value') is not None:
                 row['value_mm'] = evaluate(relation['value'], variables)
+            if relation['type'] == 'angle':
+                row['value_deg'] = evaluate(relation['value'], variables)
         report_relations.append(row)
     component_rows = {}
     for component in spec['components']:
@@ -183,6 +206,8 @@ def evaluate_revision(spec, *, builds=None, previous=None, initial_poses=None, f
             point, direction = solver.world(ref, poses[cid])
             refs_out[name] = {'kind': ref['kind'], 'derived_from': ref['derived_from'], 'local_origin': ref['origin'], 'local_direction': ref['direction'],
                               'world_origin': solver._round(point), 'world_direction': solver._round(direction)}
+            if ref.get('hole'):
+                refs_out[name]['hole_diameter_mm'] = ref['hole']['diameter']
             if part['solid'] is not None and not name.startswith('origin.'):
                 refs_out[name]['materialized'] = families.materialized(part['solid'], ref)
         row = {'id': cid, 'name': component['name'] or cid, 'units': component['units'], 'source': _source_summary(component['source']),
@@ -219,7 +244,7 @@ def evaluate_revision(spec, *, builds=None, previous=None, initial_poses=None, f
         'components': component_rows, 'relations': report_relations, 'excluded_relations': excluded,
         'remaining_dof': solved['remaining_dof'], 'symmetric_dof': solved['symmetric_dof'], 'conflicts': solved['conflicts'],
         'ambiguity': solved['ambiguity'], 'redundant_equations': solved.get('redundant_but_consistent', 0),
-        'poses': {cid: solver.pose_record(p) for cid, p in poses.items()}, 'interference': clash,
+        'poses': {cid: solver.pose_record(p) for cid, p in poses.items()}, 'interference': clash, 'fasteners': fastener_report,
         'mounting_axes': mounting, 'originals': {'builds_before': before, 'builds_after': after, 'unchanged': before == after},
         'tolerances': {'linear_mm': solver.LINEAR_TOL, 'angular_rad': solver.ANGULAR_TOL, **spec['checks']},
         'limits': LIMITS,
@@ -377,7 +402,7 @@ def revision_check(spec, base, component_id, source, *, builds=None):
             if relation['orientation'] == 'either':
                 residuals.append({'id': relation['id'], 'state': 'not_evaluated', 'reason': "orientation 'either' has no single residual"})
                 continue
-            value = 0.0 if relation['type'] in ('coincident', 'coaxial') else evaluate(relation['value'], variables)
+            value = concrete_value(relation, variables)
             concrete_relation = {'id': relation['id'], 'type': relation['type'], 'a': ends[0], 'b': ends[1], 'value': value, 'orientation': relation['orientation']}
             lin, ang = problem.measure(concrete_relation, poses)
             ok = lin <= solver.LINEAR_TOL and ang <= solver.ANGULAR_TOL
