@@ -26,7 +26,7 @@ class StudioBridge(CatalogBridge):
 
 
 def build() -> CatalogBridge:
-    return StudioBridge(app="vulcan", service="vulcan-hoard", package="vulcan", default_port=5186, data_dir_env="VULCAN_DATA_DIR", autostart=False,
+    return StudioBridge(app="vulcan", service="vulcan-hoard", package="vulcan", default_port=5186, data_dir_env="VULCAN_DATA_DIR", autostart=False, image_content=True,
                          title="Vulcan's Hoard", root=__file__, instructions=
                          'All studio modules initially OFF. Listing tools starts no server or engine. '
                          'Use vulcan_set_module only for a module explicitly requested by the user. '

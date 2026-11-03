@@ -7,6 +7,8 @@ import { FORMAT_LABEL, UNITS_LABEL, bytes, dims, listingText, num, when } from "
 import { useDraft } from "../useDraft.js";
 import { useCopilotContext, useCopilotRefresh } from "../copilot.js";
 import CadParameters from "../components/CadParameters.jsx";
+import { LookPanel, SimplifyPanel, WebGlbPanel } from "../components/MeshTools.jsx";
+import SlicerButton from "../components/SlicerButton.jsx";
 
 const Viewer = lazy(() => import("../components/Viewer.jsx")); // three.js loads only on the model page
 
@@ -62,6 +64,7 @@ export default function Modelo({ param }) {
   const [similarBusy, setSimilarBusy] = useState(false);
   const [similarError, setSimilarError] = useState("");
   const similarRequest = useRef(0);
+  const [glbUrl, setGlbUrl] = useState(null);
 
   const load = ({ preserve = false } = {}) => {
     const request = ++loadRequest.current;
@@ -86,6 +89,7 @@ export default function Modelo({ param }) {
     setSimilar(null);
     setSimilarError("");
     setSimilarBusy(false);
+    setGlbUrl(null);
     setModel(null);
     load();
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -157,6 +161,7 @@ export default function Modelo({ param }) {
           {model.status === "skipped" && <span className="chip chip-warn">no analizado</span>}
           {model.status === "error" && <span className="chip chip-danger">error</span>}
           <a className="btn btn-sm" href={api.fileUrl(model.id)} download>Descargar</a>
+          {model.status === "ok" && <SlicerButton modelIds={[model.id]} />}
         </div>
       </header>
 
@@ -164,8 +169,9 @@ export default function Modelo({ param }) {
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,3fr)_minmax(280px,2fr)]">
         <div className="min-w-0">
-          {model.status === "ok" ? <Suspense fallback={<div className="viewer"><div className="hud">Cargando visor…</div></div>}><Viewer model={model} /></Suspense> : <Thumb model={model} className="rounded-lg border" />}
+          {model.status === "ok" ? <Suspense fallback={<div className="viewer"><div className="hud">Cargando visor…</div></div>}><Viewer model={model} glbUrl={glbUrl} onCloseGlb={() => setGlbUrl(null)} /></Suspense> : <Thumb model={model} className="rounded-lg border" />}
           <CadParameters key={id} id={id} onRegenerated={() => load({ preserve: true })} />
+          {model.status === "ok" && <SimplifyPanel model={model} />}
 
           <section className="panel-white mt-4">
             <h2 className="text-[16px] font-semibold">Ficha para la tienda</h2>
@@ -225,6 +231,9 @@ export default function Modelo({ param }) {
               <dt>Id</dt><dd className="num">{model.id}</dd>
             </dl>
           </section>
+
+          {model.status === "ok" && <LookPanel model={model} />}
+          {model.status === "ok" && <WebGlbPanel model={model} onPreview={setGlbUrl} />}
 
           <section className="panel-white">
             <h2 className="text-[16px] font-semibold">Etiquetas y notas</h2>
