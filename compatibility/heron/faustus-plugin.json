@@ -2,7 +2,7 @@
   "schema": 1,
   "id": "heron",
   "name": "Heron's Hoard \u00b7 Vulcan's Hoard",
-  "purpose": "Measured parametric CAD: declarative solid primitives, Boolean operations, rotations, fillets, editable recipes and verified STEP/STL exports with three orthographic/isometric views. Complements artistic modelling and model catalogues.",
+  "purpose": "Measured parametric CAD: declarative solid primitives, Boolean operations, rotations, fillets, editable recipes and verified STEP/STL exports with three orthographic/isometric views; assemblies with explicit relations between semantic references, rigid-body solve with residuals and remaining degrees of freedom, and interference checks. Complements artistic modelling and model catalogues.",
   "capabilities": [
     "parametric-cad",
     "measured-solids",
@@ -12,7 +12,11 @@
     "stl-export",
     "stl-watertight-check",
     "step-roundtrip",
-    "cad-views"
+    "cad-views",
+    "cad-assemblies",
+    "assembly-relations",
+    "interference-check",
+    "assembly-export-roundtrip"
   ],
   "placeholders": [
     "COMPAT_DIR",
