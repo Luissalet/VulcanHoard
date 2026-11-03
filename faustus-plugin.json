@@ -44,7 +44,19 @@
     "cities",
     "shared-native-projects",
     "retained-artifacts",
-    "independent-modules"
+    "independent-modules",
+    "mesh-simplification",
+    "lod-variants",
+    "meshoptimizer",
+    "mesh-error-metric",
+    "multi-view-render",
+    "model-look",
+    "scene-summary",
+    "web-glb-meshopt",
+    "open-in-slicer",
+    "slicer-autodetect",
+    "dense-mesh-viewer",
+    "webgpu-virtual-geometry"
   ],
   "placeholders": [
     "VULCAN_DIR",

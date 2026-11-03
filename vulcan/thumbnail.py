@@ -62,9 +62,29 @@ def camera_basis(azimuth_deg: float = AZIMUTH_DEG, elevation_deg: float = ELEVAT
     return np.vstack([right, up, toward])
 
 
-def project(vertices: np.ndarray, size: int, margin: float = 0.08) -> np.ndarray:
+VIEWS = ("iso", "top", "front", "side", "back", "left", "bottom")
+
+
+def view_basis(view: str = "iso") -> np.ndarray:
+    """Camera basis (rows right, up, toward-camera) of a named view. Z-up world; front looks from -Y, side from +X."""
+    fixed = {
+        "top": ((1, 0, 0), (0, 1, 0), (0, 0, 1)),
+        "bottom": ((1, 0, 0), (0, -1, 0), (0, 0, -1)),
+        "front": ((1, 0, 0), (0, 0, 1), (0, -1, 0)),
+        "back": ((-1, 0, 0), (0, 0, 1), (0, 1, 0)),
+        "side": ((0, 1, 0), (0, 0, 1), (1, 0, 0)),
+        "left": ((0, -1, 0), (0, 0, 1), (-1, 0, 0)),
+    }
+    if view in ("iso", "", None):
+        return camera_basis()
+    if view not in fixed:
+        raise ValueError(f"Unknown view '{view}'. Use one of: {', '.join(VIEWS)}.")
+    return np.array(fixed[view], dtype=np.float64)
+
+
+def project(vertices: np.ndarray, size: int, margin: float = 0.08, basis: np.ndarray | None = None) -> np.ndarray:
     """World vertices (n,3) → camera space (n,3) scaled so the model fits a size×size canvas."""
-    cam = np.asarray(vertices, dtype=np.float64) @ camera_basis().T
+    cam = np.asarray(vertices, dtype=np.float64) @ (camera_basis() if basis is None else basis).T
     low, high = cam[:, :2].min(axis=0), cam[:, :2].max(axis=0)
     span = float(np.max(high - low))
     scale = (size * (1.0 - 2.0 * margin)) / span if span > 0 else 1.0
@@ -76,9 +96,9 @@ def project(vertices: np.ndarray, size: int, margin: float = 0.08) -> np.ndarray
     return out
 
 
-def face_normals(vertices: np.ndarray, faces: np.ndarray) -> np.ndarray:
+def face_normals(vertices: np.ndarray, faces: np.ndarray, basis: np.ndarray | None = None) -> np.ndarray:
     """Unit normals per face in camera space (z > 0 faces the camera)."""
-    cam = np.asarray(vertices, dtype=np.float64) @ camera_basis().T
+    cam = np.asarray(vertices, dtype=np.float64) @ (camera_basis() if basis is None else basis).T
     tri = cam[faces]
     normal = np.cross(tri[:, 1] - tri[:, 0], tri[:, 2] - tri[:, 0])
     length = np.linalg.norm(normal, axis=1)
@@ -188,12 +208,14 @@ def _raster_batch(sel: slice, coef, colors, x0, y0, width, area, size, zbuf, rgb
 
 
 def render(vertices: np.ndarray, faces: np.ndarray, size: int = 512, background=None, *, adaptive: bool = True,
-           max_faces: int = MAX_THUMB_FACES, cull: bool = False) -> Image.Image:
+           max_faces: int = MAX_THUMB_FACES, cull: bool = False, view: str = "iso") -> Image.Image:
     """Render a mesh to a square RGBA image (transparent unless `background` is an RGB tuple).
 
     `size` is the size for detailed meshes; with `adaptive`, meshes under SMALL_FACES come out at 3/4 of it
     (see choose_quality) and meshes over `max_faces` are decimated first (thumb_mesh). `cull` drops the faces
-    that look away from the camera: only safe (and about twice as fast) for a closed, consistently wound mesh."""
+    that look away from the camera: only safe (and about twice as fast) for a closed, consistently wound mesh.
+    `view` is one of VIEWS (iso is the thumbnail camera; top/front/side... are orthographic axis views)."""
+    basis = view_basis(view)
     vertices = np.asarray(vertices, dtype=np.float64)
     faces = np.asarray(faces, dtype=np.int64)
     if vertices.size == 0 or faces.size == 0:
@@ -201,8 +223,8 @@ def render(vertices: np.ndarray, faces: np.ndarray, size: int = 512, background=
     vertices, faces = thumb_mesh(vertices, faces, max_faces)
     size, supersample = choose_quality(len(faces), size) if adaptive else (size, 2.0)
     inner = int(round(size * supersample))
-    screen = project(vertices, inner)  # fit uses every vertex, so culling never changes the framing
-    normals = face_normals(vertices, faces)
+    screen = project(vertices, inner, basis=basis)  # fit uses every vertex, so culling never changes the framing
+    normals = face_normals(vertices, faces, basis)
     if cull:
         front = normals[:, 2] > 0
         if front.any():
