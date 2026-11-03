@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-03T15:45:44.582128+00:00",
+  "generatedAt": "2026-11-03T16:25:34.546210+00:00",
   "title": "Design System: Vulcan's Hoard — comparación de revisiones",
   "extensions": {
     "colorMeta": {
@@ -83,7 +83,7 @@
         "client/src/components/ModelComparison.jsx": "83d6ce867d1d81674209cc5a388bc6a6d2c62f910faedba23ed2ff4559d403e2",
         "client/src/components/ComparisonViewer.jsx": "1314b829e8b43b48ee715aad53e596acba23dc45d8cd704c2001147151672b4d",
         "client/src/comparison-format.js": "7b0bdb59b7e980cbcebd4a44a2ce9ae952fc7f7f3b26b611eb7ca5884c9fbcb0",
-        "client/src/pages/Modelo.jsx": "47f6e62e2a0680d6cb92225994e864fd3e0c70c582fe4cf4465fa55e1eb91770",
+        "client/src/pages/Modelo.jsx": "62d2bd7496b53f1ff6784254648e4f3afec2916acaca89ceb4fe5b5cc069ded8",
         ".impeccable/surfaces/client-src-components-modelcomparison-jsx.md": "3762e412a87aa49eb7106d844cdd4950ff1cbbec89ed68ce4144c772116d3115",
         "tests/test_comparison_context.mjs": "da241623f263b0f51ed79136e05f4a078a2e1782385fb392e9626eb33b8de859"
       },
@@ -133,7 +133,7 @@
         },
         "fix": "F1 adaptive precision, tolerance1E-6 visible in screenshot; two Node cases pass"
       },
-      "reviewScope": "Veredicto visual ship limitado a F1 resuelto; no nueva aprobación global ni validación del contexto Faustus. Formal2016r1: CHANGES únicamente por P2 (se borraba last_operation al editar). Corregido con lastCompleted independiente; formal2016r2 pendiente. Sin cambio de layout ni nuevas capturas.",
+      "reviewScope": "2016r1 CHANGES únicamente por P2 (se borraba last_operation al editar); corregido con lastCompleted independiente. 2016r2 APPROVE formal de comparación; fuentes aprobadas integradas en Main. El veredicto visual histórico ship se limita a F1 resuelto; no hay nuevo veredicto visual global ni validación visual del contexto Faustus o de la integración combinada.",
       "notCanonized": "Sin rampas cromáticas sintéticas, nuevos conceptos, logos ni imágenes de producto. El marco del snippet no finge una escena WebGL.",
       "contextContract": {
         "currentDraft": [
@@ -144,8 +144,25 @@
         ],
         "historicalOperation": "last_operation procede de lastCompleted, separado del resultado visible. Conserva fuentes, parámetros y medidas del último éxito vigente durante edición, petición pendiente y error; empieza nulo y un nuevo éxito vigente lo sustituye.",
         "visibleResult": "Editar, iniciar petición o cambiar la referencia invalida el resultado visible; la operación histórica no se vuelve a mostrar como resultado actual.",
-        "behaviorEvidence": "tests/test_comparison_context.mjs: éxito → edición → petición pendiente → error → éxito. El autor informa 6 tests Node PASS con los existentes y build positivo; formal2016r2 pendiente.",
-        "visualEvidenceScope": "Los JPEG existentes corresponden al layout y F1; no certifican esta corrección de contexto."
+        "behaviorEvidence": "tests/test_comparison_context.mjs: éxito → edición → petición pendiente → error → éxito. Corrección aprobada formalmente en 2016r2 e integrada. QA de integración comunicada: 6 tests Node PASS con los existentes, 128 pytest PASS y build positivo.",
+        "visualEvidenceScope": "Los JPEG existentes son evidencia histórica del layout y de F1, anterior a la integración combinada. No certifican el estado completo de Main actual ni la corrección de contexto."
+      },
+      "sourceSnapshot": {
+        "head": "1535d51f6540a1fa16fdafddd1ac0b505f5d147a",
+        "location": "Snapshot del código combinado e integrado en Main y el worktree; documentación editada únicamente en el worktree.",
+        "approvedComparisonCommits": [
+          "2e57002760fe68d862ac02a1119dd65ad94022a9",
+          "564d4118615168679f62ee0712efefd78e6ab0fc"
+        ],
+        "integration": "Combinación aditiva que conserva las aportaciones de las tareas 2020/2021. La revisión de comparación no valida las funciones ajenas 2020; su revisión pidió cambios por LOD."
+      },
+      "integrationQa": {
+        "reportedBy": "Responsable de integración de la tarea 2016",
+        "pytestPassed": 128,
+        "nodePassed": 6,
+        "build": "PASS",
+        "mainApiMcp": "Paridad real API/MCP sobre Main con Trimesh 5.1.1.",
+        "scope": "Comparación integrada; no certificación de las funciones 2020 ni nuevo veredicto visual."
       }
     }
   },
