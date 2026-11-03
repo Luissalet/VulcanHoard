@@ -7,6 +7,7 @@ import { FORMAT_LABEL, UNITS_LABEL, bytes, dims, listingText, num, when } from "
 import { useDraft } from "../useDraft.js";
 import { useCopilotContext, useCopilotRefresh } from "../copilot.js";
 import CadParameters from "../components/CadParameters.jsx";
+import ModelComparison from '../components/ModelComparison.jsx';
 
 const Viewer = lazy(() => import("../components/Viewer.jsx")); // three.js loads only on the model page
 
@@ -161,6 +162,8 @@ export default function Modelo({ param }) {
       </header>
 
       {model.error && <p className="mb-3 text-[13px]" style={{ color: "var(--danger-ink)" }}>{model.error}</p>}
+
+      <ModelComparison key={id} model={model} />
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,3fr)_minmax(280px,2fr)]">
         <div className="min-w-0">

@@ -1630,6 +1630,97 @@
     "native_name": "copilot_context_get"
   },
   {
+    "name": "model_compare",
+    "description": "Compare two indexed 3D revisions in physical units without changing files.\nReports raw and optionally rigid-aligned bidirectional sampled surface distances, bounds, volume validity, worst-point coordinates and the applied B-to-A transform. Never rescales or mirrors to align. File units are used when declared; auto otherwise reports an explicit mm assumption. ICP is local and sampled agreement is not a proof of identity or manufacturing tolerance.\nSinónimos: comparar revisiones, agujero nuevo, diferencia geométrica, cambio de forma, alinear piezas.",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "properties": {
+        "model_a": {
+          "description": "Reference library model id.",
+          "minimum": 1,
+          "title": "Model A",
+          "type": "integer"
+        },
+        "model_b": {
+          "description": "Candidate library model id.",
+          "minimum": 1,
+          "title": "Model B",
+          "type": "integer"
+        },
+        "units_a": {
+          "default": "auto",
+          "description": "File units when declared; otherwise auto assumes mm and reports that assumption.",
+          "enum": [
+            "auto",
+            "mm",
+            "cm",
+            "m",
+            "in"
+          ],
+          "title": "Units A",
+          "type": "string"
+        },
+        "units_b": {
+          "default": "auto",
+          "description": "Explicit units override file metadata; no geometric size guessing.",
+          "enum": [
+            "auto",
+            "mm",
+            "cm",
+            "m",
+            "in"
+          ],
+          "title": "Units B",
+          "type": "string"
+        },
+        "alignment": {
+          "default": "rigid",
+          "description": "Optional estimated rotation and translation of B into A. Never scale or reflect.",
+          "enum": [
+            "none",
+            "rigid"
+          ],
+          "title": "Alignment",
+          "type": "string"
+        },
+        "tolerance_mm": {
+          "default": 0.1,
+          "exclusiveMinimum": 0,
+          "title": "Tolerance Mm",
+          "type": "number"
+        },
+        "samples": {
+          "default": 2048,
+          "description": "Samples per direction: vertices, face centres and seeded area samples.",
+          "maximum": 20000,
+          "minimum": 64,
+          "title": "Samples",
+          "type": "integer"
+        },
+        "seed": {
+          "default": 7,
+          "maximum": 2147483647,
+          "minimum": 0,
+          "title": "Seed",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "model_a",
+        "model_b"
+      ],
+      "title": "CompareArgs",
+      "type": "object"
+    },
+    "module": "library",
+    "native_name": "model_compare"
+  },
+  {
     "name": "gulliver_model_assembly",
     "description": "Assembly guide for a kept build: numbered pieces, files and materials. Guia de montaje.\nUses only that generation. Piece pages share stable numbers; follow next_offset until null.\nSinÃ³nimos: montar, piezas, orientacion, filamentos",
     "annotations": {

@@ -1,0 +1,228 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-03T15:28:49.965891+00:00",
+  "title": "Design System: Vulcan's Hoard — comparación de revisiones",
+  "extensions": {
+    "colorMeta": {
+      "accent": {
+        "role": "primary",
+        "displayName": "Cobre de acción"
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Carbón cálido"
+      },
+      "sunken": {
+        "role": "neutral",
+        "displayName": "Campo hundido"
+      },
+      "viewer-ground": {
+        "role": "neutral",
+        "displayName": "Plano claro de inspección"
+      },
+      "reference-wire": {
+        "role": "geometry",
+        "displayName": "Azul de referencia A"
+      },
+      "candidate-solid": {
+        "role": "geometry",
+        "displayName": "Cobre de revisión B"
+      },
+      "deviation-point": {
+        "role": "geometry",
+        "displayName": "Rojo de desviación"
+      }
+    },
+    "typographyMeta": {
+      "title": {
+        "displayName": "Título de sección",
+        "purpose": "Comparador y pareja de modelos."
+      },
+      "body": {
+        "displayName": "Lectura operativa",
+        "purpose": "Instrucciones, resultados y magnitudes."
+      },
+      "label": {
+        "displayName": "Etiqueta",
+        "purpose": "Nombre explícito de cada control."
+      },
+      "help": {
+        "displayName": "Ayuda",
+        "purpose": "Estado y límites próximos al dato."
+      }
+    },
+    "motion": [
+      {
+        "name": "control-state",
+        "value": "background 0.16s, color 0.16s",
+        "purpose": "Transición CSS heredada de los botones."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }",
+        "purpose": "Regla CSS existente; no modifica OrbitControls."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px",
+        "purpose": "Alineación de las herramientas de cámara cuando caben."
+      },
+      {
+        "name": "md",
+        "value": "768px",
+        "purpose": "Dos columnas de parámetros y visor de 420px."
+      }
+    ],
+    "sourceEvidence": {
+      "scope": "Local a la comparación de modelos; DESIGN.md raíz permanece intacto.",
+      "sourceSha256": {
+        "client/src/index.css": "1a96806119b620735e96ff3d65f93e952d6b735068fc8879f37d2acfbf347172",
+        "client/src/hoard-theme.css": "5bca9ec7d293198c0e5b2e0c2f9b6424af68b0c798ac71b0656708095de5c610",
+        "client/src/components/ModelComparison.jsx": "dec066a7572072cbb85b70f92817d76ec8aae7d0298f63835b310b9842c94c20",
+        "client/src/components/ComparisonViewer.jsx": "1314b829e8b43b48ee715aad53e596acba23dc45d8cd704c2001147151672b4d",
+        "client/src/comparison-format.js": "7b0bdb59b7e980cbcebd4a44a2ce9ae952fc7f7f3b26b611eb7ca5884c9fbcb0",
+        "client/src/pages/Modelo.jsx": "47f6e62e2a0680d6cb92225994e864fd3e0c70c582fe4cf4465fa55e1eb91770",
+        ".impeccable/surfaces/client-src-components-modelcomparison-jsx.md": "3762e412a87aa49eb7106d844cdd4950ff1cbbec89ed68ce4144c772116d3115"
+      },
+      "captures": {
+        "method": "cua Tab.getScreenshot native raw bytes",
+        "note": "Native raw JPEG dimensions differ from CSS viewport dimensions. No image editing or resizing by the agent; exact cause not verified. DOM confirmed CSS widths and scrollY0; direct PNG capture timed out.",
+        "captures": {
+          "desktop.jpg": {
+            "format": "JPEG",
+            "pixels": [
+              1430,
+              2383
+            ],
+            "css_viewport": [
+              1440,
+              2400
+            ],
+            "scrollY": 0,
+            "sha256": "b8a9905fce2f30d9ab126fe2c2b9bceda7f21b8bb8e0b5e42ff766e05c583cb6"
+          },
+          "mobile.jpg": {
+            "format": "JPEG",
+            "pixels": [
+              380,
+              2923
+            ],
+            "css_viewport": [
+              390,
+              3000
+            ],
+            "scrollY": 0,
+            "sha256": "1c21040cb8e54aae4c0f23b2a72b6d4eeec28b8ea49fa16475acc0258a1eaf9d"
+          },
+          "user-1920.jpg": {
+            "format": "JPEG",
+            "pixels": [
+              1910,
+              857
+            ],
+            "css_viewport": [
+              1920,
+              861
+            ],
+            "scrollY": 0,
+            "sha256": "e873e4c12994be2d283bd1bc7c1b1274821f4592a8ca12121d2d5d4529372c05"
+          }
+        },
+        "fix": "F1 adaptive precision, tolerance1E-6 visible in screenshot; two Node cases pass"
+      },
+      "reviewScope": "ship en veredicto de F1 resuelto únicamente; no nueva aprobación global. Etiquetas none y contexto Faustus pendientes de revisión formal de código.",
+      "notCanonized": "Sin rampas cromáticas sintéticas, nuevos conceptos, logos ni imágenes de producto. El marco del snippet no finge una escena WebGL."
+    }
+  },
+  "components": [
+    {
+      "name": "Comparar superficies",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Acción primaria del formulario; altura mínima local de 44px.",
+      "html": "<button type=\"button\" class=\"ds-compare-primary\">Comparar superficies</button>",
+      "css": ".ds-compare-primary{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:8px 15px;border-radius:var(--hoard-radius);border:1px solid var(--button-line);background:var(--white);color:var(--ink);font:600 13px/18px var(--hoard-font-sans);cursor:pointer;transition:background .16s,color .16s;white-space:nowrap;}.ds-compare-primary{background:var(--accent);border-color:var(--accent);color:var(--hoard-accent-ink);}.ds-compare-primary:hover{background:var(--soft);border-color:var(--hoard-border-hover);}.ds-compare-primary:hover{background:var(--accent-hover);border-color:var(--accent-hover);}.ds-compare-primary:focus-visible{outline:2px solid var(--focus);outline-offset:3px;}.ds-compare-primary:disabled{opacity:.45;cursor:not-allowed;}@media(prefers-reduced-motion:reduce){.ds-compare-primary{transition:none!important;animation:none!important;}}"
+    },
+    {
+      "name": "Acción secundaria",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Abrir/cerrar, buscar y manejar cámara comparten este control.",
+      "html": "<button type=\"button\" class=\"ds-compare-secondary\">Encajar</button>",
+      "css": ".ds-compare-secondary{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:8px 15px;border-radius:var(--hoard-radius);border:1px solid var(--button-line);background:var(--white);color:var(--ink);font:600 13px/18px var(--hoard-font-sans);cursor:pointer;transition:background .16s,color .16s;white-space:nowrap;}.ds-compare-secondary:hover{background:var(--soft);border-color:var(--hoard-border-hover);}.ds-compare-secondary:focus-visible{outline:2px solid var(--focus);outline-offset:3px;}.ds-compare-secondary:disabled{opacity:.45;cursor:not-allowed;}@media(prefers-reduced-motion:reduce){.ds-compare-secondary{transition:none!important;animation:none!important;}}"
+    },
+    {
+      "name": "Vista seleccionada",
+      "kind": "button",
+      "refersTo": "button-view-selected",
+      "description": "Estado pulsado de la vista; la selección real la controla React.",
+      "html": "<button type=\"button\" class=\"ds-compare-view\" aria-pressed=\"true\">Alineación estimada</button>",
+      "css": ".ds-compare-view{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:8px 15px;border-radius:var(--hoard-radius);border:1px solid var(--button-line);background:var(--white);color:var(--ink);font:600 13px/18px var(--hoard-font-sans);cursor:pointer;transition:background .16s,color .16s;white-space:nowrap;}.ds-compare-view{background:var(--accent);border-color:var(--accent);color:var(--hoard-accent-ink);}.ds-compare-view:hover{background:var(--soft);border-color:var(--hoard-border-hover);}.ds-compare-view[aria-pressed=\"true\"],.ds-compare-view[aria-pressed=\"true\"]:hover{background:var(--accent);border-color:var(--accent);color:var(--hoard-accent-ink);}.ds-compare-view:focus-visible{outline:2px solid var(--focus);outline-offset:3px;}.ds-compare-view:disabled{opacity:.45;cursor:not-allowed;}@media(prefers-reduced-motion:reduce){.ds-compare-view{transition:none!important;animation:none!important;}}"
+    },
+    {
+      "name": "Campo de tolerancia",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "Borde local text-dim y altura mínima 44px; la regla de foco no cambia el borde en línea de la fuente.",
+      "html": "<div class=\"ds-compare-field\"><label class=\"ds-compare-label\" for=\"ds-compare-tolerance\">Tolerancia de comparación (mm)</label><input class=\"ds-compare-input\" style=\"border-color:var(--hoard-text-dim)\" id=\"ds-compare-tolerance\" type=\"number\" min=\"0.000001\" step=\"any\" value=\"0.000001\" required></div>",
+      "css": ".ds-compare-field{font-family:var(--hoard-font-sans);color:var(--ink);}.ds-compare-label{display:block;font-size:12px;font-weight:600;line-height:1.65;margin-bottom:4px;}.ds-compare-input{width:100%;min-width:0;min-height:44px;padding:8px 11px;border-radius:var(--hoard-radius);border:1px solid var(--field-line);background:var(--hoard-sunken);color:var(--field-ink);font:400 13px/1.5 var(--hoard-font-sans);}.ds-compare-input::placeholder{color:var(--placeholder);}.ds-compare-input:focus-visible{outline:2px solid var(--focus);outline-offset:3px;}.ds-compare-input:focus{border-color:var(--hoard-accent);outline:none;}"
+    },
+    {
+      "name": "Repetibilidad",
+      "kind": "custom",
+      "description": "Disclosure nativo del formulario; no se le atribuye la altura de los botones.",
+      "html": "<details class=\"ds-compare-details\"><summary class=\"ds-compare-summary\">Repetibilidad</summary><label class=\"ds-compare-seed-label\" for=\"ds-compare-seed\">Semilla</label><input class=\"ds-compare-seed\" style=\"border-color:var(--hoard-text-dim)\" id=\"ds-compare-seed\" type=\"number\" min=\"0\" max=\"2147483647\" value=\"7\" required></details>",
+      "css": ".ds-compare-details{margin-top:12px;font:400 13px/1.65 var(--hoard-font-sans);color:var(--ink);}.ds-compare-summary{cursor:pointer;}.ds-compare-summary:focus-visible{outline:2px solid var(--hoard-accent);outline-offset:2px;}.ds-compare-seed-label{display:block;margin-top:8px;margin-bottom:4px;font-size:12px;font-weight:600;}.ds-compare-seed{width:100%;max-width:192px;min-width:0;min-height:44px;border:1px solid var(--field-line);border-radius:var(--hoard-radius);background:var(--hoard-sunken);color:var(--field-ink);padding:8px 11px;font:400 13px/1.5 var(--hoard-font-sans);}.ds-compare-seed:focus-visible{outline:2px solid var(--focus);outline-offset:3px;}.ds-compare-seed:focus{border-color:var(--hoard-accent);outline:none;}"
+    },
+    {
+      "name": "Medidas originales y alineadas",
+      "kind": "custom",
+      "description": "Valores de la captura de prueba; muestra caption, cifras tabulares y filas condicionales del registro rígido.",
+      "html": "<div class=\"ds-compare-table-wrap\"><table class=\"ds-compare-table\"><caption class=\"ds-compare-caption\">Distancias entre las muestras y la superficie opuesta · mm</caption><thead><tr><th class=\"ds-compare-head\">Colocación</th><th class=\"ds-compare-head ds-compare-right\">Máximo muestreado</th><th class=\"ds-compare-head ds-compare-right\">Muestras fuera</th></tr></thead><tbody><tr class=\"ds-compare-row\"><th scope=\"row\" class=\"ds-compare-cell ds-compare-row-title\">Original</th><td class=\"ds-compare-cell ds-compare-right ds-compare-number\">3,9825622</td><td class=\"ds-compare-cell ds-compare-right ds-compare-number\">289 / 4096</td></tr><tr class=\"ds-compare-row\"><th scope=\"row\" class=\"ds-compare-cell ds-compare-row-title\">Alineada</th><td class=\"ds-compare-cell ds-compare-right ds-compare-number\">3,9825622</td><td class=\"ds-compare-cell ds-compare-right ds-compare-number\">289 / 4096</td></tr></tbody></table></div>",
+      "css": ".ds-compare-table-wrap{margin-top:16px;overflow-x:auto;}.ds-compare-table{width:100%;border-collapse:collapse;color:var(--ink);font:400 13px/1.65 var(--hoard-font-sans);}.ds-compare-caption{margin-bottom:8px;text-align:left;font-weight:600;}.ds-compare-head{padding:8px;text-align:left;color:var(--hoard-text-dim);font-size:12px;font-weight:500;}.ds-compare-cell{padding:8px;}.ds-compare-row{border-top:1px solid var(--line);}.ds-compare-row-title{text-align:left;font-weight:400;}.ds-compare-right{text-align:right;}.ds-compare-number{font-variant-numeric:tabular-nums;}"
+    },
+    {
+      "name": "Marco del visor de comparación",
+      "kind": "custom",
+      "refersTo": "viewer",
+      "description": "Marco y estado de carga de la fuente. No representa una escena ni sustituye la geometría WebGL.",
+      "html": "<div class=\"ds-compare-viewer\"></div><p class=\"ds-compare-viewer-status\" role=\"status\">Cargando geometrías…</p>",
+      "css": ".ds-compare-viewer{position:relative;height:320px;overflow:hidden;border-radius:8px;border:1px solid var(--line);background:#fbf9f6;}.ds-compare-viewer-status{margin-top:8px;color:var(--supporting-ink);font:400 12px/1.65 var(--hoard-font-sans);}@media(min-width:768px){.ds-compare-viewer{height:420px;}}"
+    }
+  ],
+  "narrative": {
+    "northStar": "La fragua",
+    "overview": "Se conserva el nombre conceptual ya presente en el sistema de Vulcan. La autoridad visual actual para esta extensión es la implementación oscura de `client/src/index.css` y la paleta Vulcan de `client/src/hoard-theme.css`: fondos marrón carbón, texto cálido y acción cobre. Este documento tiene alcance local; el `DESIGN.md` raíz describe una versión clara anterior y permanece intacto. No existe `PRODUCT.md` en este proyecto.\n\nEl comparador pertenece a la ficha del modelo. Se abre en línea, conserva el visor y los editores existentes debajo, y organiza selección, geometría y medidas en ese orden. El modo Operate y el contrato de esta superficie están en [el brief](../client-src-components-modelcomparison-jsx.md). No se introduce una identidad nueva ni material gráfico: la geometría se dibuja con WebGL a partir de los modelos.",
+    "keyCharacteristics": [
+      "Controles oscuros de altura mínima accesible, con etiquetas y unidades explícitas.",
+      "Comparación 3D sobre fondo claro: A en alambre azul, B en sólido cobre y muestras seleccionadas en rojo.",
+      "Distancias originales y alineadas legibles junto a los límites del muestreo.",
+      "Una columna móvil y dos columnas de parámetros desde el corte mediano."
+    ],
+    "rules": [
+      {
+        "name": "The Geometry Roles Rule",
+        "body": "La geometría mantiene los papeles A/alambre, B/sólido y puntos/desviación, acompañados de texto; el color no sustituye las etiquetas.",
+        "section": "colors"
+      },
+      {
+        "name": "The Measured Precision Rule",
+        "body": "Una distancia positiva pequeña conserva su magnitud visible; no se redondea a cero para simplificar la tabla.",
+        "section": "typography"
+      }
+    ],
+    "dos": [
+      "Do conservar juntos los nombres A/B, las unidades y el marco de coordenadas de las medidas.",
+      "Do mantener visibles las advertencias de unidades asumidas y los límites del muestreo junto al resultado.",
+      "Do reutilizar el formateador de precisión del comparador para todas sus magnitudes.",
+      "Do conservar la ficha y el visor originales al abrir o cerrar este panel en línea."
+    ],
+    "donts": [
+      "Don't presentar un registro estimado o la ausencia de diferencias muestreadas como identidad probada.",
+      "Don't convertir el visor algorítmico en una imagen raster del producto.",
+      "Don't aplicar este documento local como sustitución de la identidad global de Vulcan."
+    ]
+  }
+}
