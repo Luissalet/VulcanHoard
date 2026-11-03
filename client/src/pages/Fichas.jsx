@@ -6,6 +6,7 @@ import { splitTags } from "../format.js";
 import { useDraft } from "../useDraft.js";
 import { useCopilotContext, useCopilotRefresh } from "../copilot.js";
 import ListingCatalog from "../components/ListingCatalog.jsx";
+import SlicerButton from "../components/SlicerButton.jsx";
 
 const STATUS_LABEL = { none: "Sin ficha", draft: "Borrador", checked: "Revisada", approved: "Aprobada" };
 const STATUS_CLASS = { none: "chip", draft: "chip chip-accent", checked: "chip", approved: "chip chip-ok" };
@@ -167,7 +168,8 @@ export default function Fichas() {
                   <td className="px-3 py-2 text-[12px]">{row.issues.length ? `${row.issues.length} incidencia(s)` : "—"}</td>
                   <td className="whitespace-nowrap px-3 py-2 text-right">
                     <button type="button" className="btn btn-sm" onClick={() => open(row)}>Editar</button>{" "}
-                    <button type="button" className="btn btn-sm" onClick={() => draftOne(row)}>{row.status === "none" ? "Redactar" : "Redactar de nuevo"}</button>
+                    <button type="button" className="btn btn-sm" onClick={() => draftOne(row)}>{row.status === "none" ? "Redactar" : "Redactar de nuevo"}</button>{" "}
+                    <SlicerButton rootId={row.root_id} path={row.rel_path} label="Laminador" />
                   </td>
                 </tr>
               ))}

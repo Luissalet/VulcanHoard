@@ -14,9 +14,12 @@
     "mcp": "python mcp_server.py"
   },
   "dependencies": {
+    "gltfpack": "1.3.0",
+    "meshoptimizer": "1.3.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "three": "^0.180.0"
+    "three": "0.187.0",
+    "three-virtual-geometry": "0.1.3"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.0",
