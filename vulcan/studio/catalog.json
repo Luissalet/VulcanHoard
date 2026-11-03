@@ -12501,5 +12501,118 @@
       "readonly": true,
       "params": {}
     }
+  },
+  {
+    "name": "cad_fit_parameters",
+    "description": "Fit selected numeric fields of a saved CAD recipe to measurements of an indexed reference mesh. Supply bounded intervals containing the current values and per-measurement tolerances. The reference axes must already match. Returns candidate overrides, residuals, local ambiguity and source fingerprints. Does not save or prove the same shape. Sinónimos: ajustar receta CAD, recuperar dimensiones editables, adaptar una plantilla a un STL.",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "$defs": {
+        "FitBounds": {
+          "additionalProperties": false,
+          "properties": {
+            "min": {
+              "title": "Min",
+              "type": "number"
+            },
+            "max": {
+              "title": "Max",
+              "type": "number"
+            }
+          },
+          "required": [
+            "min",
+            "max"
+          ],
+          "title": "FitBounds",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "model_id": {
+          "description": "Library model with a saved parametric CAD recipe.",
+          "minimum": 1,
+          "title": "Model Id",
+          "type": "integer"
+        },
+        "reference_id": {
+          "description": "Distinct library mesh already oriented to the recipe axes.",
+          "minimum": 1,
+          "title": "Reference Id",
+          "type": "integer"
+        },
+        "reference_units": {
+          "default": "auto",
+          "enum": [
+            "auto",
+            "mm",
+            "cm",
+            "m",
+            "in"
+          ],
+          "title": "Reference Units",
+          "type": "string"
+        },
+        "recipe_sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional recipe fingerprint from CAD info; rejects stale inputs.",
+          "title": "Recipe Sha256"
+        },
+        "parameters": {
+          "additionalProperties": {
+            "$ref": "#/$defs/FitBounds"
+          },
+          "description": "Independent numeric recipe fields and finite search intervals containing the saved values.",
+          "maxProperties": 4,
+          "minProperties": 1,
+          "title": "Parameters",
+          "type": "object"
+        },
+        "tolerances": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "description": "Measurements to fit and their positive absolute tolerances, in mm or mm³.",
+          "maxProperties": 4,
+          "minProperties": 1,
+          "propertyNames": {
+            "enum": [
+              "bbox_x_mm",
+              "bbox_y_mm",
+              "bbox_z_mm",
+              "volume_mm3"
+            ]
+          },
+          "title": "Tolerances",
+          "type": "object"
+        }
+      },
+      "required": [
+        "model_id",
+        "reference_id",
+        "parameters",
+        "tolerances"
+      ],
+      "title": "FitArgs",
+      "type": "object"
+    },
+    "x-timeout-s": 45.0,
+    "module": "library",
+    "native_name": "cad_fit_parameters"
   }
 ]

@@ -8,6 +8,8 @@ looking at the result next to the measured numbers.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 import unicodedata
 import uuid
@@ -110,7 +112,8 @@ class CadService:
     def info(self, model_id: int) -> dict:
         files, record = self._load(model_id)
         spec = record["spec"]
-        return {"id": model_id, "spec": spec, "params": cad.params_info(spec), "description": record.get("description", ""), "source": record.get("source"),
+        fingerprint = hashlib.sha256(json.dumps(spec, ensure_ascii=False, separators=(",", ":")).encode()).hexdigest()
+        return {"id": model_id, "spec": spec, "recipe_sha256": fingerprint, "params": cad.params_info(spec), "description": record.get("description", ""), "source": record.get("source"),
                 "created_at": record.get("created_at"), "updated_at": record.get("updated_at"), "history": record.get("history", []),
                 "measures": record.get("last_measures"), "verification": record.get("last_verification"), **self._paths(files, model_id)}
 

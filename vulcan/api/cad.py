@@ -7,6 +7,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from .. import cad_service
+from ..cad_fit import FitArgs, fit_models
 from .deps import services
 
 router = APIRouter(prefix="/api/cad")
@@ -47,6 +48,11 @@ def from_text(request: Request, body: FromTextBody):
 @router.get("/{model_id}")
 def info(request: Request, model_id: int):
     return _not_found(lambda: cad_service.get(services(request)).info(model_id))
+
+
+@router.post("/fit")
+def fit(request: Request, body: FitArgs):
+    return _not_found(lambda: fit_models(services(request), body))
 
 
 @router.post("/{model_id}/regenerate")
