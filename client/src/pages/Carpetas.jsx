@@ -4,6 +4,7 @@ import { useApp } from "../App.jsx";
 import { Empty, ErrorList, PageHeader, Progress, Switch } from "../components/ui.jsx";
 import { PHASE_LABEL, THUMB_MODES, bytes, duration, num, when } from "../format.js";
 import { useCopilotContext, useCopilotRefresh } from "../copilot.js";
+import SlicerButton from "../components/SlicerButton.jsx";
 
 const splitGlobs = (text) => text.split(/[\n,]/).map((s) => s.trim()).filter(Boolean);
 
@@ -106,6 +107,7 @@ export default function Carpetas() {
                   <label className="flex items-center gap-2">Activa <Switch checked={r.enabled} label="Activa" onChange={(v) => patch(r.id, { enabled: v }, v ? "Carpeta activada." : "Carpeta desactivada.")} /></label>
                   <label className="flex items-center gap-2">Vigilar <Switch checked={r.watch} label="Vigilar cambios" onChange={(v) => patch(r.id, { watch: v }, v ? "Vigilando cambios." : "Ya no se vigila.")} /></label>
                   <a className="btn btn-sm" href={`#/galeria?root=${r.id}`}>Ver modelos</a>
+                  <SlicerButton rootId={r.id} path="" label="Abrir en laminador" />
                   <button type="button" className="btn btn-sm" disabled={running} onClick={() => act(() => api.rescan(r.id), "Escaneo en cola.").then(load)}>Reescanear</button>
                   <button type="button" className="btn btn-sm btn-danger" onClick={() => remove(r)}>Quitar</button>
                 </div>
