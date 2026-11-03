@@ -131,6 +131,25 @@ export default function Modelo({ param }) {
       notify("No se pudo copiar; selecciona el texto a mano.");
     }
   };
+  const removeModel = async () => {
+    let plan;
+    try {
+      plan = await api.removeModel(id, { dry_run: true });
+    } catch (e) {
+      notify(`No se pudo preparar el borrado: ${e.message}`);
+      return;
+    }
+    const what = plan.file_kept
+      ? `El archivo NO se borra: se queda en ${plan.path}. Solo se quitan su entrada, su ficha, sus álbumes y su miniatura.`
+      : `Es un archivo creado por Vulcan en su carpeta de datos: se borran también ${plan.files.length} archivo(s) (${plan.files.map((f) => f.split(/[\\/]/).pop()).join(", ")}).`;
+    if (!window.confirm(`¿Eliminar «${model.name}» (id ${model.id}) de la biblioteca?\n\n${what}`)) return;
+    const exclude = plan.file_kept && plan.root_change === null
+      && window.confirm("Esta carpeta se vuelve a escanear y lo listaría otra vez. ¿Excluirlo también de los próximos escaneos?\n\nAceptar: excluirlo · Cancelar: solo quitar la entrada");
+    const done = await act(() => api.removeModel(id, { exclude }));
+    if (!done) return;
+    notify(done.file_kept ? `«${done.name}» quitado de la biblioteca; el archivo sigue en disco.` : `«${done.name}» eliminado con sus archivos.`);
+    window.location.hash = "#/galeria";
+  };
   const findSimilar = async () => {
     const requestId = ++similarRequest.current;
     setSimilarBusy(true);
@@ -166,6 +185,7 @@ export default function Modelo({ param }) {
           {model.status === "error" && <span className="chip chip-danger">error</span>}
           <a className="btn btn-sm" href={api.fileUrl(model.id)} download>Descargar</a>
           {model.status === "ok" && <SlicerButton modelIds={[model.id]} />}
+          <button type="button" className="btn btn-sm btn-danger" onClick={removeModel} title="Quitar de la biblioteca (tus archivos no se borran)">Eliminar…</button>
         </div>
       </header>
 
