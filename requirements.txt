@@ -11,6 +11,8 @@ pillow==12.3.0
 trimesh==5.1.0
 scipy==1.17.1
 networkx==3.6.1
+# Spatial analysis (docs/SPATIAL.md): CRS handling and reprojection; shapely (studio file), networkx, scipy (HiGHS MILP) and numpy do the rest. Imported lazily.
+pyproj==3.8.0
 lxml==6.1.3
 watchdog==6.0.0
 pytest==9.1.1

@@ -10,7 +10,8 @@ from .mesh_tools import router as mesh_tools_router
 from .models import router as models_router
 from .organize import router as organize_router
 from .roots import router as roots_router
+from .spatial import router as spatial_router
 from .status import router as status_router
 
 ROUTERS = [status_router, roots_router, models_router, mesh_tools_router, collections_router, folder_listings_router, organize_router, cad_router,
-           agent_router, copilot_router, asset_inspection_router]
+           agent_router, copilot_router, asset_inspection_router, spatial_router]
