@@ -10379,6 +10379,18 @@
                   },
                   "title": "Params",
                   "type": "object"
+                },
+                "thread": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/Thread"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "screw family only: declared metric thread used to check clearance holes (the solid stays a nominal cylinder)"
                 }
               },
               "required": [
@@ -10514,7 +10526,11 @@
                     "coincident",
                     "distance",
                     "coaxial",
-                    "clearance"
+                    "clearance",
+                    "angle",
+                    "point_on_plane",
+                    "point_on_axis",
+                    "point_coincident"
                   ],
                   "title": "Type",
                   "type": "string"
@@ -10542,7 +10558,7 @@
                     }
                   ],
                   "default": null,
-                  "description": "component.reference (planes for coincident/distance, axes for coaxial); a component id for clearance",
+                  "description": "component.reference (planes for coincident/distance, axes for coaxial, planes or axes for angle, a point for point_on_plane/point_on_axis/point_coincident); a component id for clearance",
                   "title": "A"
                 },
                 "b": {
@@ -10555,6 +10571,7 @@
                     }
                   ],
                   "default": null,
+                  "description": "component.reference (a plane for point_on_plane, an axis for point_on_axis, a point for point_coincident)",
                   "title": "B"
                 },
                 "value": {
@@ -10570,7 +10587,7 @@
                     }
                   ],
                   "default": null,
-                  "description": "distance: signed offset of plane b from plane a along the normal of a (mm)",
+                  "description": "distance: signed offset of plane b from plane a along the normal of a (mm); angle: angle in degrees (0 to 180) between the directions of a and b (plane normals / axis directions as listed); point_on_plane: optional signed offset of the point along the plane normal (mm)",
                   "title": "Value"
                 },
                 "min": {
@@ -10606,6 +10623,38 @@
                 "type"
               ],
               "title": "Relation",
+              "type": "object"
+            },
+            "Thread": {
+              "additionalProperties": false,
+              "description": "Declared thread metadata of a screw. The geometry stays a nominal cylinder; this only feeds the clearance checks.",
+              "properties": {
+                "designation": {
+                  "description": "ISO metric designation, for example M3 or M4",
+                  "pattern": "^M[0-9]{1,2}(\\.[0-9])?$",
+                  "title": "Designation",
+                  "type": "string"
+                },
+                "pitch": {
+                  "anyOf": [
+                    {
+                      "exclusiveMinimum": 0,
+                      "maximum": 3,
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Pitch in mm; the coarse pitch of the designation when omitted",
+                  "title": "Pitch"
+                }
+              },
+              "required": [
+                "designation"
+              ],
+              "title": "Thread",
               "type": "object"
             }
           },

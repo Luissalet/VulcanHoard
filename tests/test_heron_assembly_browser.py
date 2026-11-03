@@ -102,3 +102,33 @@ def test_build_edit_conflict_and_penetration_in_the_browser(server, tmp_path):
         assert page.get_attribute('#asm-badge', 'data-status') == 'solved'
         assert not errors, errors
         browser.close()
+
+
+@pytest.mark.skipif(CHROME is None, reason='no Chrome/Chromium executable')
+def test_angle_point_relations_and_thread_clearance_in_the_browser(server):
+    with sync_api.sync_playwright() as p:
+        browser = p.chromium.launch(executable_path=CHROME, args=['--no-sandbox'])
+        page = browser.new_page(viewport={'width': 390, 'height': 900})
+        errors = []
+        page.on('pageerror', lambda e: errors.append(str(e)))
+        page.goto(server + '/')
+        page.click('#asm-example-hinge')
+        page.wait_for_function("document.getElementById('asm-spec').value.includes('hinge_pin')")
+        page.click('#asm-create')
+        page.wait_for_function("(document.querySelector('#asm-output h3')||{}).textContent?.includes('revisión 1')", timeout=600000)
+        assert page.get_attribute('#asm-badge', 'data-status') == 'solved'
+        text = page.inner_text('#asm-output')
+        assert 'ángulo' in text and 'puntos coincidentes' in text and '30.000°' in text
+        # Thread clearance: the bracket example with a too small hole reports it in Spanish, apart from penetration.
+        page.click('#asm-example-bracket')
+        page.click('#asm-create')
+        page.wait_for_function("(document.querySelector('#asm-output h3')||{}).textContent?.includes('Soporte')", timeout=600000)
+        page.wait_for_selector('#asm-apply')
+        assert 'Roscas y agujeros de paso' in page.inner_text('#asm-output') and 'Agujero de paso suficiente' in page.inner_text('#asm-output')
+        page.fill("input[data-component='bracket'][data-parameter='hole_d']", '3.5')
+        page.click('#asm-apply')
+        page.wait_for_function("(document.querySelector('#asm-output h3')||{}).textContent?.includes('revisión 2')", timeout=600000)
+        assert 'Agujero de paso demasiado pequeño' in page.inner_text('#asm-output')
+        assert 'demasiado pequeño para M4' in page.inner_text('#asm-output .fastener')
+        assert not errors, errors
+        browser.close()

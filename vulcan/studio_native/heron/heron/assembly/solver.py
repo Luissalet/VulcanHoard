@@ -11,6 +11,12 @@ exact residuals (orientation of normals/axes and positional offset). The result 
   removal would make it satisfiable. Poses are those of the accepted relations;
 * ``ambiguous``: an ``orientation: either`` relation is satisfiable both ways. Nothing is chosen: the
   candidates are returned and the poses stay at their initial values.
+
+Relation types: ``coincident``/``distance`` (planes), ``coaxial`` (axes), ``angle`` (angle in degrees between two
+reference directions: plane normals or axis directions as listed), and point relations ``point_on_plane``
+(``a`` point, ``b`` plane, optional signed offset along the plane normal), ``point_on_axis`` and
+``point_coincident``. Residuals and their Jacobian are analytic; the Jacobian of the free-motion analysis
+(``jacobian``) stays numeric on purpose, as an independent check.
 """
 from __future__ import annotations
 
@@ -24,6 +30,13 @@ LINEAR_TOL = 1e-5   # mm
 ANGULAR_TOL = 1e-6  # rad
 STARTS = [Rotation.from_euler(axis, angle, degrees=True) for axis, angle in
           (('x', 180), ('y', 180), ('z', 180), ('x', 90), ('x', -90), ('y', 90), ('y', -90), ('z', 90), ('z', -90))]
+
+
+def _skew(v):
+    return np.array(((0.0, -v[2], v[1]), (v[2], 0.0, -v[0]), (-v[1], v[0], 0.0)))
+
+
+_E = [_skew(np.eye(3)[i]) for i in range(3)]
 
 
 def world(ref, pose):
@@ -42,6 +55,199 @@ def _rotation_between(u, v):
         return Rotation.from_rotvec(axis / np.linalg.norm(axis) * np.pi).as_matrix()
     axis = np.cross(u, v)
     return Rotation.from_rotvec(axis / np.linalg.norm(axis) * np.arccos(c)).as_matrix()
+
+
+def _rot(w):
+    theta = float(np.sqrt(w @ w))
+    K = _skew(w)
+    if theta < 1e-6:
+        return np.eye(3) + K + 0.5 * K @ K
+    Kn = K / theta
+    return np.eye(3) + np.sin(theta) * Kn + (1 - np.cos(theta)) * Kn @ Kn
+
+
+def _skew_batch(v):
+    out = np.zeros(v.shape[:-1] + (3, 3))
+    out[..., 0, 1], out[..., 0, 2] = -v[..., 2], v[..., 1]
+    out[..., 1, 0], out[..., 1, 2] = v[..., 2], -v[..., 0]
+    out[..., 2, 0], out[..., 2, 1] = -v[..., 1], v[..., 0]
+    return out
+
+
+def rotations(w, derivatives=False):
+    """Rotation matrices of rotation vectors w (n, 3); optionally dR/dw_i for i = 0..2 as (n, 3, 3, 3), exact.
+
+    dR/dw_i = [J_l(w) e_i]x R with the left Jacobian of SO(3) J_l = I + b K + c K^2 (K = [w]x)."""
+    theta = np.linalg.norm(w, axis=1)
+    K = _skew_batch(w)
+    KK = K @ K
+    a = np.sinc(theta / np.pi)                      # sin(t) / t
+    b = 0.5 * np.sinc(theta / (2 * np.pi)) ** 2     # (1 - cos t) / t^2
+    R = np.eye(3) + a[:, None, None] * K + b[:, None, None] * KK
+    if not derivatives:
+        return R
+    small = theta < 1e-2
+    safe = np.where(small, 1.0, theta)
+    c = np.where(small, 1 / 6 - theta ** 2 / 120 + theta ** 4 / 5040, (theta - np.sin(theta)) / safe ** 3)
+    Jl = np.eye(3) + b[:, None, None] * K + c[:, None, None] * KK
+    return R, np.stack([_skew_batch(Jl[:, :, i]) @ R for i in range(3)], axis=1)
+
+
+class Compiled:
+    """Relations of one solve as arrays grouped by type, so residuals and the exact Jacobian are a handful of vectorised operations."""
+
+    ROWS = {'coincident': 4, 'distance': 4, 'coaxial': 6, 'angle_vec': 3, 'angle': 1, 'point_on_plane': 1, 'point_on_axis': 3, 'point_coincident': 3}
+
+    def __init__(self, problem, relations):
+        self.problem = problem
+        free = problem.free
+        names = list(free) + sorted({c for r in relations for c in (r['a'][0], r['b'][0]) if c not in problem.index})
+        position = {c: i for i, c in enumerate(names)}
+        self.nfree = len(free)
+        self.fixed_R = np.array([problem.fixed[c][0] for c in names[len(free):]]).reshape(-1, 3, 3)
+        self.fixed_t = np.array([problem.fixed[c][1] for c in names[len(free):]]).reshape(-1, 3)
+        n = len(relations)
+        self.ia = np.array([position[r['a'][0]] for r in relations], int)
+        self.ib = np.array([position[r['b'][0]] for r in relations], int)
+        arrays = [problem.arrays(*r['a']) + problem.arrays(*r['b']) for r in relations]
+        self.oa, self.da, self.ob, self.db = (np.array([a[k] for a in arrays]).reshape(n, 3) for k in range(4))
+        self.value = np.array([r['value'] for r in relations], float)
+        self.sign = np.array([(1.0 if r['orientation'] == 'opposed' else -1.0) for r in relations])
+        kinds = ['angle_vec' if is_vector_angle(r) else r['type'] for r in relations]
+        for k, r in enumerate(relations):
+            if kinds[k] == 'angle_vec':
+                self.sign[k] = -1.0 if abs(r['value']) < 1e-9 else 1.0
+        self.groups = {}
+        rows = np.array([self.ROWS[k] for k in kinds], int)
+        self.offset = np.concatenate([[0], np.cumsum(rows)])[:-1]
+        self.total = int(rows.sum())
+        for kind in self.ROWS:
+            where = np.array([k for k, v in enumerate(kinds) if v == kind], int)
+            if len(where):
+                span = self.offset[where][:, None] + np.arange(self.ROWS[kind])[None, :]
+                self.groups[kind] = (where, span)
+
+    def frames(self, x, derivatives=False):
+        w = np.asarray(x, float).reshape(-1, 6)
+        if derivatives:
+            R, dR = rotations(w[:, :3], True)
+        else:
+            R, dR = rotations(w[:, :3]), None
+        return np.concatenate([R, self.fixed_R]), np.concatenate([w[:, 3:], self.fixed_t]), dR
+
+    def evaluate(self, R, t, derivatives=False):
+        """Residual vector (orientation rows scaled, then position rows, per relation) and optionally per-group derivatives."""
+        sc, I3 = self.problem.scale, np.eye(3)
+        Ra, Rb = R[self.ia], R[self.ib]
+        Pa = np.einsum('nij,nj->ni', Ra, self.oa) + t[self.ia]
+        Da = np.einsum('nij,nj->ni', Ra, self.da)
+        Pb = np.einsum('nij,nj->ni', Rb, self.ob) + t[self.ib]
+        Db = np.einsum('nij,nj->ni', Rb, self.db)
+        out = np.zeros(self.total)
+        derived = {}
+        for kind, (where, span) in self.groups.items():
+            pa, da, pb, db = Pa[where], Da[where], Pb[where], Db[where]
+            s, v = self.sign[where], self.value[where]
+            m = len(where)
+            zero = np.zeros((m, self.ROWS[kind], 3))
+            d = {'Pa': zero, 'Da': zero, 'Pb': zero, 'Db': zero}
+            if kind in ('coincident', 'distance', 'coaxial', 'angle_vec'):
+                ori = da + s[:, None] * db
+                pieces = [ori * sc]
+                eye = np.broadcast_to(I3, (m, 3, 3))
+                top_a, top_b = sc * eye, s[:, None, None] * sc * eye
+                if kind in ('coincident', 'distance'):
+                    pieces.append((np.einsum('ni,ni->n', da, pb - pa) - v)[:, None])
+                    pa_rows, da_rows = -da[:, None, :], (pb - pa)[:, None, :]
+                    pb_rows = da[:, None, :]
+                    if derivatives:
+                        d['Da'] = np.concatenate([top_a, da_rows], axis=1)
+                        d['Db'] = np.concatenate([top_b, np.zeros((m, 1, 3))], axis=1)
+                        d['Pa'] = np.concatenate([np.zeros((m, 3, 3)), pa_rows], axis=1)
+                        d['Pb'] = np.concatenate([np.zeros((m, 3, 3)), pb_rows], axis=1)
+                elif kind == 'coaxial':
+                    delta = pb - pa
+                    pieces.append(delta - np.einsum('ni,ni->n', delta, da)[:, None] * da)
+                    if derivatives:
+                        Pm = eye - np.einsum('ni,nj->nij', da, da)
+                        dd = -(np.einsum('ni,ni->n', da, delta)[:, None, None] * eye + np.einsum('ni,nj->nij', da, delta))
+                        d['Da'] = np.concatenate([top_a, dd], axis=1)
+                        d['Db'] = np.concatenate([top_b, np.zeros((m, 3, 3))], axis=1)
+                        d['Pa'] = np.concatenate([np.zeros((m, 3, 3)), -Pm], axis=1)
+                        d['Pb'] = np.concatenate([np.zeros((m, 3, 3)), Pm], axis=1)
+                elif derivatives:
+                    d['Da'], d['Db'] = top_a, top_b
+                block = np.concatenate(pieces, axis=1)
+            elif kind == 'angle':
+                block = (np.einsum('ni,ni->n', da, db) - np.cos(np.radians(v)))[:, None] * sc
+                if derivatives:
+                    d['Da'], d['Db'] = sc * db[:, None, :], sc * da[:, None, :]
+            elif kind == 'point_on_plane':
+                block = (np.einsum('ni,ni->n', db, pa - pb) - v)[:, None]
+                if derivatives:
+                    d['Pa'], d['Pb'], d['Db'] = db[:, None, :], -db[:, None, :], (pa - pb)[:, None, :]
+            elif kind == 'point_on_axis':
+                delta = pa - pb
+                block = delta - np.einsum('ni,ni->n', delta, db)[:, None] * db
+                if derivatives:
+                    eye = np.broadcast_to(I3, (m, 3, 3))
+                    Pm = eye - np.einsum('ni,nj->nij', db, db)
+                    d['Pa'], d['Pb'] = Pm, -Pm
+                    d['Db'] = -(np.einsum('ni,ni->n', db, delta)[:, None, None] * eye + np.einsum('ni,nj->nij', db, delta))
+            else:  # point_coincident
+                block = pb - pa
+                if derivatives:
+                    eye = np.broadcast_to(I3, (m, 3, 3))
+                    d['Pa'], d['Pb'] = -eye, eye
+            out[span] = block
+            derived[kind] = d
+        return (out, derived) if derivatives else out
+
+    def residual(self, x):
+        R, t, _ = self.frames(x)
+        return self.evaluate(R, t)
+
+    def jacobian(self, x):
+        R, t, dR = self.frames(x, True)
+        out, derived = self.evaluate(R, t, True)
+        jac = np.zeros((self.total, 6 * self.nfree))
+        for kind, (where, span) in self.groups.items():
+            d = derived[kind]
+            for end, idx, o, dv in (('a', self.ia, self.oa, self.da), ('b', self.ib, self.ob, self.db)):
+                comp = idx[where]
+                free = comp < self.nfree
+                if not free.any():
+                    continue
+                sel, c = np.nonzero(free)[0], comp[free]
+                MP = np.einsum('nkij,nj->nik', dR[c], o[where][free])
+                MD = np.einsum('nkij,nj->nik', dR[c], dv[where][free])
+                JP, JD = d['P' + end][free], d['D' + end][free]
+                rot = JP @ MP + JD @ MD
+                rows = span[sel]
+                cols = 6 * c
+                jac[rows[:, :, None], cols[:, None, None] + np.arange(3)[None, None, :]] += rot
+                jac[rows[:, :, None], cols[:, None, None] + 3 + np.arange(3)[None, None, :]] += JP
+        return jac
+
+
+DIRECTIONAL = ('coincident', 'distance', 'coaxial', 'angle')
+POINT_TYPES = ('point_on_plane', 'point_on_axis', 'point_coincident')
+
+
+def is_vector_angle(relation):
+    """An angle of 0 or 180 degrees is the same condition as aligned/opposed directions (a vector residual); other angles use the dot product."""
+    return relation['type'] == 'angle' and (abs(relation['value']) < 1e-9 or abs(relation['value'] - 180.0) < 1e-9)
+
+
+def independent_equations(relation):
+    t = relation['type']
+    if t in ('coincident', 'distance'):
+        return 3
+    if t == 'coaxial':
+        return 4
+    if t == 'angle':
+        return 2 if is_vector_angle(relation) else 1
+    return {'point_on_plane': 1, 'point_on_axis': 2, 'point_coincident': 3}[t]
 
 
 class Problem:
@@ -65,47 +271,113 @@ class Problem:
     def poses(self, x):
         out = dict(self.fixed)
         for c, i in self.index.items():
-            out[c] = (Rotation.from_rotvec(x[6 * i:6 * i + 3]).as_matrix(), np.array(x[6 * i + 3:6 * i + 6]))
+            out[c] = (_rot(x[6 * i:6 * i + 3]), np.array(x[6 * i + 3:6 * i + 6]))
         return out
 
-    def relation_residual(self, relation, poses):
+    def arrays(self, comp, name):
+        cache = self.components[comp].setdefault('_arrays', {})
+        if name not in cache:
+            ref = self.components[comp]['refs'][name]
+            cache[name] = (np.asarray(ref['origin'], float), np.asarray(ref['direction'], float))
+        return cache[name]
+
+    def terms(self, relation, poses):
+        """(orientation residual, position residual) of one relation, unscaled; used for reporting and consistency checks."""
         (ca, ra), (cb, rb) = relation['a'], relation['b']
-        pa, da = world(self.components[ca]['refs'][ra], poses[ca])
-        pb, db = world(self.components[cb]['refs'][rb], poses[cb])
-        sign = 1.0 if relation['orientation'] == 'opposed' else -1.0
-        orientation = da + sign * db
-        if relation['type'] == 'coaxial':
-            delta = pb - pa
-            position = delta - (delta @ da) * da
-        else:
-            position = np.array([da @ (pb - pa) - relation['value']])
-        return orientation, position
+        oa, da = self.arrays(ca, ra)
+        ob, db = self.arrays(cb, rb)
+        Ra, ta = poses[ca]
+        Rb, tb = poses[cb]
+        Pa, Da, Pb, Db = Ra @ oa + ta, Ra @ da, Rb @ ob + tb, Rb @ db
+        kind = relation['type']
+        nothing = np.zeros(0)
+        if kind in ('coincident', 'distance', 'coaxial') or is_vector_angle(relation):
+            if kind == 'angle':
+                sign = -1.0 if abs(relation['value']) < 1e-9 else 1.0
+            else:
+                sign = 1.0 if relation['orientation'] == 'opposed' else -1.0
+            if kind == 'coaxial':
+                d = Pb - Pa
+                pos = d - (d @ Da) * Da
+            elif kind == 'angle':
+                pos = nothing
+            else:
+                pos = np.array([Da @ (Pb - Pa) - relation['value']])
+            return Da + sign * Db, pos
+        if kind == 'angle':
+            return np.array([Da @ Db - np.cos(np.radians(relation['value']))]), nothing
+        if kind == 'point_on_plane':
+            return nothing, np.array([Db @ (Pa - Pb) - relation['value']])
+        if kind == 'point_on_axis':
+            d = Pa - Pb
+            return nothing, d - (d @ Db) * Db
+        return nothing, Pb - Pa
+
+    def compiled(self, relations):
+        key = tuple(id(r) for r in relations)
+        cache = self.__dict__.setdefault('_compiled', {})
+        if key not in cache:
+            if len(cache) > 64:
+                cache.clear()
+            cache[key] = (Compiled(self, relations), relations)  # keep the list alive so ids stay unique
+        return cache[key][0]
 
     def residual(self, x, relations=None):
-        poses = self.poses(x)
-        parts = []
-        for relation in (self.relations if relations is None else relations):
-            orientation, position = self.relation_residual(relation, poses)
-            parts += [orientation * self.scale, position]
-        return np.concatenate(parts) if parts else np.zeros(0)
+        relations = self.relations if relations is None else relations
+        return self.compiled(relations).residual(x) if relations else np.zeros(0)
+
+    def analytic_jacobian(self, x, relations=None):
+        """Exact derivative of ``residual`` with respect to the packed rotation vectors and translations."""
+        relations = self.relations if relations is None else relations
+        return self.compiled(relations).jacobian(x) if relations else np.zeros((0, 6 * len(self.free)))
 
     def measure(self, relation, poses):
-        orientation, position = self.relation_residual(relation, poses)
-        angle = 2 * np.arcsin(min(1.0, np.linalg.norm(orientation) / 2))
-        return float(np.linalg.norm(position)), float(angle)
+        """(linear residual in mm, angular residual in rad) of one relation."""
+        if relation['type'] == 'angle' and not is_vector_angle(relation):
+            (ca, ra), (cb, rb) = relation['a'], relation['b']
+            Da, Db = poses[ca][0] @ self.arrays(ca, ra)[1], poses[cb][0] @ self.arrays(cb, rb)[1]
+            return 0.0, float(abs(np.arccos(np.clip(Da @ Db, -1, 1)) - np.radians(relation['value'])))
+        orientation, position = self.terms(relation, poses)
+        angle = 2 * np.arcsin(min(1.0, np.linalg.norm(orientation) / 2)) if len(orientation) else 0.0
+        return float(np.linalg.norm(position)) if len(position) else 0.0, float(angle)
 
     def consistent(self, x, relations):
         poses = self.poses(x)
         return all(lin <= LINEAR_TOL and ang <= ANGULAR_TOL for lin, ang in (self.measure(r, poses) for r in relations))
 
     def least_squares(self, x0, relations):
+        """Staged least squares. A loose run (relative cost change 1e-5, at most 60 iterations) shows where a start is heading: when it
+        ends in a local minimum with a residual left, or has not reached the relations after the budget, the start is abandoned
+        (there is no point polishing it); a start that reaches the relations is polished to rounding level."""
         if not relations or not self.free:
             return x0
-        fun = lambda x: self.residual(x, relations)
-        if not len(fun(x0)):
+        if not len(self.residual(x0, relations)):
             return x0
-        result = least_squares(fun, x0, method='trf', xtol=1e-13, ftol=1e-13, gtol=1e-13, max_nfev=200)
-        return result.x
+        fun, jac = (lambda x: self.residual(x, relations)), (lambda x: self.analytic_jacobian(x, relations))
+        with np.errstate(all='ignore'):  # exact trust-region solves divide 0/0 on rank-deficient Jacobians; the result is checked below
+            loose = least_squares(fun, x0, jac=jac, method='trf', xtol=1e-9, ftol=1e-5, gtol=1e-9, max_nfev=60)
+        if not self.nearly_consistent(loose.x, relations):
+            return loose.x
+        return self.polish(loose.x, fun, jac)
+
+    @staticmethod
+    def polish(x, fun, jac, steps=8):
+        """Minimum-norm Gauss-Newton steps (rank deficiency from redundant relations is harmless) until the residual is at rounding level."""
+        r = fun(x)
+        for _ in range(steps):
+            if not len(r) or np.abs(r).max() < 1e-12:
+                break
+            step = np.linalg.lstsq(jac(x), -r, rcond=1e-10)[0]
+            trial = x + step
+            r_trial = fun(trial)
+            if float(r_trial @ r_trial) >= float(r @ r):
+                break
+            x, r = trial, r_trial
+        return x
+
+    def nearly_consistent(self, x, relations, factor=1e3):
+        poses = self.poses(x)
+        return all(lin <= LINEAR_TOL * factor and ang <= ANGULAR_TOL * factor for lin, ang in (self.measure(r, poses) for r in relations))
 
     def seed(self, relations, poses=None):
         """Constructive start: align each newly reached component's reference with its partner, in declaration order."""
@@ -115,17 +387,43 @@ class Problem:
         while progress:
             progress = False
             for relation in relations:
+                kind = relation['type']
+                if kind in ('point_on_plane', 'point_on_axis'):
+                    continue  # no unique placement from these; least squares refines from the current pose
                 (ca, ra), (cb, rb) = relation['a'], relation['b']
+                if kind == 'angle':
+                    # The dot product is stationary at 0 and 180 degrees, so start from a direction that already makes the angle:
+                    # turn the newly reached component about its own origin, keeping the plane of the current directions.
+                    for here, href, there, tref in ((ca, ra, cb, rb), (cb, rb, ca, ra)):
+                        if here in placed and there not in placed:
+                            _, d_here = world(self.components[here]['refs'][href], poses[here])
+                            R, t = poses[there]
+                            _, d_there = world(self.components[there]['refs'][tref], (R, t))
+                            perp = d_there - (d_there @ d_here) * d_here
+                            if np.linalg.norm(perp) < 1e-9:
+                                perp = np.cross(d_here, np.array((1.0, 0, 0)) if abs(d_here[0]) < 0.9 else np.array((0, 1.0, 0)))
+                            perp = perp / np.linalg.norm(perp)
+                            angle = np.radians(relation['value'])
+                            poses[there] = (_rotation_between(d_there, np.cos(angle) * d_here + np.sin(angle) * perp) @ R, t)
+                            placed.add(there)
+                            progress = True
+                    continue
                 for here, href, there, tref in ((ca, ra, cb, rb), (cb, rb, ca, ra)):
                     if here in placed and there not in placed:
                         p_here, d_here = world(self.components[here]['refs'][href], poses[here])
-                        target = -d_here if relation['orientation'] == 'opposed' else d_here
                         R, t = poses[there]
+                        if kind == 'point_coincident':
+                            origin = R @ np.asarray(self.components[there]['refs'][tref]['origin'])
+                            poses[there] = (R, p_here - origin)
+                            placed.add(there)
+                            progress = True
+                            continue
+                        target = -d_here if relation['orientation'] == 'opposed' else d_here
                         _, d_there = world(self.components[there]['refs'][tref], (R, t))
                         R = _rotation_between(d_there, target) @ R
                         origin = R @ np.asarray(self.components[there]['refs'][tref]['origin'])
                         goal = p_here
-                        if relation['type'] != 'coaxial':
+                        if kind != 'coaxial':
                             # n_a . (p_b - p_a) = value
                             goal = p_here + relation['value'] * d_here if here == ca else p_here - relation['value'] * target
                         poses[there] = (R, goal - origin)
@@ -134,6 +432,21 @@ class Problem:
         return self.pack(poses)
 
     def solve(self, relations, x_start, focus=None):
+        """Solve only the components the relations touch (the others cannot change the outcome), then scatter the result back."""
+        touched = {c for r in relations for c in (r['a'][0], r['b'][0]) if c in self.index}
+        if len(touched) == len(self.free):
+            return self._solve(relations, x_start, focus)
+        start = self.poses(x_start)
+        frozen = dict(self.fixed, **{c: start[c] for c in self.free if c not in touched})
+        sub = Problem(self.components, self.relations, self.initial, frozen, self.scale)
+        x_sub, ok = sub._solve(relations, sub.pack(start), focus)
+        x = np.array(x_start, float)
+        for c, j in sub.index.items():
+            i = self.index[c]
+            x[6 * i:6 * i + 6] = x_sub[6 * j:6 * j + 6]
+        return x, ok
+
+    def _solve(self, relations, x_start, focus=None):
         """Least squares from x_start, then from the constructive seed, then deterministic rotated restarts of the
         focus components (the two ends of the relation being added) to leave saddle points of the orientation terms."""
         attempts = [x_start, self.seed(relations, self.poses(x_start)), self.seed(relations)]
@@ -335,7 +648,7 @@ def redundancy(problem, x, relations):
     J = problem.jacobian(x, relations)
     s = np.linalg.svd(J, compute_uv=False)
     rank = int(np.sum(s > 1e-7 * max(1.0, s[0])))
-    equations = sum(2 + (2 if r['type'] == 'coaxial' else 1) for r in relations)
+    equations = sum(independent_equations(r) for r in relations)
     return max(0, equations - rank)
 
 
