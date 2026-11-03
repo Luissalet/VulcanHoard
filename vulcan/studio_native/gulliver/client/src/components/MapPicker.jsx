@@ -18,7 +18,7 @@ function handleIcon(cls, label) {
  * The area picker. `value` = {lon, lat, width_m, height_m, shape, tiles_x, tiles_y}; `onChange(patch)` gets new centre / size.
  * Drag the centre handle to move, the corner handle to resize, click the map to recentre. `flyTo` = [w, s, e, n] fits the view.
  */
-export default function MapPicker({ value, onChange, flyTo, base = "osm", labels, readOnly = false, pickMode = false, onPick, highlight = null, route = null }) {
+export default function MapPicker({ value, onChange, flyTo, base = "osm", labels, readOnly = false, pickMode = false, onPick, highlight = null, route = null, overlay = null }) {
   const holder = useRef(null);
   const state = useRef({});
   const onChangeRef = useRef(onChange);
@@ -92,6 +92,17 @@ export default function MapPicker({ value, onChange, flyTo, base = "osm", labels
     layer.bringToBack();
     return () => { map.removeLayer(layer); };
   }, [base]);
+
+  // the aerial picture the model will be draped with (area_imagery), laid exactly over the area's box
+  useEffect(() => {
+    const { map } = state.current;
+    if (!map || !overlay?.url || !overlay?.bbox) return undefined;
+    const [w, s, e, n] = overlay.bbox;
+    const layer = L.imageOverlay(overlay.url, [[s, w], [n, e]], { opacity: overlay.opacity ?? 1, interactive: false,
+      className: "gm-imagery", attribution: overlay.attribution || "" }).addTo(map);
+    layer.bringToBack();                         // under the outline and the tile seams
+    return () => { map.removeLayer(layer); };
+  }, [overlay?.url, overlay?.bbox?.join(","), overlay?.opacity]);
 
   // the highlighted place (gold marker)
   useEffect(() => {
