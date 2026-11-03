@@ -11,6 +11,7 @@ from .organize import plan_view
 from .search import SORT_NAMES, Filters
 from .services import Services
 from .copilot_context import ContextArgs, build_context
+from .model_comparison import CompareArgs
 
 AGENT_INSTRUCTIONS = """Vulcan's Hoard is the user's own library of 3D-printable models (STL, 3MF, OBJ files in folders on their PC), scanned locally: for every file it knows the size in mm, triangles, volume, whether the mesh is watertight, how many bodies it has, a thumbnail, tags, notes and an optional marketplace listing (title, description, tags, category).
 Describe a model only from what the geometry data and the user say: dimensions, number of parts, watertightness, file format, folder and the user's own notes and tags. Never invent features, materials, history or use cases that are not in the data or in the conversation; ask the user when the listing needs them.
@@ -520,6 +521,19 @@ TOOLS: list[Tool] = [
 ]
 
 TOOLS.append(Tool("copilot_context_get", "Read native context for a library view without starting work. Keywords: contexto, vista, edición sin guardar.\nResolve real model, folder listing, root or album IDs for the Faustus copilot. New/missing IDs return no active object and never create one or start a scan. Optional editor and selection are supplied snapshots, not a browser inspection. The stores are the same ones used by model_info and folder_listing_get.\nSinónimos: contexto actual, vista, selección, borrador, edición sin guardar.", ContextArgs, ann(True), run_copilot_context))
+
+def run_model_compare(services: Services, args: CompareArgs) -> dict:
+    from .model_comparison import compare_models
+    return compare_models(services, args)
+
+
+TOOLS.append(Tool('model_compare', 'Compare two indexed 3D revisions in physical units without changing files.\n'
+    'Reports raw and optionally rigid-aligned bidirectional sampled surface distances, bounds, volume validity, '
+    'worst-point coordinates and the applied B-to-A transform. Never rescales or mirrors to align. '
+    'File units are used when declared; auto otherwise reports an explicit mm assumption. '
+    'ICP is local and sampled agreement is not a proof of identity or manufacturing tolerance.\n'
+    'Sinónimos: comparar revisiones, agujero nuevo, diferencia geométrica, cambio de forma, alinear piezas.',
+    CompareArgs, ann(True), run_model_compare))
 
 TOOLS_BY_NAME = {tool.name: tool for tool in TOOLS}
 

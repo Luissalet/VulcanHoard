@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 
 from ..search import SORT_NAMES, Filters
 from .deps import services
+from ..model_comparison import CompareArgs, Units, compare_models, read_model
 
 router = APIRouter(prefix="/api")
 
@@ -77,6 +78,18 @@ def list_models(request: Request, query: Annotated[ListQuery, Query()]):
 @router.get("/models/facets")
 def facets(request: Request):
     return services(request).search.facets()
+
+
+@router.post('/model-comparison')
+def model_comparison(request: Request, body: CompareArgs):
+    return compare_models(services(request), body)
+
+
+@router.get('/models/{model_id}/comparison-mesh')
+def comparison_mesh(request: Request, model_id: int, units: Units = 'auto', sha: str | None = None):
+    mesh, source = read_model(services(request), model_id, units, expected_sha=sha)
+    return Response(mesh.export(file_type='stl'), media_type='model/stl',
+                    headers={'X-Source-Sha256': source['sha256'], 'Cache-Control': 'no-store'})
 
 
 @router.get("/search")
