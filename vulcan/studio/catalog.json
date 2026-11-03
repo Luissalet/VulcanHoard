@@ -2143,7 +2143,7 @@
   },
   {
     "name": "asset_inspect",
-    "description": "Draft report: what stops a 3D asset meeting a destination profile, measured. Keywords: inspeccionar activo.\nMeasures a library model or file (STL/OBJ/3MF/GLB/glTF) on CPU: triangles, bytes, bodies, open edges, units, UVs, materials, textures, animations; each marked observed, not available in the format or not measured. Checks link to measurements; separates defects, recommendations (with losses) and the plan. Writes nothing.\nSinónimos: qué le impide, auditar activo, comprobar para web, para imprimir.",
+    "description": "Draft report: what stops a 3D asset meeting a destination profile, measured. Keywords: inspeccionar activo.\nMeasures a library model or file (STL/OBJ/3MF/GLB/glTF) on CPU: triangles, bytes, bodies, open edges, units, UVs, materials, textures, animations (3MF colour groups/textures included); each marked observed, not available in the format or not measured. The FDM wall rule is a sampled inward-ray estimate (p5) on closed meshes. The report locates defects: open-edge loops, bodies, thin regions (coordinates in mm). Checks link to measurements; separates defects, recommendations (with losses) and the plan. Writes nothing.\nSinónimos: qué le impide, auditar activo, comprobar para web, para imprimir.",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,

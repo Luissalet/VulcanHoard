@@ -6,7 +6,7 @@ profiles ship with the app; the user can edit them (an override is stored, delet
 and create new ones. Stored as JSON in ``<data dir>/asset_targets.json`` (the same per-feature JSON pattern as the slicer
 settings), written atomically. A rule left at ``None`` is not checked.
 
-A rule the inspection cannot measure (wall thickness in this first cut) is reported as *not evaluated*, never as passed.
+A rule the inspection cannot measure (wall thickness of an open mesh, no ray engine) is reported as *not evaluated*, never as passed.
 """
 
 from __future__ import annotations
@@ -43,7 +43,7 @@ class TargetRules(BaseModel):
     accepted_formats: list[str] = Field(default_factory=list, description="Accepted delivery formats; empty = any.")
     units: str = Field("mm", pattern="^(mm|cm|m|in)$", description="Unit the destination expects.")
     max_extent_mm: list[float] | None = Field(None, min_length=3, max_length=3, description="Build volume / bounding box limit in mm (any axis order).")
-    min_wall_mm: float | None = Field(None, gt=0, description="Minimum wall thickness in mm. Not measured in this version: reported as not evaluated.")
+    min_wall_mm: float | None = Field(None, gt=0, description="Minimum wall thickness in mm. Checked against the 5th percentile of a sampled inward-ray estimate on closed meshes; open meshes or no ray engine: not evaluated.")
     max_deviation_mm: float | None = Field(None, gt=0, description="Tolerance for the sampled surface deviation of a prepared variant, in mm.")
 
 
