@@ -1,7 +1,7 @@
 [
   {
     "name": "models_search",
-    "description": "Search the 3D model library by words and filters. Keywords: buscar modelo, encuentra mi STL, figura de.\nSearch the user's 3D model library by words (name, tags, notes, folder, listing text) with filters: format, tag, collection, watertight, has_listing, duplicates, size in mm. Returns id, name, format, bbox (mm), triangles, tags, has_listing and thumb_url per hit. Ranking sorts (-extent, -volume, -size, -triangles, -date) fold identical files into one hit with a 'copies' count, so 'the three biggest' are three different models. First step for 'find my model of X'.\nSinÃ³nimos: buscar modelo, modelo 3D, STL, 3MF, OBJ, impresiÃ³n 3D, archivo, figura, pieza, buscar en mis modelos, cuÃ¡l era, carpeta de modelos, etiquetas, tamaÃ±o en mm, miniatura.",
+    "description": "Search the 3D model library by words and filters. Keywords: buscar modelo, encuentra mi STL, figura de.\nSearch the user's 3D model library by words (name, tags, notes, folder, listing text) with filters: format, tag, collection, watertight, has_listing, duplicates, size in mm. Returns id, name, format, bbox (mm), triangles, tags, has_listing and thumb_url per hit. Ranking sorts (-extent, -volume, -size, -triangles, -date) fold identical files into one hit with a 'copies' count, so 'the three biggest' are three different models. First step for 'find my model of X'.\nSinónimos: buscar modelo, modelo 3D, STL, 3MF, OBJ, impresión 3D, archivo, figura, pieza, buscar en mis modelos, cuál era, carpeta de modelos, etiquetas, tamaño en mm, miniatura.",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -173,7 +173,7 @@
   },
   {
     "name": "model_info",
-    "description": "Everything about one model: size in mm, triangles, tags, listing, duplicates. Keywords: ficha, dimensiones.\nEverything about one model (by id or path): dimensions in mm, triangles, vertices, volume, surface, watertight, bodies (parts), units guess, folder, tags, notes, listing, exact and near duplicates, albums, thumb_url.\nSinÃ³nimos: modelo 3D, ficha, detalles, cuÃ¡ntos triÃ¡ngulos, tamaÃ±o en mm, medidas, volumen, es estanco, cuÃ¡ntas piezas, duplicados, STL, ruta del archivo, miniatura.",
+    "description": "Everything about one model: size in mm, triangles, tags, listing, duplicates. Keywords: ficha, dimensiones.\nEverything about one model (by id or path): dimensions in mm, triangles, vertices, volume, surface, watertight, bodies (parts), units guess, folder, tags, notes, listing, exact and near duplicates, albums, thumb_url.\nSinónimos: modelo 3D, ficha, detalles, cuántos triángulos, tamaño en mm, medidas, volumen, es estanco, cuántas piezas, duplicados, STL, ruta del archivo, miniatura.",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -219,7 +219,7 @@
   },
   {
     "name": "model_listing_get",
-    "description": "The marketplace listing of a model, or none. Keywords: ver ficha de tienda, descripciÃ³n, tags.\nThe marketplace listing of a model (title, description, tags, category, price hint, language, source, updated_at), or none.\nSinÃ³nimos: ficha, descripciÃ³n para la tienda, texto de la tienda, tÃ­tulo, etiquetas, categorÃ­a, precio, ficha del modelo.",
+    "description": "The marketplace listing of a model, or none. Keywords: ver ficha de tienda, descripción, tags.\nThe marketplace listing of a model (title, description, tags, category, price hint, language, source, updated_at), or none.\nSinónimos: ficha, descripción para la tienda, texto de la tienda, título, etiquetas, categoría, precio, ficha del modelo.",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -246,7 +246,7 @@
   },
   {
     "name": "model_listing_set",
-    "description": "Write a model's marketplace listing: title, description, tags (write). Keywords: escribe la ficha, publicar.\nWrite the marketplace listing of a model (write): title, description (markdown), tags, category, price_hint, language. Fields left out keep their value; source is recorded as assistant. Idempotent: saving the same text twice changes nothing but the timestamp. Describe only what the geometry and the user say.\nSinÃ³nimos: genera la ficha, escribe la descripciÃ³n para la tienda, ficha del modelo, tÃ­tulo y descripciÃ³n, etiquetas para la tienda, categorÃ­a, precio, redactar.",
+    "description": "Write a model's marketplace listing: title, description, tags (write). Keywords: escribe la ficha, publicar.\nWrite the marketplace listing of a model (write): title, description (markdown), tags, category, price_hint, language. Fields left out keep their value; source is recorded as assistant. Idempotent: saving the same text twice changes nothing but the timestamp. Describe only what the geometry and the user say.\nSinónimos: genera la ficha, escribe la descripción para la tienda, ficha del modelo, título y descripción, etiquetas para la tienda, categoría, precio, redactar.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -358,7 +358,7 @@
   },
   {
     "name": "model_tag",
-    "description": "Add or remove tags on a model (write). Keywords: etiquetar, quitar etiqueta, clasificar modelo.\nAdd and/or remove tags on a model (write). Tags are lower-cased and de-duplicated; adding an existing tag is a no-op.\nSinÃ³nimos: etiquetar, aÃ±adir etiqueta, quitar etiqueta, etiquetas, tags, marcar, clasificar modelo.",
+    "description": "Add or remove tags on a model (write). Keywords: etiquetar, quitar etiqueta, clasificar modelo.\nAdd and/or remove tags on a model (write). Tags are lower-cased and de-duplicated; adding an existing tag is a no-op.\nSinónimos: etiquetar, añadir etiqueta, quitar etiqueta, etiquetas, tags, marcar, clasificar modelo.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -402,7 +402,7 @@
   },
   {
     "name": "model_note",
-    "description": "Replace or append the user's notes on a model (write).\nSinÃ³nimos: nota, apuntar, anotar, notas del modelo, recordar sobre este modelo, comentario.",
+    "description": "Replace or append the user's notes on a model (write).\nSinónimos: nota, apuntar, anotar, notas del modelo, recordar sobre este modelo, comentario.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -441,7 +441,7 @@
   },
   {
     "name": "models_stats",
-    "description": "Library statistics: counts, sizes, duplicates, scan queue and ETA. Keywords: cuÃ¡ntos modelos, estadÃ­sticas.\nLibrary statistics: models, bytes and triangles by format and by root folder, collections, listings, duplicates, errors, skipped files, scan queue with files/second and ETA per root, and folder watching. Cheap to call repeatedly (cached 5 s during a scan).\nSinÃ³nimos: estadÃ­sticas, cuÃ¡ntos modelos, cuÃ¡ntos STL, tamaÃ±o de la biblioteca, carpetas de modelos, estÃ¡ escaneando, progreso, resumen.",
+    "description": "Library statistics: counts, sizes, duplicates, scan queue and ETA. Keywords: cuántos modelos, estadísticas.\nLibrary statistics: models, bytes and triangles by format and by root folder, collections, listings, duplicates, errors, skipped files, scan queue with files/second and ETA per root, and folder watching. Cheap to call repeatedly (cached 5 s during a scan).\nSinónimos: estadísticas, cuántos modelos, cuántos STL, tamaño de la biblioteca, carpetas de modelos, está escaneando, progreso, resumen.",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -459,7 +459,7 @@
   },
   {
     "name": "models_dupes",
-    "description": "Duplicate groups, exact or near. Keywords: duplicados, repetidos, modelos iguales.\nDuplicate groups: exact (identical files, same sha256) or near (same triangle count, volume and bounding box within 1 %; suggestions to review). Each group lists id, name, path, size and dimensions.\nSinÃ³nimos: duplicados, repetidos, archivos iguales, copias, modelos parecidos, limpiar duplicados, mismo STL.",
+    "description": "Duplicate groups, exact or near. Keywords: duplicados, repetidos, modelos iguales.\nDuplicate groups: exact (identical files, same sha256) or near (same triangle count, volume and bounding box within 1 %; suggestions to review). Each group lists id, name, path, size and dimensions.\nSinónimos: duplicados, repetidos, archivos iguales, copias, modelos parecidos, limpiar duplicados, mismo STL.",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -491,7 +491,7 @@
   },
   {
     "name": "models_similar",
-    "description": "Find models with a similar 3D shape to one model id. Keywords: misma forma, remallado, geometrÃ­a parecida.\nCompares filled closed meshes on a normalized voxel grid across right-angle rotations. Finds related models despite different triangle counts or uniform scale. Returns ranked scores and model ids; never labels them as duplicates.\nSinÃ³nimos: piezas parecidas, modelos con forma similar, geometrÃ­a similar, mismo objeto remallado, versiones de esta pieza, busca modelos parecidos.",
+    "description": "Find models with a similar 3D shape to one model id. Keywords: misma forma, remallado, geometría parecida.\nCompares filled closed meshes on a normalized voxel grid across right-angle rotations. Finds related models despite different triangle counts or uniform scale. Returns ranked scores and model ids; never labels them as duplicates.\nSinónimos: piezas parecidas, modelos con forma similar, geometría similar, mismo objeto remallado, versiones de esta pieza, busca modelos parecidos.",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -532,7 +532,7 @@
   },
   {
     "name": "models_add_root",
-    "description": "Add a folder of models to the library and scan it (only when asked). Keywords: aÃ±adir carpeta, escanear.\nAdd a folder of models to the library (write). The path must exist on the user's PC; adding the same folder twice returns the existing root without rescanning. Options: thumbnails=all|top-level|none and skip_small_bytes to ignore tiny auto-generated meshes; exclude globs can be edited in the app (Carpetas). Scanning (metrics + thumbnails) starts in the background, in parallel worker processes. Only when the user asks.\nSinÃ³nimos: aÃ±adir carpeta, carpeta de modelos, escanear carpeta, indexar mis STL, nueva carpeta, agregar modelos.",
+    "description": "Add a folder of models to the library and scan it (only when asked). Keywords: añadir carpeta, escanear.\nAdd a folder of models to the library (write). The path must exist on the user's PC; adding the same folder twice returns the existing root without rescanning. Options: thumbnails=all|top-level|none and skip_small_bytes to ignore tiny auto-generated meshes; exclude globs can be edited in the app (Carpetas). Scanning (metrics + thumbnails) starts in the background, in parallel worker processes. Only when the user asks.\nSinónimos: añadir carpeta, carpeta de modelos, escanear carpeta, indexar mis STL, nueva carpeta, agregar modelos.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -594,7 +594,7 @@
   },
   {
     "name": "models_rescan",
-    "description": "Rescan a root or every root for new or changed files (only when asked). Keywords: reescanear, actualizar.\nQueue a non-destructive rescan of one root or of every enabled root: only new or changed files are parsed again; deleted files are purged. Only when the user asks.\nSinÃ³nimos: reescanear, volver a escanear, actualizar biblioteca, refrescar carpeta, escanear de nuevo, reindexar.",
+    "description": "Rescan a root or every root for new or changed files (only when asked). Keywords: reescanear, actualizar.\nQueue a non-destructive rescan of one root or of every enabled root: only new or changed files are parsed again; deleted files are purged. Only when the user asks.\nSinónimos: reescanear, volver a escanear, actualizar biblioteca, refrescar carpeta, escanear de nuevo, reindexar.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -626,7 +626,7 @@
   },
   {
     "name": "models_recent",
-    "description": "The newest models by file date. Keywords: modelos recientes, Ãºltimos aÃ±adidos, nuevos.\nThe n newest models by file modification date, with id, name, format, bbox, triangles, tags, has_listing and thumb_url.\nSinÃ³nimos: recientes, Ãºltimos modelos, lo Ãºltimo que he modelado, novedades, quÃ© he aÃ±adido, modelos nuevos.",
+    "description": "The newest models by file date. Keywords: modelos recientes, últimos añadidos, nuevos.\nThe n newest models by file modification date, with id, name, format, bbox, triangles, tags, has_listing and thumb_url.\nSinónimos: recientes, últimos modelos, lo último que he modelado, novedades, qué he añadido, modelos nuevos.",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -652,7 +652,7 @@
   },
   {
     "name": "folder_listings",
-    "description": "List folder listings (one per product folder) filtered by status; folders missing one come first.\nSinÃ³nimos: fichas, listados de carpeta, quÃ© fichas faltan, estado de las fichas, carpetas sin ficha, cults3d.",
+    "description": "List folder listings (one per product folder) filtered by status; folders missing one come first.\nSinónimos: fichas, listados de carpeta, qué fichas faltan, estado de las fichas, carpetas sin ficha, cults3d.",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -705,7 +705,7 @@
   },
   {
     "name": "folder_listing_get",
-    "description": "The marketplace listing of one folder (title, description, 20 tags, status, issues), by root+path.\nSinÃ³nimos: ficha de la carpeta, tÃ­tulo y descripciÃ³n de la carpeta, etiquetas, cults3d.json, estado de la ficha.",
+    "description": "The marketplace listing of one folder (title, description, 20 tags, status, issues), by root+path.\nSinónimos: ficha de la carpeta, título y descripción de la carpeta, etiquetas, cults3d.json, estado de la ficha.",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -744,7 +744,7 @@
   },
   {
     "name": "folder_listing_set",
-    "description": "Write a folder's listing (write): title, description (English), 20 tags; saves the DB and cults3d.json.\nSinÃ³nimos: genera la ficha de la carpeta, guarda el tÃ­tulo y la descripciÃ³n, escribe las 20 etiquetas, cults3d.json.",
+    "description": "Write a folder's listing (write): title, description (English), 20 tags; saves the DB and cults3d.json.\nSinónimos: genera la ficha de la carpeta, guarda el título y la descripción, escribe las 20 etiquetas, cults3d.json.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -835,7 +835,7 @@
   },
   {
     "name": "folder_listing_check",
-    "description": "Validate one or every folder listing (format, lengths, 20 unique tags, template rules, duplicate titles).\nSinÃ³nimos: comprobar ficha, validar ficha, revisar carpeta, estÃ¡ bien la ficha, errores de la ficha.",
+    "description": "Validate one or every folder listing (format, lengths, 20 unique tags, template rules, duplicate titles).\nSinónimos: comprobar ficha, validar ficha, revisar carpeta, está bien la ficha, errores de la ficha.",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -881,7 +881,7 @@
   },
   {
     "name": "folder_listing_draft",
-    "description": "Draft folder listings with the local model in the background (write): title, description, 20 tags.\nSinÃ³nimos: redactar fichas, generar ficha con IA, borrador de ficha, rellenar fichas que faltan, redacciÃ³n automÃ¡tica.",
+    "description": "Draft folder listings with the local model in the background (write): title, description, 20 tags.\nSinónimos: redactar fichas, generar ficha con IA, borrador de ficha, rellenar fichas que faltan, redacción automática.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -934,7 +934,7 @@
   },
   {
     "name": "folder_listings_export",
-    "description": "Export folder listings of a root to CSV, Markdown or JSON in data/exports (write, returns the path).\nSinÃ³nimos: exportar fichas, exportar catÃ¡logo, csv de fichas, listado para subir a la tienda, exportar cults3d.",
+    "description": "Export folder listings of a root to CSV, Markdown or JSON in data/exports (write, returns the path).\nSinónimos: exportar fichas, exportar catálogo, csv de fichas, listado para subir a la tienda, exportar cults3d.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -980,7 +980,7 @@
   },
   {
     "name": "collection_plan",
-    "description": "Plan sorting a folder's items into group folders from a pasted list (read-only). Keywords: organizar.\nNo model: matches each immediate child of the folder to a member of the list (formats in reference), ignoring case, accents, separators and number prefixes like 0001_. Returns the target folder per group with the items moving in, items already in place, unmatched, ambiguous and conflicts, plus a plan_id for collection_apply. Nothing is moved.\nSinÃ³nimos: organizar colecciÃ³n, agrupar carpetas, una carpeta por lÃ­nea evolutiva, ordenar por lista, meter en carpetas, carpeta por grupo, nÃºmeros con ceros.",
+    "description": "Plan sorting a folder's items into group folders from a pasted list (read-only). Keywords: organizar.\nNo model: matches each immediate child of the folder to a member of the list (formats in reference), ignoring case, accents, separators and number prefixes like 0001_. Returns the target folder per group with the items moving in, items already in place, unmatched, ambiguous and conflicts, plus a plan_id for collection_apply. Nothing is moved.\nSinónimos: organizar colección, agrupar carpetas, una carpeta por línea evolutiva, ordenar por lista, meter en carpetas, carpeta por grupo, números con ceros.",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -1000,7 +1000,7 @@
             },
             "accent_insensitive": {
               "default": true,
-              "description": "Ignore accents (PokÃ©mon = pokemon).",
+              "description": "Ignore accents (Pokémon = pokemon).",
               "title": "Accent Insensitive",
               "type": "boolean"
             },
@@ -1056,7 +1056,7 @@
           "type": "string"
         },
         "reference": {
-          "description": "The list pasted by the user, one group per line, members separated by >, ->, â†’ , or ' - ', optionally with numbers: '001 Bulbasaur > Ivysaur > Venusaur'. 'Name: a > b' names the group explicitly (default: the first member). Or CSV with header group,member,number. Or the path of such a .txt/.csv file.",
+          "description": "The list pasted by the user, one group per line, members separated by >, ->, → , or ' - ', optionally with numbers: '001 Bulbasaur > Ivysaur > Venusaur'. 'Name: a > b' names the group explicitly (default: the first member). Or CSV with header group,member,number. Or the path of such a .txt/.csv file.",
           "maxLength": 400000,
           "minLength": 1,
           "title": "Reference",
@@ -1108,7 +1108,7 @@
   },
   {
     "name": "collection_apply",
-    "description": "Apply a stored collection plan: create group folders and move the items in (write). Keywords: aplicar plan.\nCarries out a plan from collection_plan by id: creates the group folders and moves the matched items into them. Never deletes and never overwrites (a collision is skipped and reported), re-checks the disk at apply time, writes an undo journal and queues a rescan of the affected root. Only when the user agrees to the plan.\nSinÃ³nimos: aplicar plan, mover a carpetas, ejecutar la organizaciÃ³n, crear carpetas por grupo, ordenar de verdad.",
+    "description": "Apply a stored collection plan: create group folders and move the items in (write). Keywords: aplicar plan.\nCarries out a plan from collection_plan by id: creates the group folders and moves the matched items into them. Never deletes and never overwrites (a collision is skipped and reported), re-checks the disk at apply time, writes an undo journal and queues a rescan of the affected root. Only when the user agrees to the plan.\nSinónimos: aplicar plan, mover a carpetas, ejecutar la organización, crear carpetas por grupo, ordenar de verdad.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -1136,7 +1136,7 @@
   },
   {
     "name": "collection_undo",
-    "description": "Undo the last collection_apply (or a given one) by moving every item back (write). Keywords: deshacer.\nReverses an apply from its journal: moves each item back to where it was, never overwriting anything (an occupied original location is skipped and reported), then removes the group folders the apply created if they are empty again. Defaults to the most recent apply that is not undone. Queues a rescan.\nSinÃ³nimos: deshacer organizaciÃ³n, revertir, volver atrÃ¡s, devolver los archivos a su sitio, deshacer el Ãºltimo cambio.",
+    "description": "Undo the last collection_apply (or a given one) by moving every item back (write). Keywords: deshacer.\nReverses an apply from its journal: moves each item back to where it was, never overwriting anything (an occupied original location is skipped and reported), then removes the group folders the apply created if they are empty again. Defaults to the most recent apply that is not undone. Queues a rescan.\nSinónimos: deshacer organización, revertir, volver atrás, devolver los archivos a su sitio, deshacer el último cambio.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -1174,7 +1174,7 @@
   },
   {
     "name": "sheets_batch",
-    "description": "Create or refresh sheet drafts for every folder or model of a root in one call (write). Keywords: fichas.\nDeterministic skeleton drafts from the scanned data and the root's template (folders: cults3d.json sheets in English; models: listings), no language model; mode=model queues local-model drafting instead. Drafts stay draft; refresh and overwrite say which existing sheets may be rewritten, dry_run only counts. Returns created, refreshed and skipped with reasons.\nSinÃ³nimos: fichas de todas las carpetas, crear todas las fichas, borradores en lote, rellenar fichas que faltan, ficha esqueleto, fichas para toda la colecciÃ³n.",
+    "description": "Create or refresh sheet drafts for every folder or model of a root in one call (write). Keywords: fichas.\nDeterministic skeleton drafts from the scanned data and the root's template (folders: cults3d.json sheets in English; models: listings), no language model; mode=model queues local-model drafting instead. Drafts stay draft; refresh and overwrite say which existing sheets may be rewritten, dry_run only counts. Returns created, refreshed and skipped with reasons.\nSinónimos: fichas de todas las carpetas, crear todas las fichas, borradores en lote, rellenar fichas que faltan, ficha esqueleto, fichas para toda la colección.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -1260,7 +1260,7 @@
   },
   {
     "name": "model_import_file",
-    "description": "Index one STL/3MF/OBJ file now: thumbnail, size, duplicate check (write). Keywords: importar modelo.\nIndex one model file right away instead of waiting for a scan (write): measures it, renders the thumbnail, hashes it for the duplicate check and adds it to the library. The folder is added as a small root that lists only the files imported from it, unless a scanned root already covers the file. Importing the same file twice changes nothing. Emits vulcan.model.added for a new model; source_ref (a hoard:// reference, e.g. an export of another app) is stored and linked.\nSinÃ³nimos: importar archivo, aÃ±adir un STL, indexar modelo, registrar exportaciÃ³n, aÃ±adir al catÃ¡logo ahora, escanear un archivo.",
+    "description": "Index one STL/3MF/OBJ file now: thumbnail, size, duplicate check (write). Keywords: importar modelo.\nIndex one model file right away instead of waiting for a scan (write): measures it, renders the thumbnail, hashes it for the duplicate check and adds it to the library. The folder is added as a small root that lists only the files imported from it, unless a scanned root already covers the file. Importing the same file twice changes nothing. Emits vulcan.model.added for a new model; source_ref (a hoard:// reference, e.g. an export of another app) is stored and linked.\nSinónimos: importar archivo, añadir un STL, indexar modelo, registrar exportación, añadir al catálogo ahora, escanear un archivo.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -1302,7 +1302,7 @@
   },
   {
     "name": "listings_export_catalog",
-    "description": "Export the folder and model listings as catalogue entries for a shop catalogue. Keywords: exportar catÃ¡logo.\nEvery folder listing (not 'none') and every model listing as one entry: ref (hoard://vulcan/...), kind folder or model, title, description, tags, price (the listing's price hint, if any), folder, model_ids, status, updated_at. folder limits it to one folder and below. Read-only: it writes nothing; Mercator imports this shape.\nSinÃ³nimos: catÃ¡logo de la tienda, fichas para Mercator, exportar fichas como catÃ¡logo, listado de productos, cults3d.",
+    "description": "Export the folder and model listings as catalogue entries for a shop catalogue. Keywords: exportar catálogo.\nEvery folder listing (not 'none') and every model listing as one entry: ref (hoard://vulcan/...), kind folder or model, title, description, tags, price (the listing's price hint, if any), folder, model_ids, status, updated_at. folder limits it to one folder and below. Read-only: it writes nothing; Mercator imports this shape.\nSinónimos: catálogo de la tienda, fichas para Mercator, exportar fichas como catálogo, listado de productos, cults3d.",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -1334,7 +1334,7 @@
   },
   {
     "name": "cad_spec_schema",
-    "description": "JSON schema, node reference and example of the parametric CAD spec. Keywords: diseÃ±o CAD.\nThe schema, the node reference (box, cylinder, sphere, rounded_box, hole, union, difference, intersection, translate, rotate, scale, linear and polar patterns), an example spec, the boolean engine in use and what is unsupported (fillets of arbitrary edges, chamfers, threads, STEP). Read it once before writing a spec for cad_from_text.\nSinÃ³nimos: diseÃ±ar pieza, CAD paramÃ©trico, esquema de la pieza, quÃ© puedo modelar, primitivas, agujeros, patrones, texto a CAD, parÃ¡metros.",
+    "description": "JSON schema, node reference and example of the parametric CAD spec. Keywords: diseño CAD.\nThe schema, the node reference (box, cylinder, sphere, rounded_box, hole, union, difference, intersection, translate, rotate, scale, linear and polar patterns), an example spec, the boolean engine in use and what is unsupported (fillets of arbitrary edges, chamfers, threads, STEP). Read it once before writing a spec for cad_from_text.\nSinónimos: diseñar pieza, CAD paramétrico, esquema de la pieza, qué puedo modelar, primitivas, agujeros, patrones, texto a CAD, parámetros.",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -1351,7 +1351,7 @@
   },
   {
     "name": "cad_from_text",
-    "description": "Design a 3D part from a text description or a spec and add it to the library (write). Keywords: diseÃ±a pieza.\nBuilds a parametric part in millimetres (boxes, cylinders, spheres, holes, unions/differences, patterns) from a description (a local model writes the spec, validated, with one repair attempt) or from a spec you pass. Saves STL + spec + check render into the library as a new model, and returns the measured bounding box, volume, watertightness and a check against the requested measures. save=false only measures. Report the measured numbers, not the intended ones.\nSinÃ³nimos: diseÃ±a una pieza, crea un modelo 3D, texto a CAD, modelo paramÃ©trico, hazme una placa con agujeros, soporte, caja, cilindro, generar STL, medidas en mm.",
+    "description": "Design a 3D part from a text description or a spec and add it to the library (write). Keywords: diseña pieza.\nBuilds a parametric part in millimetres (boxes, cylinders, spheres, holes, unions/differences, patterns) from a description (a local model writes the spec, validated, with one repair attempt) or from a spec you pass. Saves STL + spec + check render into the library as a new model, and returns the measured bounding box, volume, watertightness and a check against the requested measures. save=false only measures. Report the measured numbers, not the intended ones.\nSinónimos: diseña una pieza, crea un modelo 3D, texto a CAD, modelo paramétrico, hazme una placa con agujeros, soporte, caja, cilindro, generar STL, medidas en mm.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -1443,7 +1443,7 @@
   },
   {
     "name": "cad_regenerate",
-    "description": "Rebuild a generated part with new parameter values, same model id (write). Keywords: cambiar medidas.\nRecompiles the stored spec of a part made by cad_from_text with new values for named parameters (or a replacement spec), rewrites its STL and check render, reindexes the same library model and returns the new measures and what changed against the previous version.\nSinÃ³nimos: cambiar medidas de la pieza, hazla mÃ¡s ancha, agujero de otro diÃ¡metro, regenerar, modificar parÃ¡metros, editar dimensiones, versiÃ³n nueva de la pieza.",
+    "description": "Rebuild a generated part with new parameter values, same model id (write). Keywords: cambiar medidas.\nRecompiles the stored spec of a part made by cad_from_text with new values for named parameters (or a replacement spec), rewrites its STL and check render, reindexes the same library model and returns the new measures and what changed against the previous version.\nSinónimos: cambiar medidas de la pieza, hazla más ancha, agujero de otro diámetro, regenerar, modificar parámetros, editar dimensiones, versión nueva de la pieza.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -1517,7 +1517,7 @@
   },
   {
     "name": "copilot_context_get",
-    "description": "Read native context for a library view without starting work. Keywords: contexto, vista, ediciÃ³n sin guardar.\nResolve real model, folder listing, root or album IDs for the Faustus copilot. New/missing IDs return no active object and never create one or start a scan. Optional editor and selection are supplied snapshots, not a browser inspection. The stores are the same ones used by model_info and folder_listing_get.\nSinÃ³nimos: contexto actual, vista, selecciÃ³n, borrador, ediciÃ³n sin guardar.",
+    "description": "Read native context for a library view without starting work. Keywords: contexto, vista, edición sin guardar.\nResolve real model, folder listing, root or album IDs for the Faustus copilot. New/missing IDs return no active object and never create one or start a scan. Optional editor and selection are supplied snapshots, not a browser inspection. The stores are the same ones used by model_info and folder_listing_get.\nSinónimos: contexto actual, vista, selección, borrador, edición sin guardar.",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -1630,8 +1630,288 @@
     "native_name": "copilot_context_get"
   },
   {
+    "name": "model_simplify",
+    "description": "Make a lighter LOD variant of a model: fewer triangles, measured error (write). Keywords: simplificar.\nSimplifies with meshoptimizer (fallback fast-simplification) to a ratio of triangles and/or a maximum error in mm, mode attribute or sloppy, borders locked by default. Writes a NEW STL in the library linked to the source (the original is never touched) and returns triangles before/after and the measured error (two-sided sampled distance, max = Hausdorff-style). save=false only measures.\nSinónimos: simplificar malla, reducir triángulos, diezmar, LOD, versión ligera, aligerar STL, menos polígonos, optimizar modelo.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "properties": {
+        "id": {
+          "description": "Model id to simplify (its file is never modified).",
+          "minimum": 1,
+          "title": "Id",
+          "type": "integer"
+        },
+        "ratio": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "maximum": 1,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Fraction of triangles to keep, e.g. 0.25. Default 0.5 when target_error is not given.",
+          "title": "Ratio"
+        },
+        "target_error": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Maximum allowed deviation in mm (e.g. 0.05); with ratio too, it stops at whichever comes first.",
+          "title": "Target Error"
+        },
+        "mode": {
+          "default": "attribute",
+          "description": "attribute = quality quadric simplification; sloppy = much faster and rougher (topology may change).",
+          "pattern": "^(attribute|sloppy)$",
+          "title": "Mode",
+          "type": "string"
+        },
+        "keep_borders": {
+          "default": true,
+          "description": "Lock open borders so outlines and seams do not move.",
+          "title": "Keep Borders",
+          "type": "boolean"
+        },
+        "save": {
+          "default": true,
+          "description": "false only measures (triangles before/after and error) without writing a variant.",
+          "title": "Save",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "SimplifyArgs",
+      "type": "object"
+    },
+    "module": "library",
+    "native_name": "model_simplify"
+  },
+  {
+    "name": "model_look",
+    "description": "See a model rendered from iso/top/front/side views as an image, plus its summary. Keywords: ver modelo.\nRenders the model with the built-in renderer from the chosen views on one PNG sheet (returned as an image to look at, and as image_url) together with the scene summary of model_scene_info. Use it to check visually what a model is, its orientation or a simplified variant.\nSinónimos: mira el modelo, cómo es, vista de planta, alzado, perfil, render, captura, comprobar visualmente.",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "properties": {
+        "id": {
+          "description": "Model id.",
+          "minimum": 1,
+          "title": "Id",
+          "type": "integer"
+        },
+        "views": {
+          "description": "Any of iso, top, front, side (right), back, left, bottom.",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 7,
+          "title": "Views",
+          "type": "array"
+        },
+        "size": {
+          "default": 384,
+          "description": "Pixel size of each view.",
+          "maximum": 1024,
+          "minimum": 128,
+          "title": "Size",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "LookArgs",
+      "type": "object"
+    },
+    "module": "library",
+    "native_name": "model_look"
+  },
+  {
+    "name": "model_scene_info",
+    "description": "Compact summary of a model: bbox, triangles, watertight, volume, bodies, warnings. Keywords: resumen.\nA short check of one model: size in mm, triangles, vertices, volume, surface, watertight, bodies, units guess, warnings (open mesh, several bodies, wrong units, too thin, very dense, file missing), its source model when it is a variant and its LOD variants.\nSinónimos: resumen del modelo, avisos, está bien para imprimir, problemas de la malla, comprobación rápida, variantes.",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "properties": {
+        "id": {
+          "description": "Model id.",
+          "minimum": 1,
+          "title": "Id",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "IdArgs",
+      "type": "object"
+    },
+    "module": "library",
+    "native_name": "model_scene_info"
+  },
+  {
+    "name": "model_export_web_glb",
+    "description": "Export a model as a compressed GLB for the web (meshopt). Keywords: exportar GLB, web, comprimir.\nWrites <data>/exports/web/<name>.glb compressed with gltfpack -cc (EXT_meshopt_compression, quantized), or a plain GLB when Node/gltfpack is missing, and returns path, url, bytes and the original size. The original file is untouched; the result is cached per file version.\nSinónimos: exportar a GLB, glTF comprimido, modelo para la web, visor web, compresión meshopt, reducir tamaño del archivo.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "properties": {
+        "id": {
+          "description": "Model id.",
+          "minimum": 1,
+          "title": "Id",
+          "type": "integer"
+        },
+        "force": {
+          "default": false,
+          "description": "Rebuild even if a GLB for the current file already exists.",
+          "title": "Force",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "WebGlbArgs",
+      "type": "object"
+    },
+    "module": "library",
+    "native_name": "model_export_web_glb"
+  },
+  {
+    "name": "slicers_list",
+    "description": "Slicers installed or configured on this PC (PrusaSlicer, Bambu, Orca, Cura). Keywords: laminador.\nLists each supported slicer with its executable path, whether it was autodetected or configured in Ajustes, and which one is the default for model_open_in_slicer.\nSinónimos: laminadores, slicer instalado, qué laminador tengo, ruta de PrusaSlicer, Bambu Studio, OrcaSlicer, Cura.",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "description": "A tool without arguments.",
+      "properties": {},
+      "title": "Empty",
+      "type": "object"
+    },
+    "module": "library",
+    "native_name": "slicers_list"
+  },
+  {
+    "name": "model_open_in_slicer",
+    "description": "Open models or a whole folder in the user's slicer on this PC. Keywords: abrir en el laminador, imprimir.\nLaunches PrusaSlicer, Bambu Studio, OrcaSlicer or Cura (default or chosen) with the files of the given model ids, or of every model in a folder and its subfolders (up to 50), the way \"Open with\" does. Only when the user asks to open them; dry_run reports the command without launching.\nSinónimos: abrir en PrusaSlicer, mandar al laminador, laminar, preparar impresión, abrir en Bambu, abrir en Orca, abrir en Cura.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "properties": {
+        "ids": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "integer"
+              },
+              "maxItems": 200,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Model ids to open together.",
+          "title": "Ids"
+        },
+        "root_id": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "With path: open every model of that folder (and subfolders) instead of ids.",
+          "title": "Root Id"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Folder relative to root_id, or an absolute folder path under a root.",
+          "title": "Path"
+        },
+        "slicer": {
+          "anyOf": [
+            {
+              "pattern": "^(prusaslicer|bambustudio|orcaslicer|cura)$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Omit for the default slicer.",
+          "title": "Slicer"
+        },
+        "dry_run": {
+          "default": false,
+          "description": "Only report the command; launch nothing.",
+          "title": "Dry Run",
+          "type": "boolean"
+        }
+      },
+      "title": "OpenSlicerArgs",
+      "type": "object"
+    },
+    "module": "library",
+    "native_name": "model_open_in_slicer"
+  },
+  {
     "name": "gulliver_model_assembly",
-    "description": "Assembly guide for a kept build: numbered pieces, files and materials. Guia de montaje.\nUses only that generation. Piece pages share stable numbers; follow next_offset until null.\nSinÃ³nimos: montar, piezas, orientacion, filamentos",
+    "description": "Assembly guide for a kept build: numbered pieces, files and materials. Guia de montaje.\nUses only that generation. Piece pages share stable numbers; follow next_offset until null.\nSinónimos: montar, piezas, orientacion, filamentos",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -1679,7 +1959,7 @@
   },
   {
     "name": "gulliver_model_assembly_export",
-    "description": "Create a self-contained printable HTML assembly guide from a kept build. Exportar guia.\nBase outlines come from the original STL exports. Does not redraw horizontal pin holes or slice a model.\nSinÃ³nimos: imprimir, montaje, plano, html, pdf",
+    "description": "Create a self-contained printable HTML assembly guide from a kept build. Exportar guia.\nBase outlines come from the original STL exports. Does not redraw horizontal pin holes or slice a model.\nSinónimos: imprimir, montaje, plano, html, pdf",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -1718,13 +1998,12 @@
       "title": "AssemblyExportArgs",
       "type": "object"
     },
-    "x-timeout-s": 600.0,
     "module": "gulliver",
     "native_name": "model_assembly_export"
   },
   {
     "name": "gulliver_print_profiles",
-    "description": "Saved printer/material profiles (active or archived). Perfiles de impresion.\nSinÃ³nimos: boquilla, cama, filamento",
+    "description": "Saved printer/material profiles (active or archived). Perfiles de impresion.\nSinónimos: boquilla, cama, filamento",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -1747,7 +2026,7 @@
   },
   {
     "name": "gulliver_print_profile_save",
-    "description": "Save a whole printer/material profile; empty id creates one. Guardar perfil.\nSinÃ³nimos: impresora, material, precios",
+    "description": "Save a whole printer/material profile; empty id creates one. Guardar perfil.\nSinónimos: impresora, material, precios",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -1889,7 +2168,7 @@
   },
   {
     "name": "gulliver_print_profile_archive",
-    "description": "Archive a print profile, or restore it with archived=false. Archivar perfil.\nSinÃ³nimos: restaurar, impresora",
+    "description": "Archive a print profile, or restore it with archived=false. Archivar perfil.\nSinónimos: restaurar, impresora",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -1921,7 +2200,7 @@
   },
   {
     "name": "gulliver_model_profile_apply",
-    "description": "Prepare a model for a saved printer/material profile (a separate variant by default). Aplicar perfil.\nSinÃ³nimos: variante, cama, boquilla, filamento",
+    "description": "Prepare a model for a saved printer/material profile (a separate variant by default). Aplicar perfil.\nSinónimos: variante, cama, boquilla, filamento",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -1967,7 +2246,7 @@
   },
   {
     "name": "gulliver_model_materials",
-    "description": "Estimated material and cost per part, with geometric shell/infill assumptions. Consumo y coste.\nThis is not slicing: excludes purge, supports, energy and time. Missing prices keep total cost unknown.\nSinÃ³nimos: filamento, presupuesto, peso, color",
+    "description": "Estimated material and cost per part, with geometric shell/infill assumptions. Consumo y coste.\nThis is not slicing: excludes purge, supports, energy and time. Missing prices keep total cost unknown.\nSinónimos: filamento, presupuesto, peso, color",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -2008,7 +2287,7 @@
   },
   {
     "name": "gulliver_model_issues",
-    "description": "Positions of thin buildings, layers and crowns, in preview millimetres. Zonas fragiles.\nPaged to keep every position readable through MCP. Follow next_offset until null; total is after the layer filter.\nSinÃ³nimos: localizar, detalles finos, imprimir",
+    "description": "Positions of thin buildings, layers and crowns, in preview millimetres. Zonas fragiles.\nPaged to keep every position readable through MCP. Follow next_offset until null; total is after the layer filter.\nSinónimos: localizar, detalles finos, imprimir",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -2061,7 +2340,7 @@
   },
   {
     "name": "gulliver_place_search",
-    "description": "Find a place by name: centre and bounding box. Buscar lugar.\nSinÃ³nimos: geocodificar, dÃ³nde estÃ¡, direcciÃ³n",
+    "description": "Find a place by name: centre and bounding box. Buscar lugar.\nSinónimos: geocodificar, dónde está, dirección",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -2096,7 +2375,7 @@
   },
   {
     "name": "gulliver_area_check",
-    "description": "What a model of an area would be: scale, size in mm, tiles for the bed, warnings. Comprobar zona.\nNothing is built. fetch_features=true also counts buildings, roads and water from the map.\nSinÃ³nimos: escala, cabe en la cama, cuÃ¡ntas piezas, vista previa, tamaÃ±o",
+    "description": "What a model of an area would be: scale, size in mm, tiles for the bed, warnings. Comprobar zona.\nNothing is built. fetch_features=true also counts buildings, roads and water from the map.\nSinónimos: escala, cabe en la cama, cuántas piezas, vista previa, tamaño",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -3211,6 +3490,92 @@
               "default": null,
               "title": "Dem"
             },
+            "synth": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "",
+                    "mountains",
+                    "ridged",
+                    "dunes",
+                    "terraced",
+                    "islands"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Synthetic terrain instead of the real place: mountains, ridged, dunes, terraced or islands (gradient noise with domain warp and fBm; empty = the real place).",
+              "title": "Synth"
+            },
+            "synth_seed": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Seed of the synthetic terrain (another seed, another landscape).",
+              "title": "Synth Seed"
+            },
+            "synth_relief_m": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Height of the synthetic terrain from its lowest to its highest point, in metres.",
+              "title": "Synth Relief M"
+            },
+            "synth_feature": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Size of the synthetic landforms against the area (larger = fewer, broader mountains or dunes).",
+              "title": "Synth Feature"
+            },
+            "synth_warp": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Domain warp of the synthetic terrain: how much ridges and valleys meander.",
+              "title": "Synth Warp"
+            },
+            "synth_terraces": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Number of steps of the terraced style.",
+              "title": "Synth Terraces"
+            },
             "print_profile": {
               "anyOf": [
                 {
@@ -3340,13 +3705,12 @@
       "title": "CheckArgs",
       "type": "object"
     },
-    "x-timeout-s": 300.0,
     "module": "gulliver",
     "native_name": "area_check"
   },
   {
     "name": "gulliver_presets_get",
-    "description": "Presets (city, landscape, relief), default parameters and part colours. Preajustes.\nSinÃ³nimos: opciones, parÃ¡metros por defecto",
+    "description": "Presets (city, landscape, relief), default parameters and part colours. Preajustes.\nSinónimos: opciones, parámetros por defecto",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -3364,7 +3728,7 @@
   },
   {
     "name": "gulliver_model_create",
-    "description": "Create a map model of a place and build it (a job). Crear maqueta.\nRequired: params.lon, params.lat (or params.track alone: the model is framed on the route). Typical: width_m/height_m (ground), size_mm, preset, tiles_x/tiles_y. Anywhere on Earth: worldwide building footprints, canopy-height trees, satellite land cover; laser heights where open (dsm_heights). Detail: trees/tree_density, roofs, arches, paths, rails, zones/snow_m, fields/field_rows (farm parcels with crop rows), plazas, road_depth_mm. Personal: highlight_lon/highlight_lat (your home in gold), track (GPX/KML/GeoJSON text as a raised ribbon). Finish: frame_mm, frame_style (flat|bevel|step), plaque/plaque_text, panels_x/panels_y (framed pictures), tile_cuts (straight|streets), thicken, nozzle_mm. The report carries a printability score and advice.\nSinÃ³nimos: maqueta 3d, mapa imprimible, stl de un sitio, ciudad en 3d, relieve, maqueta de ciudad, terrain, arboles 3d, montaÃ±a con nieve, mi casa, ruta gpx, placa, dÃ­ptico, cuadros, campos, parcelas",
+    "description": "Create a map model of a place and build it (a job). Crear maqueta.\nRequired: params.lon, params.lat (or params.track alone: the model is framed on the route). Typical: width_m/height_m (ground), size_mm, preset, tiles_x/tiles_y. Anywhere on Earth: worldwide building footprints, canopy-height trees, satellite land cover; laser heights where open (dsm_heights). Detail: trees/tree_density, roofs, arches, paths, rails, zones/snow_m, fields/field_rows (farm parcels with crop rows), plazas, road_depth_mm. Personal: highlight_lon/highlight_lat (your home in gold), track (GPX/KML/GeoJSON text as a raised ribbon). Finish: frame_mm, frame_style (flat|bevel|step), plaque/plaque_text, panels_x/panels_y (framed pictures), tile_cuts (straight|streets), thicken, nozzle_mm. The report carries a printability score and advice.\nSinónimos: maqueta 3d, mapa imprimible, stl de un sitio, ciudad en 3d, relieve, maqueta de ciudad, terrain, arboles 3d, montaña con nieve, mi casa, ruta gpx, placa, díptico, cuadros, campos, parcelas",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -4479,6 +4843,92 @@
               ],
               "default": null,
               "title": "Dem"
+            },
+            "synth": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "",
+                    "mountains",
+                    "ridged",
+                    "dunes",
+                    "terraced",
+                    "islands"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Synthetic terrain instead of the real place: mountains, ridged, dunes, terraced or islands (gradient noise with domain warp and fBm; empty = the real place).",
+              "title": "Synth"
+            },
+            "synth_seed": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Seed of the synthetic terrain (another seed, another landscape).",
+              "title": "Synth Seed"
+            },
+            "synth_relief_m": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Height of the synthetic terrain from its lowest to its highest point, in metres.",
+              "title": "Synth Relief M"
+            },
+            "synth_feature": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Size of the synthetic landforms against the area (larger = fewer, broader mountains or dunes).",
+              "title": "Synth Feature"
+            },
+            "synth_warp": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Domain warp of the synthetic terrain: how much ridges and valleys meander.",
+              "title": "Synth Warp"
+            },
+            "synth_terraces": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Number of steps of the terraced style.",
+              "title": "Synth Terraces"
             },
             "print_profile": {
               "anyOf": [
@@ -4623,13 +5073,12 @@
       "title": "CreateArgs",
       "type": "object"
     },
-    "x-timeout-s": 600.0,
     "module": "gulliver",
     "native_name": "model_create"
   },
   {
     "name": "gulliver_model_list",
-    "description": "The model library: name, place, status, scale, size. Lista de maquetas.\nSinÃ³nimos: biblioteca, mis maquetas",
+    "description": "The model library: name, place, status, scale, size. Lista de maquetas.\nSinónimos: biblioteca, mis maquetas",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -4647,7 +5096,7 @@
   },
   {
     "name": "gulliver_model_get",
-    "description": "One model: parameters, status, the last build's report and its folder. Ver maqueta.\nSinÃ³nimos: informe, detalles, peso, tamaÃ±o, escala",
+    "description": "One model: parameters, status, the last build's report and its folder. Ver maqueta.\nSinónimos: informe, detalles, peso, tamaño, escala",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -4675,7 +5124,7 @@
   },
   {
     "name": "gulliver_model_update",
-    "description": "Rename a model or change its parameters (and rebuild with build=true). Editar maqueta.\nSinÃ³nimos: cambiar tamaÃ±o, mÃ¡s relieve, piezas, color, forma",
+    "description": "Rename a model or change its parameters (and rebuild with build=true). Editar maqueta.\nSinónimos: cambiar tamaño, más relieve, piezas, color, forma",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -5790,6 +6239,92 @@
               ],
               "default": null,
               "title": "Dem"
+            },
+            "synth": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "",
+                    "mountains",
+                    "ridged",
+                    "dunes",
+                    "terraced",
+                    "islands"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Synthetic terrain instead of the real place: mountains, ridged, dunes, terraced or islands (gradient noise with domain warp and fBm; empty = the real place).",
+              "title": "Synth"
+            },
+            "synth_seed": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Seed of the synthetic terrain (another seed, another landscape).",
+              "title": "Synth Seed"
+            },
+            "synth_relief_m": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Height of the synthetic terrain from its lowest to its highest point, in metres.",
+              "title": "Synth Relief M"
+            },
+            "synth_feature": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Size of the synthetic landforms against the area (larger = fewer, broader mountains or dunes).",
+              "title": "Synth Feature"
+            },
+            "synth_warp": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Domain warp of the synthetic terrain: how much ridges and valleys meander.",
+              "title": "Synth Warp"
+            },
+            "synth_terraces": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Number of steps of the terraced style.",
+              "title": "Synth Terraces"
             },
             "print_profile": {
               "anyOf": [
@@ -5966,7 +6501,7 @@
   },
   {
     "name": "gulliver_model_build",
-    "description": "Build (or rebuild) a model's files: a job; job_get follows it. Generar maqueta.\nSinÃ³nimos: regenerar, construir, generar stl",
+    "description": "Build (or rebuild) a model's files: a job; job_get follows it. Generar maqueta.\nSinónimos: regenerar, construir, generar stl",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -5994,7 +6529,7 @@
   },
   {
     "name": "gulliver_model_duplicate",
-    "description": "Copy a model's parameters into a new model (not built). Duplicar maqueta.\nSinÃ³nimos: copiar, variante",
+    "description": "Copy a model's parameters into a new model (not built). Duplicar maqueta.\nSinónimos: copiar, variante",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -6029,7 +6564,7 @@
   },
   {
     "name": "gulliver_model_delete",
-    "description": "Delete a model and its files (confirm=true). Borrar maqueta.\nSinÃ³nimos: eliminar",
+    "description": "Delete a model and its files (confirm=true). Borrar maqueta.\nSinónimos: eliminar",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": true,
@@ -6062,7 +6597,7 @@
   },
   {
     "name": "gulliver_model_files",
-    "description": "Files of a model's build (current or a kept one): STL, 3MF, tiles, ZIP, preview. Archivos.\nSinÃ³nimos: descargar, stl, 3mf, piezas, ruta",
+    "description": "Files of a model's build (current or a kept one): STL, 3MF, tiles, ZIP, preview. Archivos.\nSinónimos: descargar, stl, 3mf, piezas, ruta",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -6097,7 +6632,7 @@
   },
   {
     "name": "gulliver_model_export",
-    "description": "Copy a model's files to a folder (Desktop/Gulliver by default). Exportar archivos.\nSinÃ³nimos: guardar en, copiar al escritorio, llevar a la impresora",
+    "description": "Copy a model's files to a folder (Desktop/Gulliver by default). Exportar archivos.\nSinónimos: guardar en, copiar al escritorio, llevar a la impresora",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -6151,7 +6686,7 @@
   },
   {
     "name": "gulliver_model_builds",
-    "description": "A model's kept builds, newest first, with the parameters and score of each. Generaciones.\nSinÃ³nimos: historial, versiones, variantes, anteriores",
+    "description": "A model's kept builds, newest first, with the parameters and score of each. Generaciones.\nSinónimos: historial, versiones, variantes, anteriores",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -6179,7 +6714,7 @@
   },
   {
     "name": "gulliver_model_compare",
-    "description": "Compare two builds of a model: changed parameters, size, weight, parts, score. Comparar.\nDefaults: the previous build (A) against the current one (B).\nSinÃ³nimos: a/b, cuÃ¡l imprime mejor, diferencias, versiÃ³n anterior",
+    "description": "Compare two builds of a model: changed parameters, size, weight, parts, score. Comparar.\nDefaults: the previous build (A) against the current one (B).\nSinónimos: a/b, cuál imprime mejor, diferencias, versión anterior",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -6221,7 +6756,7 @@
   },
   {
     "name": "gulliver_model_build_use",
-    "description": "Make a kept build the current one again, with its parameters. Volver a una generaciÃ³n.\nSinÃ³nimos: restaurar, deshacer, usar la anterior",
+    "description": "Make a kept build the current one again, with its parameters. Volver a una generación.\nSinónimos: restaurar, deshacer, usar la anterior",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -6256,7 +6791,7 @@
   },
   {
     "name": "gulliver_model_advice",
-    "description": "Printability fixes of the current build as parameter changes: preview, or apply and rebuild. Aplicar consejos.\nSinÃ³nimos: arreglar, imprimibilidad, corregir, mejorar impresiÃ³n",
+    "description": "Printability fixes of the current build as parameter changes: preview, or apply and rebuild. Aplicar consejos.\nSinónimos: arreglar, imprimibilidad, corregir, mejorar impresión",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -6306,7 +6841,7 @@
   },
   {
     "name": "gulliver_model_send_to_vulcan",
-    "description": "File a model (and optionally its tiles) in Vulcan's Hoard, the 3D print library. A Vulcan.\nSinÃ³nimos: biblioteca de impresiÃ³n, catalogar",
+    "description": "File a model (and optionally its tiles) in Vulcan's Hoard, the 3D print library. A Vulcan.\nSinónimos: biblioteca de impresión, catalogar",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -6335,13 +6870,12 @@
       "title": "VulcanArgs",
       "type": "object"
     },
-    "x-timeout-s": 300.0,
     "module": "gulliver",
     "native_name": "model_send_to_vulcan"
   },
   {
     "name": "gulliver_jobs_list",
-    "description": "Build jobs, newest first (optionally of one model). Trabajos.\nSinÃ³nimos: cola, progreso",
+    "description": "Build jobs, newest first (optionally of one model). Trabajos.\nSinónimos: cola, progreso",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -6372,7 +6906,7 @@
   },
   {
     "name": "gulliver_job_get",
-    "description": "A job's state, progress, step and log. Estado del trabajo.\nSinÃ³nimos: progreso, cuÃ¡nto falta",
+    "description": "A job's state, progress, step and log. Estado del trabajo.\nSinónimos: progreso, cuánto falta",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -6399,7 +6933,7 @@
   },
   {
     "name": "gulliver_job_cancel",
-    "description": "Cancel a queued or running build. Cancelar.\nSinÃ³nimos: parar, detener",
+    "description": "Cancel a queued or running build. Cancelar.\nSinónimos: parar, detener",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -6426,7 +6960,7 @@
   },
   {
     "name": "gulliver_settings_get",
-    "description": "Settings: printer bed, nozzle, elevation source, map servers, Vulcan, language. Ajustes.\nSinÃ³nimos: configuraciÃ³n, impresora, cama",
+    "description": "Settings: printer bed, nozzle, elevation source, map servers, Vulcan, language. Ajustes.\nSinónimos: configuración, impresora, cama",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -6444,7 +6978,7 @@
   },
   {
     "name": "gulliver_settings_set",
-    "description": "Change settings (bed size, nozzle, elevation source, export folder...). Cambiar ajustes.\nSinÃ³nimos: tamaÃ±o de cama, impresora",
+    "description": "Change settings (bed size, nozzle, elevation source, export folder...). Cambiar ajustes.\nSinónimos: tamaño de cama, impresora",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -6615,8 +7149,1581 @@
     "native_name": "settings_set"
   },
   {
+    "name": "gulliver_area_imagery",
+    "description": "Aerial/satellite picture of an area, no key: Esri, Sentinel-2 or PNOA. Ortofoto de la zona.\nNorth up and linear in lon/lat over the area's box (as the model drapes it). Kept and served at image_url; the attribution must go with the picture.\nSinónimos: satélite, ortofoto, foto aérea, imagen, textura",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
+    "inputSchema": {
+      "properties": {
+        "lon": {
+          "description": "Centre longitude of the area.",
+          "maximum": 180,
+          "minimum": -180,
+          "title": "Lon",
+          "type": "number"
+        },
+        "lat": {
+          "description": "Centre latitude of the area.",
+          "maximum": 84,
+          "minimum": -84,
+          "title": "Lat",
+          "type": "number"
+        },
+        "width_m": {
+          "default": 2000.0,
+          "description": "Ground width east-west in metres.",
+          "maximum": 200000,
+          "minimum": 50,
+          "title": "Width M",
+          "type": "number"
+        },
+        "height_m": {
+          "default": 2000.0,
+          "description": "Ground height north-south in metres.",
+          "maximum": 200000,
+          "minimum": 50,
+          "title": "Height M",
+          "type": "number"
+        },
+        "provider": {
+          "default": "auto",
+          "description": "auto: PNOA orthophoto in Spain, Esri World Imagery elsewhere; esri; s2cloudless (Sentinel-2, 10 m, CC BY 4.0); pnoa (Spain only).",
+          "enum": [
+            "auto",
+            "esri",
+            "s2cloudless",
+            "pnoa"
+          ],
+          "title": "Provider",
+          "type": "string"
+        },
+        "max_px": {
+          "default": 2048,
+          "description": "Longest side of the picture in pixels.",
+          "maximum": 4096,
+          "minimum": 128,
+          "title": "Max Px",
+          "type": "integer"
+        },
+        "refresh": {
+          "default": false,
+          "description": "Fetch again instead of reusing the kept picture.",
+          "title": "Refresh",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "lon",
+        "lat"
+      ],
+      "title": "AreaImageryArgs",
+      "type": "object"
+    },
+    "module": "gulliver",
+    "native_name": "area_imagery"
+  },
+  {
+    "name": "gulliver_model_imagery",
+    "description": "Drape the aerial photo over a build: texture, textured GLB and photo-coloured 3MF. Textura.\nWrites imagery.jpg (the preview texture), <name>-imagery.glb (textured) and <name>-imagery.3mf (each triangle in one of `colors` photo colours, materials extension) next to the printable STL. Walls, base and frame take a neutral colour. Not for synthetic terrains.\nSinónimos: satélite, color, textura, foto aérea, glb, 3mf a color",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": true
+    },
+    "inputSchema": {
+      "properties": {
+        "model_id": {
+          "description": "Model id (model_list).",
+          "maxLength": 32,
+          "minLength": 6,
+          "title": "Model Id",
+          "type": "string"
+        },
+        "build_id": {
+          "default": "",
+          "description": "A kept build (model_builds); empty = the current one.",
+          "maxLength": 32,
+          "title": "Build Id",
+          "type": "string"
+        },
+        "provider": {
+          "default": "auto",
+          "enum": [
+            "auto",
+            "esri",
+            "s2cloudless",
+            "pnoa"
+          ],
+          "title": "Provider",
+          "type": "string"
+        },
+        "max_px": {
+          "default": 2048,
+          "description": "Longest side of the texture in pixels.",
+          "maximum": 4096,
+          "minimum": 128,
+          "title": "Max Px",
+          "type": "integer"
+        },
+        "colors": {
+          "default": 12,
+          "description": "Colours of the photo-coloured 3MF (one per filament you would use).",
+          "maximum": 64,
+          "minimum": 2,
+          "title": "Colors",
+          "type": "integer"
+        },
+        "exports": {
+          "default": true,
+          "description": "Also write the textured GLB and the photo-coloured 3MF (false: only the texture).",
+          "title": "Exports",
+          "type": "boolean"
+        },
+        "refresh": {
+          "default": false,
+          "title": "Refresh",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "model_id"
+      ],
+      "title": "ModelImageryArgs",
+      "type": "object"
+    },
+    "module": "gulliver",
+    "native_name": "model_imagery"
+  },
+  {
+    "name": "gulliver_synth_terrain",
+    "description": "Synthetic terrain (mountains, ridged, dunes, terraced, islands): preview or build. Terreno inventado.\nSeeded gradient noise with domain warp and fBm in numpy; the model goes through the same pipeline as a real place (relief, sea, snow, rock, frame, plaque, tiles). create=false previews (min/max metres, land share, preview_url PNG); create=true makes and builds a model.\nSinónimos: procedural, ruido, montañas inventadas, dunas, islas, terrazas, fantasía",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "draftSafeHint": true
+    },
+    "inputSchema": {
+      "$defs": {
+        "Filament": {
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "default": "PLA",
+              "maxLength": 100,
+              "title": "Name",
+              "type": "string"
+            },
+            "density_g_cm3": {
+              "default": 1.24,
+              "exclusiveMinimum": 0,
+              "maximum": 20,
+              "title": "Density G Cm3",
+              "type": "number"
+            },
+            "price_per_kg": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Price Per Kg"
+            },
+            "color": {
+              "default": "",
+              "pattern": "^(#[0-9a-fA-F]{6})?$",
+              "title": "Color",
+              "type": "string"
+            }
+          },
+          "title": "Filament",
+          "type": "object"
+        },
+        "ParamsPatch": {
+          "additionalProperties": false,
+          "properties": {
+            "lon": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Centre longitude (WGS84).",
+              "title": "Lon"
+            },
+            "lat": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Centre latitude (WGS84).",
+              "title": "Lat"
+            },
+            "width_m": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Ground width east-west in metres (the diameter for circle/hexagon).",
+              "title": "Width M"
+            },
+            "height_m": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Ground height north-south in metres (ignored for circle/hexagon).",
+              "title": "Height M"
+            },
+            "shape": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "rect",
+                    "circle",
+                    "hexagon",
+                    "rounded"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Shape"
+            },
+            "size_mm": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Longest side of the whole model in millimetres.",
+              "title": "Size Mm"
+            },
+            "base_mm": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Solid base under the lowest point, in millimetres.",
+              "title": "Base Mm"
+            },
+            "z_exag": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Vertical exaggeration of the relief.",
+              "title": "Z Exag"
+            },
+            "building_exag": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Extra exaggeration of building heights (on top of the scale).",
+              "title": "Building Exag"
+            },
+            "resolution_mm": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Size of a cell of the terrain mesh, in millimetres.",
+              "title": "Resolution Mm"
+            },
+            "smooth": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Smoothing of the elevation in cells (-1 = automatic from the source resolution).",
+              "title": "Smooth"
+            },
+            "buildings": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Buildings"
+            },
+            "buildings_source": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "auto",
+                    "osm",
+                    "cadastre"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "auto: in Spain the cadastre's buildings (exact footprints and floors) with OpenStreetMap's 3D parts and roofs on top; elsewhere OpenStreetMap, completed with the footprints traced from imagery worldwide where the map has none.",
+              "title": "Buildings Source"
+            },
+            "min_building_mm2": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Drop buildings whose footprint is smaller than this on the model.",
+              "title": "Min Building Mm2"
+            },
+            "min_building_height_mm": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Min Building Height Mm"
+            },
+            "roofs": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "auto",
+                    "tagged",
+                    "flat"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "auto: roofs mapped in OpenStreetMap plus pitched roofs on houses and churches; tagged: only mapped roofs; flat: none.",
+              "title": "Roofs"
+            },
+            "water": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Water"
+            },
+            "water_depth_mm": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "How far water surfaces sit below the banks.",
+              "title": "Water Depth Mm"
+            },
+            "waterways": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Waterways"
+            },
+            "sea": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Sea"
+            },
+            "roads": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "engraved",
+                    "raised",
+                    "flat",
+                    "none"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Roads"
+            },
+            "road_detail": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "auto",
+                    "all",
+                    "local",
+                    "main",
+                    "none"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Road Detail"
+            },
+            "road_depth_mm": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "How far engraved roads sit below the ground (raised: above).",
+              "title": "Road Depth Mm"
+            },
+            "min_road_mm": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Narrowest road on the model.",
+              "title": "Min Road Mm"
+            },
+            "rails": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Rails"
+            },
+            "rail_height_mm": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "How far railway beds stand above the ground.",
+              "title": "Rail Height Mm"
+            },
+            "bridges": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Bridges"
+            },
+            "arches": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Bridges over water stand on arches and piers (off: a solid block down to the water).",
+              "title": "Arches"
+            },
+            "tunnels": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Tunnel mouths: an opening in the slope where a road or railway goes into a hill.",
+              "title": "Tunnels"
+            },
+            "green": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Green"
+            },
+            "paths": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Footpaths inside parks and woods, cut out of the green layer; with meadows on, every trail across the land, over rock and snow too.",
+              "title": "Paths"
+            },
+            "min_path_mm": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Narrowest path on the model.",
+              "title": "Min Path Mm"
+            },
+            "trees": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "3D trees: mapped trees and rows, woods filled densely, parks scattered.",
+              "title": "Trees"
+            },
+            "tree_density": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "How thickly woods and parks are filled with trees.",
+              "title": "Tree Density"
+            },
+            "tree_size_mm": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Smallest tree crown on the model.",
+              "title": "Tree Size Mm"
+            },
+            "tree_source": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "auto",
+                    "osm"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "auto: every tree of the global canopy height map (with its height), the ones seen on the aerial photo in Spain and the mapped ones; osm: mapped trees, woods filled and parks scattered.",
+              "title": "Tree Source"
+            },
+            "landcover": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Fill woods, grass, fields, bare rock, snow and lakes from the satellite land cover (ESA WorldCover) where the map has none.",
+              "title": "Landcover"
+            },
+            "zones": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Snow on high summits and bare rock on steep slopes as their own colours.",
+              "title": "Zones"
+            },
+            "snow_m": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Snow line in metres (-1 = automatic on high mountains, 0 = none).",
+              "title": "Snow M"
+            },
+            "rock_slope_deg": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Slopes steeper than this are bare rock (zones on).",
+              "title": "Rock Slope Deg"
+            },
+            "ground_from_photo": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Mountains in Spain: bare rock, meadows and woods read from the PNOA aerial photo (where it is unclear, rock by slope); off: rock by slope only.",
+              "title": "Ground From Photo"
+            },
+            "fields": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Farm fields one by one (cadastre parcels in Spain, traced from satellite images elsewhere) in their own colour, their edges as fine grooves.",
+              "title": "Fields"
+            },
+            "field_rows": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Crop rows engraved inside each field along its long side (vineyards and orchards closer together).",
+              "title": "Field Rows"
+            },
+            "row_spacing_mm": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Distance between engraved crop rows.",
+              "title": "Row Spacing Mm"
+            },
+            "rows_from_photo": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "In Spain, crop rows follow the direction each field shows on the aerial photo (else they run along the field's long side).",
+              "title": "Rows From Photo"
+            },
+            "plazas": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Squares and pedestrian areas in their own lighter colour (colour mode).",
+              "title": "Plazas"
+            },
+            "dsm_heights": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Real heights of every building, with towers and spires as their own volumes, from the laser surface model where one is open (Spain, Netherlands, France, England, NRW, Switzerland, Flanders, Norway, Poland; Denmark with its token).",
+              "title": "Dsm Heights"
+            },
+            "laser_roofs": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Where the laser surface model measured a building (dsm_heights), its roof as the laser saw it: pitches, hips, domes, courtyards.",
+              "title": "Laser Roofs"
+            },
+            "meadows": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Colour all open land green (mountains and countryside), not only mapped parks and woods.",
+              "title": "Meadows"
+            },
+            "max_relief_ratio": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "The relief is kept at most this share of the model's longest side, lowering the vertical exaggeration if needed.",
+              "title": "Max Relief Ratio"
+            },
+            "contours_m": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Contour lines every N metres (0 = none, -1 = automatic).",
+              "title": "Contours M"
+            },
+            "contour_depth_mm": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Contour Depth Mm"
+            },
+            "frame_mm": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Width of a raised frame around the model (0 = none).",
+              "title": "Frame Mm"
+            },
+            "label": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Text engraved on the bottom; empty = name, coordinates and scale.",
+              "title": "Label"
+            },
+            "label_bottom": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Label Bottom"
+            },
+            "water_lines": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Thin lines engraved in the water following the shore of lakes and the sea (0 = none), like depth lines on a chart (colour mode).",
+              "title": "Water Lines"
+            },
+            "tall_buildings_m": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Buildings at least this tall (m) are a part of their own, 'Towers', in a colour of their own (0 = off).",
+              "title": "Tall Buildings M"
+            },
+            "palette": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "classic",
+                    "sand",
+                    "grey",
+                    "white",
+                    "alpine"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Colours of the parts: classic (muted map), sand (sand ground, white streets and buildings, bright green), grey (dark grey ground, white streets and buildings), white (all white but the water), alpine (bright meadows, dark rock, white snow).",
+              "title": "Palette"
+            },
+            "frame_style": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "flat",
+                    "bevel",
+                    "step"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "flat: a plain raised band; bevel: its outer edge chamfered; step: a lower outer ledge and a higher inner rim.",
+              "title": "Frame Style"
+            },
+            "plaque": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Raised plaque on the south side of the frame: title, coordinates and scale, a north arrow and a scale bar (the frame is widened to fit).",
+              "title": "Plaque"
+            },
+            "plaque_text": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Title of the plaque; empty = the model's name.",
+              "title": "Plaque Text"
+            },
+            "highlight_lon": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "A place to highlight in gold (your home): the building under it, or a marker where there is none.",
+              "title": "Highlight Lon"
+            },
+            "highlight_lat": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Highlight Lat"
+            },
+            "track": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "A route (GPX, KML or GeoJSON text) raised as a ribbon in its own colour.",
+              "title": "Track"
+            },
+            "track_width_mm": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Width of the route ribbon.",
+              "title": "Track Width Mm"
+            },
+            "track_height_mm": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "How far the route ribbon stands above the ground.",
+              "title": "Track Height Mm"
+            },
+            "nozzle_mm": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Nozzle of the printer, for the printability report.",
+              "title": "Nozzle Mm"
+            },
+            "thicken": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Widen features narrower than two nozzle passes (streets, rails, paths, thin buildings, tiny trees) so they print.",
+              "title": "Thicken"
+            },
+            "tiles_x": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Tiles X"
+            },
+            "tiles_y": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Tiles Y"
+            },
+            "pins": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Pins"
+            },
+            "pin_diameter_mm": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Holes for alignment pins (1.9 fits 1.75 mm filament).",
+              "title": "Pin Diameter Mm"
+            },
+            "pin_depth_mm": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Pin Depth Mm"
+            },
+            "tile_labels": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Tile Labels"
+            },
+            "panels_x": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Framed panels across: the model split into pictures that hang side by side, each with its own frame (the landscape runs on from one to the next).",
+              "title": "Panels X"
+            },
+            "panels_y": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Framed panels down.",
+              "title": "Panels Y"
+            },
+            "tile_cuts": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "straight",
+                    "streets"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "straight: tiles cut along straight lines; streets: the seams follow streets near the straight line, so no building is cut in two.",
+              "title": "Tile Cuts"
+            },
+            "color": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "mono",
+                    "color"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Color"
+            },
+            "dem": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "auto",
+                    "ign",
+                    "terrarium"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Dem"
+            },
+            "synth": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "",
+                    "mountains",
+                    "ridged",
+                    "dunes",
+                    "terraced",
+                    "islands"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Synthetic terrain instead of the real place: mountains, ridged, dunes, terraced or islands (gradient noise with domain warp and fBm; empty = the real place).",
+              "title": "Synth"
+            },
+            "synth_seed": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Seed of the synthetic terrain (another seed, another landscape).",
+              "title": "Synth Seed"
+            },
+            "synth_relief_m": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Height of the synthetic terrain from its lowest to its highest point, in metres.",
+              "title": "Synth Relief M"
+            },
+            "synth_feature": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Size of the synthetic landforms against the area (larger = fewer, broader mountains or dunes).",
+              "title": "Synth Feature"
+            },
+            "synth_warp": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Domain warp of the synthetic terrain: how much ridges and valleys meander.",
+              "title": "Synth Warp"
+            },
+            "synth_terraces": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Number of steps of the terraced style.",
+              "title": "Synth Terraces"
+            },
+            "print_profile": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/PrintProfile"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Printer, material and price snapshot for this model; registry edits do not alter it."
+            }
+          },
+          "title": "ParamsPatch",
+          "type": "object"
+        },
+        "PrintProfile": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "default": "",
+              "maxLength": 40,
+              "title": "Id",
+              "type": "string"
+            },
+            "name": {
+              "default": "Mi impresora",
+              "maxLength": 100,
+              "minLength": 1,
+              "title": "Name",
+              "type": "string"
+            },
+            "bed_x_mm": {
+              "default": 256,
+              "maximum": 2000,
+              "minimum": 20,
+              "title": "Bed X Mm",
+              "type": "number"
+            },
+            "bed_y_mm": {
+              "default": 256,
+              "maximum": 2000,
+              "minimum": 20,
+              "title": "Bed Y Mm",
+              "type": "number"
+            },
+            "nozzle_mm": {
+              "default": 0.4,
+              "maximum": 1.2,
+              "minimum": 0.1,
+              "title": "Nozzle Mm",
+              "type": "number"
+            },
+            "filament": {
+              "$ref": "#/$defs/Filament"
+            },
+            "filaments": {
+              "additionalProperties": {
+                "$ref": "#/$defs/Filament"
+              },
+              "description": "Optional material and colour per part.",
+              "title": "Filaments",
+              "type": "object"
+            },
+            "infill_pct": {
+              "default": 15,
+              "maximum": 100,
+              "minimum": 0,
+              "title": "Infill Pct",
+              "type": "number"
+            },
+            "shell_mm": {
+              "default": 0.9,
+              "maximum": 10,
+              "minimum": 0.1,
+              "title": "Shell Mm",
+              "type": "number"
+            },
+            "currency": {
+              "default": "EUR",
+              "pattern": "^[A-Za-z]{3}$",
+              "title": "Currency",
+              "type": "string"
+            },
+            "archived": {
+              "default": false,
+              "title": "Archived",
+              "type": "boolean"
+            }
+          },
+          "title": "PrintProfile",
+          "type": "object"
+        }
+      },
+      "properties": {
+        "style": {
+          "default": "mountains",
+          "enum": [
+            "mountains",
+            "ridged",
+            "dunes",
+            "terraced",
+            "islands"
+          ],
+          "title": "Style",
+          "type": "string"
+        },
+        "seed": {
+          "default": 1,
+          "description": "Another seed, another landscape.",
+          "maximum": 2147483647,
+          "minimum": 0,
+          "title": "Seed",
+          "type": "integer"
+        },
+        "relief_m": {
+          "default": 1200.0,
+          "description": "Height from the lowest to the highest point, in metres.",
+          "maximum": 8000,
+          "minimum": 10,
+          "title": "Relief M",
+          "type": "number"
+        },
+        "feature": {
+          "default": 1.0,
+          "description": "Size of the landforms against the area (larger = broader).",
+          "maximum": 4.0,
+          "minimum": 0.2,
+          "title": "Feature",
+          "type": "number"
+        },
+        "warp": {
+          "default": 0.6,
+          "description": "Domain warp: how much ridges and valleys meander.",
+          "maximum": 2.0,
+          "minimum": 0.0,
+          "title": "Warp",
+          "type": "number"
+        },
+        "terraces": {
+          "default": 7,
+          "description": "Steps of the terraced style.",
+          "maximum": 30,
+          "minimum": 2,
+          "title": "Terraces",
+          "type": "integer"
+        },
+        "width_m": {
+          "default": 10000.0,
+          "description": "Ground width of the invented area in metres.",
+          "maximum": 200000,
+          "minimum": 50,
+          "title": "Width M",
+          "type": "number"
+        },
+        "height_m": {
+          "default": 10000.0,
+          "description": "Ground height of the invented area in metres.",
+          "maximum": 200000,
+          "minimum": 50,
+          "title": "Height M",
+          "type": "number"
+        },
+        "create": {
+          "default": false,
+          "description": "false: only preview (numbers and a picture); true: create a model and build it.",
+          "title": "Create",
+          "type": "boolean"
+        },
+        "name": {
+          "default": "",
+          "maxLength": 120,
+          "title": "Name",
+          "type": "string"
+        },
+        "preset": {
+          "anyOf": [
+            {
+              "enum": [
+                "city",
+                "landscape",
+                "relief"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "landscape",
+          "description": "Starting parameters of the model (landscape: contour lines, rock, snow).",
+          "title": "Preset"
+        },
+        "params": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ParamsPatch"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Other model parameters (size_mm, tiles_x/tiles_y, frame_mm, plaque...)."
+        },
+        "build": {
+          "default": true,
+          "description": "With create: build right away (a job).",
+          "title": "Build",
+          "type": "boolean"
+        }
+      },
+      "title": "SynthArgs",
+      "type": "object"
+    },
+    "module": "gulliver",
+    "native_name": "synth_terrain"
+  },
+  {
     "name": "gulliver_cache_info",
-    "description": "Size of the downloaded elevation and map cache. CachÃ©.\nSinÃ³nimos: espacio, descargas",
+    "description": "Size of the downloaded elevation and map cache. Caché.\nSinónimos: espacio, descargas",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -6634,7 +8741,7 @@
   },
   {
     "name": "gulliver_cache_clear",
-    "description": "Empty the download cache, or one bucket of it (confirm=true). Vaciar cachÃ©.\nSinÃ³nimos: liberar espacio",
+    "description": "Empty the download cache, or one bucket of it (confirm=true). Vaciar caché.\nSinónimos: liberar espacio",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": true,
@@ -6650,7 +8757,8 @@
             "terrarium",
             "ign",
             "overpass",
-            "nominatim"
+            "nominatim",
+            "imagery"
           ],
           "title": "Bucket",
           "type": "string"
