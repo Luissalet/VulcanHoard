@@ -1722,7 +1722,7 @@
   },
   {
     "name": "model_simplify",
-    "description": "Make a lighter LOD variant of a model: fewer triangles, measured error (write). Keywords: simplificar.\nSimplifies with meshoptimizer (fallback fast-simplification) to a ratio of triangles and/or a maximum error in mm, mode attribute or sloppy, borders locked by default. Writes a NEW STL in the library linked to the source (the original is never touched) and returns triangles before/after and the measured error (two-sided sampled distance, max = Hausdorff-style). save=false only measures.\nSinónimos: simplificar malla, reducir triángulos, diezmar, LOD, versión ligera, aligerar STL, menos polígonos, optimizar modelo.",
+    "description": "Make a lighter LOD variant of a model: fewer triangles, measured error (write). Keywords: simplificar.\nmeshoptimizer (fallbacks fast-simplification, clustering) to a ratio and/or target_error = max surface deviation in mm, measured as the reported error.hausdorff_mm (target_met; a miss is not saved). Open borders locked and checked (borders_kept). Writes a NEW STL linked to the source (original untouched), identified by a hash of parameters + source revision (variant_key). save=false only measures.\nSinónimos: simplificar malla, reducir triángulos, diezmar, LOD, versión ligera, aligerar STL, menos polígonos, optimizar modelo.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -1763,7 +1763,7 @@
             }
           ],
           "default": null,
-          "description": "Maximum allowed deviation in mm (e.g. 0.05); with ratio too, it stops at whichever comes first.",
+          "description": "Maximum SURFACE deviation in mm (e.g. 0.05), measured as error.hausdorff_mm (two-sided sampled distance, the number the result reports): results are measured and the engine tightened until it holds; target_met says if it did. 0/null = no maximum. With ratio too, the ratio is the floor of kept triangles.",
           "title": "Target Error"
         },
         "mode": {
@@ -1775,7 +1775,7 @@
         },
         "keep_borders": {
           "default": true,
-          "description": "Lock open borders so outlines and seams do not move.",
+          "description": "Lock open-border vertices and edges so outlines do not move (every engine, checked in borders_kept).",
           "title": "Keep Borders",
           "type": "boolean"
         },
@@ -1783,6 +1783,12 @@
           "default": true,
           "description": "false only measures (triangles before/after and error) without writing a variant.",
           "title": "Save",
+          "type": "boolean"
+        },
+        "allow_over_target": {
+          "default": false,
+          "description": "Save the closest result even when it misses target_error (flagged target_met=false in the result and the variant notes). Default: nothing is saved then.",
+          "title": "Allow Over Target",
           "type": "boolean"
         }
       },
@@ -1868,7 +1874,7 @@
   },
   {
     "name": "model_export_web_glb",
-    "description": "Export a model as a compressed GLB for the web (meshopt). Keywords: exportar GLB, web, comprimir.\nWrites <data>/exports/web/<name>.glb compressed with gltfpack -cc (EXT_meshopt_compression, quantized), or a plain GLB when Node/gltfpack is missing, and returns path, url, bytes and the original size. The original file is untouched; the result is cached per file version.\nSinónimos: exportar a GLB, glTF comprimido, modelo para la web, visor web, compresión meshopt, reducir tamaño del archivo.",
+    "description": "Export a model as a compressed GLB for the web (meshopt). Keywords: exportar GLB, web, comprimir.\nWrites <data>/exports/web/<name>.glb compressed with gltfpack -cc (EXT_meshopt_compression, quantized), or a plain GLB without Node/gltfpack; returns path, url, bytes, original size. In metres as glTF requires (mm x 0.001: 40 mm -> 0.04 m; units, extent_m in the result). Original untouched; cached per file version.\nSinónimos: exportar a GLB, glTF comprimido, modelo para la web, visor web, compresión meshopt, reducir tamaño del archivo.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,

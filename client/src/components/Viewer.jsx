@@ -9,6 +9,7 @@ import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.j
 
 const MATERIAL = () => new THREE.MeshStandardMaterial({ color: 0xd6cdc0, metalness: 0.05, roughness: 0.65, side: THREE.DoubleSide });
 export const DENSE_TRIANGLES = 300_000; // from here on the dense (virtual geometry) mode is offered when WebGPU exists
+export const WEB_GLB_TO_MM = 1000; // web GLBs are written in metres (glTF units); shown at the library's millimetre scale
 export const hasWebGPU = () => typeof navigator !== "undefined" && !!navigator.gpu;
 
 function load(format, url) {
@@ -63,6 +64,7 @@ export default function Viewer({ model, glbUrl = null, onCloseGlb }) {
   const [state, setState] = useState({ phase: "loading", error: null });
   const [dense, setDense] = useState(false);
   const [denseNote, setDenseNote] = useState("");
+  const [shownSize, setShownSize] = useState(null); // world box of what is on screen, in mm
   const denseOffer = hasWebGPU() && (model?.triangles || 0) >= DENSE_TRIANGLES;
   useEffect(() => { setDense(false); setDenseNote(""); }, [model?.id]);
 
@@ -110,6 +112,7 @@ export default function Viewer({ model, glbUrl = null, onCloseGlb }) {
       camera.updateProjectionMatrix();
       controls.target.copy(centre);
       controls.update();
+      if (!disposed) setShownSize(size.toArray().map((v) => Math.round(v * 100) / 100));
       const span = Math.max(size.x, size.y) * 1.6;
       grid = new THREE.GridHelper(span, 10, 0xd9cfc7, 0xe9e2dc);
       grid.rotation.x = Math.PI / 2;
@@ -137,8 +140,14 @@ export default function Viewer({ model, glbUrl = null, onCloseGlb }) {
         renderer.render(scene, camera);
       });
       setState({ phase: "loading", error: null });
-      const loaded = await load(glbUrl ? "glb" : model.format, glbUrl || `/api/models/${model.id}/file?v=${encodeURIComponent(model.sha256 || "")}`);
+      let loaded = await load(glbUrl ? "glb" : model.format, glbUrl || `/api/models/${model.id}/file?v=${encodeURIComponent(model.sha256 || "")}`);
       if (disposed) { dispose(loaded); return; }
+      if (glbUrl) { // the web GLB is in metres (glTF); the viewer works in millimetres like the library files
+        const inMillimetres = new THREE.Group();
+        inMillimetres.add(loaded);
+        inMillimetres.scale.setScalar(WEB_GLB_TO_MM);
+        loaded = inMillimetres;
+      }
       object = prepare(loaded);
       if (dense) {
         try {
@@ -181,7 +190,7 @@ export default function Viewer({ model, glbUrl = null, onCloseGlb }) {
         </div>
       </div>
       <div className="mt-1 flex flex-wrap items-center gap-3 text-[12px]">
-        {glbUrl && <span className="help">Viendo el GLB web comprimido · <button type="button" className="btn-link" onClick={onCloseGlb}>volver al archivo original</button></span>}
+        {glbUrl && <span className="help" data-glb-shown-size={shownSize ? shownSize.join("x") : ""}>Viendo el GLB web comprimido (en metros, mostrado en mm{shownSize ? `: ${shownSize.join(" × ")} mm` : ""}) · <button type="button" className="btn-link" onClick={onCloseGlb}>volver al archivo original</button></span>}
         {denseOffer && (
           <label className="inline-flex items-center gap-1" title="WebGPU + three-virtual-geometry: dibuja solo el detalle que se ve">
             <input type="checkbox" checked={dense} onChange={(e) => { setDenseNote(""); setDense(e.target.checked); }} />Modo denso (WebGPU)
