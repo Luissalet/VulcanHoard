@@ -18,7 +18,7 @@ Describe a model only from what the geometry data and the user say: dimensions, 
 Start with models_search or models_recent to find the model, then model_info for everything about it (including its listing and duplicates). Report the model id back so later calls are unambiguous.
 For "models with a similar shape" use models_similar with that id. It compares closed geometry even after remeshing or rotation; its scores are suggestions, never proof of duplicates.
 When asked for a listing ("genera la ficha"), write it in the user's voice and language (Spanish unless told otherwise), then save it with model_listing_set (source=assistant). Tags are lower-case, short, without duplicates. Saving the same listing twice is harmless.
-model_tag, model_note, model_listing_set, models_add_root and models_rescan change data: call them only when the user asks. model_import_file indexes one file right now (other apps call it when they finish an export); listings_export_catalog reads every listing in the shape the shop catalogue of Mercator imports. Scanning runs in the background: models_stats shows progress (files done / total, files per second, ETA). A folder with thousands of files takes minutes; answer with the partial numbers and say the scan is still running, or wait briefly and call models_stats again. Never read Vulcan's data folder, database or thumbnails directly with the shell or file tools: everything the app knows is available through these tools, and its database has a single writer.
+model_tag, model_note, model_listing_set, model_delete, models_add_root and models_rescan change data: call them only when the user asks. model_delete never deletes a file from the user's folders, only Vulcan's own generated files (data/cad, data/variants) and the library entry; tell the user what it kept. model_import_file indexes one file right now (other apps call it when they finish an export); listings_export_catalog reads every listing in the shape the shop catalogue of Mercator imports. Scanning runs in the background: models_stats shows progress (files done / total, files per second, ETA). A folder with thousands of files takes minutes; answer with the partial numbers and say the scan is still running, or wait briefly and call models_stats again. Never read Vulcan's data folder, database or thumbnails directly with the shell or file tools: everything the app knows is available through these tools, and its database has a single writer.
 
 The user also sells these models on a marketplace in a different convention: each PRODUCT is a FOLDER of models (not one model), and its listing (title in English, an English description of 200+ characters, exactly 20 unique lower-case tags) lives in that folder as cults3d.json. "ficha/listing para la carpeta X" or "ficha de X" means folder_listing_get/folder_listing_set on that folder, never model_listing_set. "fichas que faltan" or "qué carpetas no tienen ficha" means folder_listings(status=none). Draft one or several with folder_listing_draft (it runs in the background with a local model and returns progress; if no model backend is available it returns the assembled material instead so you can write the listing yourself and save it with folder_listing_set). Always run folder_listing_check after writing or importing a listing by hand before calling it approved. folder_listings_export produces a CSV/Markdown/JSON file in data/exports for uploading to the marketplace.
 To organise a folder of loose files and folders into one folder per group from a list the user pasted (\"una carpeta por línea evolutiva\", \"agrupa estos por serie\"), never move files one by one with the shell: call collection_plan with the folder and the pasted list, show the user the summary (groups, to_move, unmatched, ambiguous, conflicts), fix what they point out (aliases, a different target_template, the list itself) and plan again, and only after they agree call collection_apply(plan_id). It never deletes or overwrites; collection_undo reverts the last apply. After an apply the root is rescanned in the background: wait for models_stats to show it idle. Then \"fichas de todas\" / \"crea las fichas de todas las carpetas\" is one call: sheets_batch (default mode skeleton needs no model; use dry_run first on a big root); refine the drafts afterwards with folder_listing_set and check them with folder_listing_check. Use sheets_batch mode=model only when the user asks for the local model to write them.
@@ -523,6 +523,28 @@ TOOLS: list[Tool] = [
 ]
 
 TOOLS.append(Tool("copilot_context_get", "Read native context for a library view without starting work. Keywords: contexto, vista, edición sin guardar.\nResolve real model, folder listing, root or album IDs for the Faustus copilot. New/missing IDs return no active object and never create one or start a scan. Optional editor and selection are supplied snapshots, not a browser inspection. The stores are the same ones used by model_info and folder_listing_get.\nSinónimos: contexto actual, vista, selección, borrador, edición sin guardar.", ContextArgs, ann(True), run_copilot_context))
+
+class DeleteArgs(BaseModel):
+    id: int = Field(..., ge=1, description="Model id.")
+    exclude: bool = Field(False, description="For a file in one of the user's scanned folders: also add an exclude pattern so later scans do not list it again (the file itself is never deleted).")
+    dry_run: bool = Field(False, description="Only report what would be removed and what would be kept; changes nothing.")
+
+
+def run_model_delete(services: Services, args: DeleteArgs) -> dict:
+    from .model_delete import delete_model
+
+    return delete_model(services, args.id, exclude=args.exclude, dry_run=args.dry_run)
+
+
+TOOLS.append(Tool("model_delete", "Remove one model from the library (write, only when asked). Keywords: borrar modelo, quitar de la biblioteca.\n"
+    "Deletes the library entry with its listing, album membership and thumbnail (kept when an identical copy still uses it). "
+    "Files Vulcan created in its own data folder (CAD parts with their spec and check render, simplified variants) are deleted too. "
+    "A file in one of the user's folders is NEVER deleted: only its entry goes, and the result explains that the next scan lists it again "
+    "unless exclude=true (adds an exclude pattern for it) or the user removes the file. Files imported one by one are also dropped from their import list. "
+    "dry_run=true shows what would happen. Only when the user asks to delete that model.\n"
+    "Sinónimos: borrar modelo, eliminar pieza, quitar de la biblioteca, borrar pieza CAD de prueba, eliminar entrada, limpiar biblioteca.",
+    DeleteArgs, ann(False, True, False), run_model_delete))
+
 
 def run_model_compare(services: Services, args: CompareArgs) -> dict:
     from .model_comparison import compare_models

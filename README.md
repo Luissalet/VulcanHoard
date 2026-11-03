@@ -154,6 +154,7 @@ Adding a folder (`POST /api/roots`, `models_add_root`) accepts a pasted path wit
 | `model_listing_set` | Write the listing (title, description, tags, category, price_hint, language); source = assistant; fields left out keep their value; idempotent (write). |
 | `model_tag` | Add/remove tags, lower-cased and de-duplicated (write). |
 | `model_note` | Replace or append the notes (write). |
+| `model_delete` | Remove a model from the library (write, destructive): entry, listing, album membership and thumbnail (kept while an identical copy uses it). Files Vulcan created in its data folder (CAD part + `.cad.json` + `.check.png`, variants) are deleted too; a file in the user's folders is never deleted. `exclude=true` keeps a user file out of later scans; `dry_run=true` only reports. Also `DELETE /api/models/{id}` and the **Eliminar…** button on the model page. |
 | `models_stats` | Counts by format and root, collections, listings, duplicates, errors, scan queue with files/s and ETA per root; cached 5 s while a scan runs. |
 | `models_dupes` | Exact or near duplicate groups. |
 | `models_add_root` | Add a folder that must exist (options `thumbnails`, `skip_small_bytes`); idempotent by path; scanning starts in the background (write). |

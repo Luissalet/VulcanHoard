@@ -39,6 +39,7 @@ export const api = {
   similarModels: (id) => request("GET", `/api/models/${id}/similar`),
   compareModels: (body) => request('POST', '/api/model-comparison', { body }),
   updateModel: (id, patch) => request("PATCH", `/api/models/${id}`, { body: patch }),
+  removeModel: (id, params) => request("DELETE", `/api/models/${id}`, { params }),
   listing: (id) => request("GET", `/api/models/${id}/listing`),
   saveListing: (id, body) => request("PUT", `/api/models/${id}/listing`, { body }),
   removeListing: (id) => request("DELETE", `/api/models/${id}/listing`),

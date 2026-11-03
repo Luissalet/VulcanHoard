@@ -125,6 +125,19 @@ def patch_model(request: Request, model_id: int, body: ModelPatch):
     return model
 
 
+@router.delete("/models/{model_id}")
+def delete_model(request: Request, model_id: int, exclude: bool = False, dry_run: bool = False):
+    """Remove a model from the library. Files in Vulcan's data folder go with it; a user's file is never deleted."""
+    from ..model_delete import delete_model as remove
+
+    try:
+        return remove(services(request), model_id, exclude=exclude, dry_run=dry_run)
+    except LookupError as error:
+        raise HTTPException(404, str(error)) from error
+    except ValueError as error:
+        raise HTTPException(409, str(error)) from error
+
+
 @router.get("/models/{model_id}/thumb")
 def thumb(request: Request, model_id: int):
     model = _model_or_404(services(request), model_id)
