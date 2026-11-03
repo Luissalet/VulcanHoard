@@ -2352,6 +2352,361 @@
     "native_name": "asset_preparations"
   },
   {
+    "name": "spatial_example",
+    "description": "Worked spatial-analysis scenario with a known answer. Keywords: ejemplo análisis espacial.\nReturns an invented small area (demand points, candidate sites, roads, a river, parcels, restricted zone, elevation grid) with CRS, source and date on every layer, in the CRS you ask for, and the expected results. Start here to see the scenario format.\nSinónimos: ejemplo, escenario de prueba, mapa de demostración, plantilla de capas, cobertura, parcelas.",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "crs": {
+          "default": "EPSG:4326",
+          "description": "CRS in which the example layers are written, e.g. EPSG:4326 or EPSG:25830.",
+          "maxLength": 40,
+          "title": "Crs",
+          "type": "string"
+        }
+      },
+      "title": "ExampleArgs",
+      "type": "object"
+    },
+    "module": "library",
+    "native_name": "spatial_example"
+  },
+  {
+    "name": "spatial_layers_check",
+    "description": "Validate scenario layers: CRS, metric work CRS, distortion, dates. Keywords: comprobar capas, CRS.\nChecks that every layer declares CRS, source, date and resolution, that coordinates fit the declared CRS, that the work CRS is metric and not distorted over the area (EPSG:3857 is refused), and that layers overlap. Computes nothing else.\nSinónimos: validar capas, sistema de referencia, proyección, EPSG, fecha de los datos, vigencia, procedencia.",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "scenario": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "A scenario object (see spatial_example): settings, layers (each with crs, source, date, resolution, geojson), coverage, screening.",
+          "title": "Scenario"
+        },
+        "scenario_id": {
+          "anyOf": [
+            {
+              "maxLength": 48,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Or the id of a saved scenario (spatial_scenarios).",
+          "title": "Scenario Id"
+        },
+        "overrides": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Partial scenario merged on top, to edit parameters without touching layers, e.g. {\"coverage\":{\"k\":3,\"max_time_min\":5}}.",
+          "title": "Overrides"
+        }
+      },
+      "title": "ScenarioRef",
+      "type": "object"
+    },
+    "module": "library",
+    "native_name": "spatial_layers_check"
+  },
+  {
+    "name": "spatial_coverage",
+    "description": "Choose service sites covering demand within a travel time. Keywords: cobertura, ubicar sitios.\nMaximal covering (k sites) or set covering (fewest sites for X %) on shortest travel time over the road network, with obstacles; also straight-line coverage, clearly labelled optimistic, and what its sites really serve by network. Exact (MILP) for small instances, greedy with bound otherwise. Returns sites, uncovered points with reasons, catchments, report; layers by run_id.\nSinónimos: ubicación de servicios, puntos de servicio, tiempo máximo de desplazamiento, población cubierta, localización de instalaciones.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "scenario": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "A scenario object (see spatial_example): settings, layers (each with crs, source, date, resolution, geojson), coverage, screening.",
+          "title": "Scenario"
+        },
+        "scenario_id": {
+          "anyOf": [
+            {
+              "maxLength": 48,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Or the id of a saved scenario (spatial_scenarios).",
+          "title": "Scenario Id"
+        },
+        "overrides": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Partial scenario merged on top, to edit parameters without touching layers, e.g. {\"coverage\":{\"k\":3,\"max_time_min\":5}}.",
+          "title": "Overrides"
+        },
+        "lang": {
+          "default": "en",
+          "description": "Language of the report text: en (default) or es (Spain). Codes and numbers do not change.",
+          "pattern": "^(es|en)$",
+          "title": "Lang",
+          "type": "string"
+        },
+        "save": {
+          "default": true,
+          "description": "Keep the run (with its layers) so spatial_export and the REST layer endpoints can read it.",
+          "title": "Save",
+          "type": "boolean"
+        }
+      },
+      "title": "RunArgs",
+      "type": "object"
+    },
+    "module": "library",
+    "native_name": "spatial_coverage"
+  },
+  {
+    "name": "spatial_screen",
+    "description": "Pre-select parcels by slope, road access, restricted areas and attributes. Keywords: parcelas, pendiente.\nSlope from an elevation grid (or slope layer), distance to the road network, overlap with exclusion polygons, area and attribute rules. Every rejected parcel lists the rule, the measured value and the threshold. Returns accepted/rejected layers by run_id and a report.\nSinónimos: preselección de parcelas, instalación, restricciones de acceso, suelo, catastro, pendiente máxima.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "scenario": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "A scenario object (see spatial_example): settings, layers (each with crs, source, date, resolution, geojson), coverage, screening.",
+          "title": "Scenario"
+        },
+        "scenario_id": {
+          "anyOf": [
+            {
+              "maxLength": 48,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Or the id of a saved scenario (spatial_scenarios).",
+          "title": "Scenario Id"
+        },
+        "overrides": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Partial scenario merged on top, to edit parameters without touching layers, e.g. {\"coverage\":{\"k\":3,\"max_time_min\":5}}.",
+          "title": "Overrides"
+        },
+        "lang": {
+          "default": "en",
+          "description": "Language of the report text: en (default) or es (Spain). Codes and numbers do not change.",
+          "pattern": "^(es|en)$",
+          "title": "Lang",
+          "type": "string"
+        },
+        "save": {
+          "default": true,
+          "description": "Keep the run (with its layers) so spatial_export and the REST layer endpoints can read it.",
+          "title": "Save",
+          "type": "boolean"
+        }
+      },
+      "title": "RunArgs",
+      "type": "object"
+    },
+    "module": "library",
+    "native_name": "spatial_screen"
+  },
+  {
+    "name": "spatial_scenarios",
+    "description": "List or read saved spatial scenarios and runs. Keywords: escenarios guardados.\nkind=scenarios lists saved inputs, kind=runs the saved results; id reads one in full (a run includes its layers as GeoJSON).\nSinónimos: escenarios, ejecuciones, resultados guardados, capas de resultado.",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "default": "scenarios",
+          "description": "scenarios (saved inputs) or runs (saved results).",
+          "pattern": "^(scenarios|runs)$",
+          "title": "Kind",
+          "type": "string"
+        },
+        "id": {
+          "anyOf": [
+            {
+              "maxLength": 60,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Read one scenario by id (or one run by run_id) in full.",
+          "title": "Id"
+        }
+      },
+      "title": "ScenariosArgs",
+      "type": "object"
+    },
+    "module": "library",
+    "native_name": "spatial_scenarios"
+  },
+  {
+    "name": "spatial_scenario_save",
+    "description": "Save a spatial scenario for editing and rerunning (write). Keywords: guardar escenario.\nStores the scenario JSON under an id in the data folder; it can then be run with scenario_id and overrides.\nSinónimos: guardar escenario, parámetros editables, capas de entrada.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "Lowercase letters, digits, - and _.",
+          "maxLength": 48,
+          "title": "Id",
+          "type": "string"
+        },
+        "scenario": {
+          "additionalProperties": true,
+          "title": "Scenario",
+          "type": "object"
+        },
+        "replace": {
+          "default": false,
+          "title": "Replace",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "scenario"
+      ],
+      "title": "SaveArgs",
+      "type": "object"
+    },
+    "module": "library",
+    "native_name": "spatial_scenario_save"
+  },
+  {
+    "name": "spatial_export",
+    "description": "Export a spatial run as JSON for the optimizer or data workbench (write). Keywords: exportar.\nCoverage runs become a set-covering instance (demand weights, candidates with the demand they cover, solution, provenance); screening runs a table of parcels with decision and reasons. Writes a file in the data folder.\nSinónimos: exportar resultado, optimizador de decisiones, Dantzig, Nightingale, tabla de parcelas.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "run_id": {
+          "maxLength": 60,
+          "title": "Run Id",
+          "type": "string"
+        },
+        "mode": {
+          "anyOf": [
+            {
+              "pattern": "^(network|straight_line)$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Coverage runs: which coverage basis to export. Default network.",
+          "title": "Mode"
+        }
+      },
+      "required": [
+        "run_id"
+      ],
+      "title": "ExportArgs",
+      "type": "object"
+    },
+    "module": "library",
+    "native_name": "spatial_export"
+  },
+  {
     "name": "gulliver_model_assembly",
     "description": "Assembly guide for a kept build: numbered pieces, files and materials. Guia de montaje.\nUses only that generation. Piece pages share stable numbers; follow next_offset until null.\nSinónimos: montar, piezas, orientacion, filamentos",
     "annotations": {
