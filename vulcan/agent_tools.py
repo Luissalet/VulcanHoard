@@ -12,6 +12,7 @@ from .search import SORT_NAMES, Filters
 from .services import Services
 from .copilot_context import ContextArgs, build_context
 from .model_comparison import CompareArgs
+from .cad_fit import FitArgs, fit_models
 
 AGENT_INSTRUCTIONS = """Vulcan's Hoard is the user's own library of 3D-printable models (STL, 3MF, OBJ files in folders on their PC), scanned locally: for every file it knows the size in mm, triangles, volume, whether the mesh is watertight, how many bodies it has, a thumbnail, tags, notes and an optional marketplace listing (title, description, tags, category).
 Describe a model only from what the geometry data and the user say: dimensions, number of parts, watertightness, file format, folder and the user's own notes and tags. Never invent features, materials, history or use cases that are not in the data or in the conversation; ask the user when the listing needs them.
@@ -540,6 +541,11 @@ TOOLS.append(Tool('model_compare', 'Compare two indexed 3D revisions in physical
 from .mesh_agent_tools import MESH_TOOLS  # noqa: E402 - LOD variants, look, web GLB, slicers
 
 TOOLS += MESH_TOOLS
+TOOLS.append(Tool("cad_fit_parameters", "Fit selected numeric fields of a saved CAD recipe to measurements of an indexed reference mesh. "
+    "Supply bounded intervals containing the current values and per-measurement tolerances. The reference axes must already match. "
+    "Returns candidate overrides, residuals, local ambiguity and source fingerprints. Does not save or prove the same shape. "
+    "Sinónimos: ajustar receta CAD, recuperar dimensiones editables, adaptar una plantilla a un STL.",
+    FitArgs, ann(True), fit_models, timeout_s=45))
 
 TOOLS_BY_NAME = {tool.name: tool for tool in TOOLS}
 

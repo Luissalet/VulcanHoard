@@ -3,6 +3,7 @@ import { api } from "../api.js";
 import { cadAcknowledgedFields, cadDraftValues, cadParamChanges, cadVariantRequest } from "../cad-params.js";
 import { useDraft } from "../useDraft.js";
 import { useCopilotContext, useCopilotRefresh } from "../copilot.js";
+import CadFitPanel from "./CadFitPanel.jsx";
 
 const measure = (value) => value == null ? "—" : Array.isArray(value) ? `${value.join(" × ")} mm` : `${value} mm³`;
 const warningText = (warning) => warning === "the part does not match the requested measures: see verification.items" ? "La pieza no coincide con los objetivos guardados; revisa la tabla de verificación." : warning;
@@ -102,6 +103,9 @@ export default function CadParameters({ id, onRegenerated }) {
             {error && <p className="text-[13px]" role="alert" style={{ color: "var(--danger-ink)", overflowWrap: "anywhere" }}>{error}</p>}
             <div className="flex flex-wrap gap-2"><button type="submit" className="btn btn-primary" disabled={busy || variantBusy || loading || !names.length || !!invalid}>{busy ? "Regenerando pieza…" : "Regenerar pieza"}</button><button type="button" className="btn" disabled={busy || variantBusy || loading} onClick={read}>Actualizar receta guardada</button></div>
           </form>
+          {info.recipe_sha256 && <CadFitPanel key={`${id}:${info.recipe_sha256}`} info={info}
+            canApply={!loading && !busy && !variantBusy && !readError && !draft.dirty.length}
+            onApply={overrides => draft.edit(Object.fromEntries(Object.entries(overrides).map(([name, value]) => [name, String(value)])))} />}
           <details className="border-t pt-4" style={{ borderColor: "var(--line)" }}>
             <summary className="text-[14px] font-semibold">Crear una variante sin reemplazar el original</summary>
             <p className="help mt-2">Crea otra pieza con la receta guardada y los cambios numéricos indicados arriba. El modelo {id}, sus archivos y tus cambios pendientes se conservan. Abrir o cerrar este apartado no crea archivos.</p>
