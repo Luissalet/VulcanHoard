@@ -59,7 +59,11 @@ Con el lanzador compartido de Hoard Link instalado, la app muestra el panel de F
 
 ## Alcance y pruebas
 
-El formato admite hasta 50 primitivas, dimensiones de hasta 2000 mm, posiciones de ±10000 mm y rotaciones de ±360°. Rechaza código, expresiones, rutas arbitrarias, valores no finitos y campos desconocidos. No incorpora todavía un editor de croquis, ensamblajes, importación editable de STEP ni simulación física.
+El formato admite hasta 50 primitivas, dimensiones de hasta 2000 mm, posiciones de ±10000 mm y rotaciones de ±360°. Rechaza código, expresiones, rutas arbitrarias, valores no finitos y campos desconocidos. No incorpora todavía un editor de croquis, importación editable de STEP ni simulación física.
+
+## Ensamblajes
+
+La sección «Ensamblajes» coloca componentes (familias paramétricas, piezas ya construidas o mallas) con relaciones explícitas entre referencias con nombre: fijo, coincidencia, distancia entre planos, coaxialidad y holgura pedida. Informa residuos y si el conjunto está resuelto, con grados de libertad restantes, con relaciones incompatibles (qué relación falla y entre qué dos componentes) o ambiguo (no elige ninguna solución). Las interferencias usan volúmenes booleanos del motor CAD (penetración, contención completa, contacto y holgura); las mallas son una aproximación nombrada y las abiertas no se dan por buenas. Cada cambio de cota crea una revisión nueva; la comprobación de revisiones usa la posición guardada sin realinear. Exporta STEP, GLB y manifiesto, y los reimporta para comparar componentes y posiciones. Detalles y ejemplo de caja con placa y tapa: `docs/HERON-ASSEMBLY.md` en el repositorio de Vulcan.
 
 ```powershell
 .venv/Scripts/python.exe -m pip install pytest

@@ -24,7 +24,11 @@ Local document navigation unlocks the UI through an HttpOnly, SameSite Strict co
 
 Reuse an ID after communication uncertainty; changed recipes require a new ID. One build runs per instance, with a 120-second worker timeout. If a server is lost during a build, inspect the worker before resolving its retained `running` state; automatic retries are disabled. The Hub's `measured-cad` workflow identifies providers for CAD, catalogue and product stages without automatically running or publishing anything.
 
-Limits: 50 primitives; dimensions up to 2000 mm; translations ±10000 mm; rotations ±360°. No evaluated code, arbitrary paths or unknown fields. Sketch editing, assemblies, editable STEP import and physical simulation are not implemented.
+Limits: 50 primitives; dimensions up to 2000 mm; translations ±10000 mm; rotations ±360°. No evaluated code, arbitrary paths or unknown fields. Sketch editing, editable STEP import and physical simulation are not implemented.
+
+## Assemblies
+
+Components from part families (enclosure, standoff, plate, bracket, screw, block), finished builds or inline meshes are placed with explicit relations between named references (`fixed`, `coincident`, `distance`, `coaxial`, plus requested `clearance`). The deterministic solver reports residuals and whether the result is solved, under-constrained (remaining DOF per component), incompatible (failing relation and conflict set) or ambiguous (nothing chosen). Interference uses OCCT Boolean volumes, containment, contact and exact gaps; meshes are a named approximation and open meshes are not checkable. Parameter edits create immutable revisions; revision checks keep the stored pose without realignment; STEP/GLB/manifest exports are reimported and compared. Tools: `assembly_families`, `assembly_create`, `assembly_get`, `assembly_list`, `assembly_set_parameters`, `assembly_revision_check`, `assembly_import`. Details and the enclosure/board/lid example: `docs/HERON-ASSEMBLY.md` in the Vulcan repository.
 
 ## Faustus assistant
 
