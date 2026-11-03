@@ -198,3 +198,30 @@ def test_thumbnail_policy_and_skip_small(tmp_path, library):
             svc.roots.update(root.id, {"thumbnails": "sideways"})
     finally:
         svc.stop()
+
+
+@pytest.mark.parametrize("order", [(0, 1), (1, 0)])
+def test_parallel_duplicate_renders_count_one_thumbnail(scanned, library, order):
+    """Two pool workers can both render the shared <sha>.webp of an exact copy before either sees the other's file.
+    thumbs_rendered counts unique thumbnail files, whatever order the two results finish in; both entries keep it."""
+    from vulcan.scanner import Progress, _stat, scan_task
+
+    services, root = scanned
+    scanner = services.scanner
+    rels = ["dragones/dragon_cubo_v2.stl", "soportes/copia_del_cubo.stl"]
+    shared = Path(services.models.by_path(rels[0])["thumb_path"])
+    results = []
+    for rel in rels:
+        shared.unlink(missing_ok=True)  # each "worker" starts before the other's thumbnail exists
+        results.append(scan_task(str(library / rel), None, str(scanner.thumbs_dir), scanner.thumb_size))
+    assert all(r["thumb_rendered"] and r["thumb_path"] == str(shared) for r in results)
+    progress = Progress(root_id=root.id)
+    for index in order:
+        rel = rels[index]
+        row = services.models.by_path(rel)
+        scanner._apply(root, rel, library / rel, _stat(library / rel), row["id"], results[index], progress)
+    assert progress.thumbs_rendered == 1 and progress.files_changed == 2 and progress.jobs_done == 2
+    assert "_thumbs_seen" not in progress.to_dict()
+    for rel in rels:
+        assert services.models.by_path(rel)["thumb_path"] == str(shared)
+    assert shared.is_file()
