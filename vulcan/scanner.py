@@ -43,6 +43,9 @@ class Progress:
     workers: int = 1
     jobs_total: int = 0  # files that actually need hashing/parsing this run (the rest pass the cheap size+mtime check)
     jobs_done: int = 0
+    # thumbs_rendered counts unique thumbnail files written by this run, not render operations: identical files share
+    # one <sha>.webp, and two pool workers can both render it before either sees the other's file.
+    _thumbs_seen: set = field(default_factory=set, repr=False)
 
     def rate(self) -> float | None:
         """Parsed files per second since parsing started (None until there is something to measure)."""
@@ -58,7 +61,8 @@ class Progress:
         return max(0.0, (self.jobs_total - self.jobs_done) / rate)
 
     def to_dict(self) -> dict:
-        return {**self.__dict__, "errors": list(self.errors[-200:]), "error_count": len(self.errors), "rate": self.rate(), "eta_s": self.eta_s()}
+        public = {key: value for key, value in self.__dict__.items() if not key.startswith("_")}
+        return {**public, "errors": list(self.errors[-200:]), "error_count": len(self.errors), "rate": self.rate(), "eta_s": self.eta_s()}
 
 
 def glob_to_regex(pattern: str) -> re.Pattern:
@@ -375,7 +379,8 @@ class Scanner:
         progress.jobs_done += 1
         if result["thumb_error"]:
             progress.errors.append({"path": f"thumb {rel}", "error": result["thumb_error"]})
-        if result["thumb_rendered"]:
+        if result["thumb_rendered"] and result["thumb_path"] not in progress._thumbs_seen:
+            progress._thumbs_seen.add(result["thumb_path"])  # a duplicate rendered twice by parallel workers counts once
             progress.thumbs_rendered += 1
         collection = collection_for(root, rel)
         if result["error"]:
