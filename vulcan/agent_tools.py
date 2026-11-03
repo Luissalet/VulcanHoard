@@ -545,6 +545,10 @@ from .asset_agent_tools import ASSET_TOOLS  # noqa: E402 - destination profiles,
 
 TOOLS += ASSET_TOOLS
 
+from .spatial.tools import SPATIAL_TOOLS  # noqa: E402 - spatial analysis: coverage by network time, parcel screening
+
+TOOLS += SPATIAL_TOOLS
+
 TOOLS_BY_NAME = {tool.name: tool for tool in TOOLS}
 
 
