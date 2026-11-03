@@ -105,6 +105,49 @@ def model_media_file(request: Request, model_id: str, name: str, download: bool 
     return FileResponse(path, media_type=media.media_type(name), headers=headers)
 
 
+@router.get("/area/imagery")
+def area_imagery(request: Request, lon: float, lat: float, width_m: float = 2000.0, height_m: float = 2000.0,
+                 provider: str = "auto", max_px: int = 2048, refresh: bool = False):
+    """The aerial/satellite picture of an area (the same as the ``area_imagery`` tool); the JPEG is at ``image_url``."""
+    return tool(request, "area_imagery", {"lon": lon, "lat": lat, "width_m": width_m, "height_m": height_m,
+                                          "provider": provider, "max_px": max_px, "refresh": refresh})
+
+
+@router.get("/imagery/{name}")
+def imagery_picture(request: Request, name: str):
+    from ..drape import imagery_file
+    path = imagery_file(services(request), name)
+    return FileResponse(path, media_type="image/jpeg", headers={"X-Content-Type-Options": "nosniff",
+                                                                "Cache-Control": "public, max-age=86400"})
+
+
+@router.post("/models/{model_id}/imagery")
+def model_imagery(request: Request, model_id: str, body: dict[str, Any] | None = None):
+    """Drape the photo over a build (the ``model_imagery`` tool): texture, textured GLB and photo-coloured 3MF."""
+    return tool(request, "model_imagery", {**(body or {}), "model_id": model_id})
+
+
+@router.get("/synth/preview.png")
+def synth_preview(style: str = "mountains", seed: int = 1, relief_m: float = 1200.0, feature: float = 1.0, warp: float = 0.6,
+                  terraces: int = 7, width_m: float = 10000.0, height_m: float = 10000.0, size: int = 320):
+    """A shaded top view of a synthetic terrain, for the panel and for ``synth_terrain``'s ``preview_url``."""
+    from fastapi.responses import Response
+    from ..synth import STYLES, preview
+    if style not in STYLES:
+        raise GulliverError("invalid", f"Unknown style {style!r}.", "Use " + ", ".join(STYLES) + ".")
+    spec = {"style": style, "seed": max(0, int(seed)), "relief_m": min(8000.0, max(10.0, relief_m)),
+            "feature": min(4.0, max(0.2, feature)), "warp": min(2.0, max(0.0, warp)), "terraces": min(30, max(2, int(terraces)))}
+    png, stats = preview(spec, width_m=min(200_000.0, max(50.0, width_m)), height_m=min(200_000.0, max(50.0, height_m)), size=size)
+    return Response(png, media_type="image/png", headers={"X-Content-Type-Options": "nosniff", "Cache-Control": "public, max-age=3600",
+                                                         "X-Terrain-Min-M": str(stats["min_m"]), "X-Terrain-Max-M": str(stats["max_m"])})
+
+
+@router.post("/synth/terrain")
+def synth_terrain(request: Request, body: dict[str, Any] | None = None):
+    """Preview or create a synthetic terrain (the ``synth_terrain`` tool)."""
+    return tool(request, "synth_terrain", body or {})
+
+
 @router.get("/events")
 def events(request: Request, after: float = 0.0):
     return {"events": services(request).recent_events(after), "now": time.time()}
