@@ -29,16 +29,17 @@ export function SimplifyPanel({ model, onCreated }) {
     api.simplifyEngines().then(setEngine).catch(() => setEngine(null));
   }, [model.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const expected = Math.max(4, Math.round((model.triangles || 0) * percent / 100));
-  const body = (save) => ({ ratio: percent / 100, target_error: useError ? Number(error) : null, mode, keep_borders: borders, save, preview: !save });
-  const run = async (save) => {
+  const body = (save, force = false) => ({ ratio: percent / 100, target_error: useError ? Number(error) : null, mode, keep_borders: borders, save,
+    preview: !save, allow_over_target: force });
+  const run = async (save, force = false) => {
     const id = ++request.current;
     setBusy(save ? "Creando variante…" : "Calculando vista previa…");
-    const r = await act(() => api.simplify(model.id, body(save)), save ? "Variante creada en la biblioteca." : undefined);
+    const r = await act(() => api.simplify(model.id, body(save, force)));
     if (id !== request.current) return;
     setBusy("");
     if (r) {
       setResult(r);
-      if (save) { loadVariants(); onCreated?.(r); }
+      if (r.saved) { loadVariants(); onCreated?.(r); }
     }
   };
   const after = result?.saved ? api.thumbUrl({ id: result.id, has_thumb: true, sha256: String(result.seconds) }) : result?.preview_png;
@@ -59,8 +60,9 @@ export function SimplifyPanel({ model, onCreated }) {
             </select>
           </label>
           <label className="inline-flex items-center gap-2"><input type="checkbox" checked={borders} onChange={(e) => setBorders(e.target.checked)} />Mantener bordes</label>
-          <label className="inline-flex items-center gap-2"><input type="checkbox" checked={useError} onChange={(e) => setUseError(e.target.checked)} />Error máximo
-            <input type="number" className="field" style={{ width: 90 }} min="0" step="0.01" value={error} disabled={!useError} onChange={(e) => setError(e.target.value)} /> mm
+          <label className="inline-flex items-center gap-2" title="Máximo de la desviación superficial medida (Hausdorff a dos lados sobre muestras), el mismo «Error medido máx.» que se muestra al terminar. Se mide y se ajusta el motor hasta cumplirlo; si no se puede, no se guarda.">
+            <input type="checkbox" checked={useError} onChange={(e) => setUseError(e.target.checked)} />Desviación máxima de la superficie
+            <input type="number" className="field" style={{ width: 90 }} min="0" step="0.01" value={error} disabled={!useError} onChange={(e) => setError(e.target.value)} aria-label="Desviación máxima en mm" /> mm
           </label>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -81,10 +83,29 @@ export function SimplifyPanel({ model, onCreated }) {
               </figure>
             </div>
             <p className="help mt-2 text-[12px]">
-              Error medido: máx. {result.error.hausdorff_mm} mm · media {result.error.mean_mm} mm · p95 {result.error.p95_mm} mm · {result.engine}
+              {result.saved ? "Variante guardada · " : ""}Desviación medida de la superficie: máx. (Hausdorff) {result.error.hausdorff_mm} mm · media {result.error.mean_mm} mm · p95 {result.error.p95_mm} mm · {result.engine}
               {result.watertight_before && !result.watertight_after ? " · aviso: la variante ya no es estanca" : ""} · {result.seconds} s
               {result.saved && <> · <a className="btn-link" href={`#/modelo/${result.id}`}>abrir variante</a></>}
             </p>
+            {result.target_error_mm ? (
+              <p className="help mt-1 text-[12px]" data-simplify-target={result.target_met ? "met" : "unmet"} style={result.target_met ? undefined : { color: "var(--danger-ink)" }}>
+                {result.target_met
+                  ? `Cumple la desviación máxima de ${result.target_error_mm} mm (medida ${result.error.hausdorff_mm} mm, ${result.target_attempts.length} intento${result.target_attempts.length === 1 ? "" : "s"}).`
+                  : `No cumple la desviación máxima de ${result.target_error_mm} mm: lo más cercano mide ${result.error.hausdorff_mm} mm tras ${result.target_attempts.length} intentos.`}
+                {!result.target_met && !result.saved && result.borders_kept !== false && (
+                  <> <button type="button" className="btn btn-sm" disabled={!!busy} onClick={() => run(true, true)} data-simplify-force>Guardar igualmente (marcada)</button></>
+                )}
+              </p>
+            ) : null}
+            {result.keep_borders && result.borders && (
+              <p className="help mt-1 text-[12px]" data-simplify-borders={result.borders_kept ? "kept" : "moved"} style={result.borders_kept ? undefined : { color: "var(--danger-ink)" }}>
+                {result.borders_kept
+                  ? (result.borders.border_vertices ? `Bordes abiertos comprobados: ${result.borders.kept_vertices}/${result.borders.border_vertices} vértices y ${result.borders.kept_edges}/${result.borders.border_edges} aristas en su sitio.` : "Malla cerrada: no tiene bordes abiertos.")
+                  : `Los bordes se movieron (${result.borders.kept_vertices}/${result.borders.border_vertices} vértices); no se guarda. Desmarca «Mantener bordes» si no importa.`}
+              </p>
+            )}
+            {result.saved === false && result.note && !result.target_error_mm && result.borders_kept !== false && <p className="help mt-1 text-[12px]">{result.note}</p>}
+            {result.variant_key && <p className="help mt-1 text-[11px]">Receta {result.variant_key} · {result.engine} · fuente {String(result.recipe?.source_sha256 || "").slice(0, 8)}</p>}
           </div>
         )}
         {variants.length > 0 && (
@@ -148,9 +169,15 @@ export function WebGlbPanel({ model, onPreview }) {
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <button type="button" className="btn btn-sm" onClick={build}>Exportar GLB web</button>
         {result && <a className="btn btn-sm" href={api.webGlbUrl(model.id)} download>Descargar ({bytes(result.bytes)})</a>}
-        {result && onPreview && <button type="button" className="btn btn-sm" onClick={() => onPreview(api.webGlbUrl(model.id) + `?v=${result.bytes}`)}>Ver en el visor</button>}
+        {result && onPreview && <button type="button" className="btn btn-sm" onClick={() => onPreview(api.webGlbUrl(model.id) + `?v=${result.semantics || ""}-${result.bytes}`)}>Ver en el visor</button>}
       </div>
       {result && <p className="help mt-2 text-[12px]">{result.compressed ? "Comprimido con " + result.tool : "Sin comprimir: " + (result.note || "")} · original {bytes(result.original_bytes)} → {bytes(result.bytes)}</p>}
+      {result?.units && (
+        <p className="help mt-1 text-[12px]" data-webglb-units={result.units}>
+          En metros, como pide glTF: {(result.extent_m || []).join(" × ")} m ({(result.extent_mm || []).join(" × ")} mm × 0,001)
+          {result.compressed ? ` · cuantización ±${result.quantization_tolerance_m} m` : ""}.
+        </p>
+      )}
     </section>
   );
 }

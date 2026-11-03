@@ -17,11 +17,12 @@ router = APIRouter(prefix="/api")
 
 class SimplifyBody(BaseModel):
     ratio: float | None = Field(None, gt=0, le=1, description="Fraction of triangles to keep.")
-    target_error: float | None = Field(None, ge=0, description="Maximum error in mm.")
+    target_error: float | None = Field(None, ge=0, description="Maximum surface deviation in mm, measured as error.hausdorff_mm (0/null = none).")
     mode: str = Field("attribute", pattern="^(attribute|sloppy)$")
     keep_borders: bool = True
     save: bool = True
     preview: bool = False
+    allow_over_target: bool = Field(False, description="Save the closest result even when it misses target_error (flagged).")
 
 
 class SlicerSettings(BaseModel):
@@ -54,7 +55,8 @@ def simplify_engines():
 @router.post("/models/{model_id}/simplify")
 def simplify_model(request: Request, model_id: int, body: SimplifyBody):
     svc = services(request)
-    return _guard(lambda: simplify.simplify_model(svc, model_id, body.ratio, body.target_error, body.mode, body.keep_borders, body.save, body.preview))
+    return _guard(lambda: simplify.simplify_model(svc, model_id, body.ratio, body.target_error, body.mode, body.keep_borders, body.save, body.preview,
+                                                  allow_over_target=body.allow_over_target))
 
 
 @router.get("/models/{model_id}/variants")
