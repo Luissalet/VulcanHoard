@@ -2010,9 +2010,17 @@
       "openWorldHint": false
     },
     "inputSchema": {
-      "description": "A tool without arguments.",
-      "properties": {},
-      "title": "Empty",
+      "additionalProperties": false,
+      "properties": {
+        "lang": {
+          "default": "en",
+          "description": "Language of the human-readable texts: en (default) or es (Spain). Codes and numbers do not change.",
+          "pattern": "^(es|en)$",
+          "title": "Lang",
+          "type": "string"
+        }
+      },
+      "title": "LangArgs",
       "type": "object"
     },
     "module": "library",
@@ -2030,6 +2038,13 @@
     "inputSchema": {
       "additionalProperties": false,
       "properties": {
+        "lang": {
+          "default": "en",
+          "description": "Language of the human-readable texts: en (default) or es (Spain). Codes and numbers do not change.",
+          "pattern": "^(es|en)$",
+          "title": "Lang",
+          "type": "string"
+        },
         "id": {
           "description": "Profile id (lowercase, digits, hyphens). An existing id is edited.",
           "maxLength": 48,
@@ -2138,6 +2153,13 @@
     "inputSchema": {
       "additionalProperties": false,
       "properties": {
+        "lang": {
+          "default": "en",
+          "description": "Language of the human-readable texts: en (default) or es (Spain). Codes and numbers do not change.",
+          "pattern": "^(es|en)$",
+          "title": "Lang",
+          "type": "string"
+        },
         "target": {
           "default": "web-configurator",
           "description": "Profile id from asset_targets_list, e.g. web-configurator or fdm-print.",
@@ -2192,6 +2214,13 @@
     "inputSchema": {
       "additionalProperties": false,
       "properties": {
+        "lang": {
+          "default": "en",
+          "description": "Language of the human-readable texts: en (default) or es (Spain). Codes and numbers do not change.",
+          "pattern": "^(es|en)$",
+          "title": "Lang",
+          "type": "string"
+        },
         "target": {
           "default": "web-configurator",
           "description": "Profile id from asset_targets_list, e.g. web-configurator or fdm-print.",
@@ -2267,6 +2296,13 @@
     "inputSchema": {
       "additionalProperties": false,
       "properties": {
+        "lang": {
+          "default": "en",
+          "description": "Language of the human-readable texts: en (default) or es (Spain). Codes and numbers do not change.",
+          "pattern": "^(es|en)$",
+          "title": "Lang",
+          "type": "string"
+        },
         "id": {
           "anyOf": [
             {
