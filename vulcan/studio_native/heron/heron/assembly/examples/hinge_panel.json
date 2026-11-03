@@ -1,0 +1,70 @@
+{
+ "title": "Panel con bisagra / Hinged panel",
+ "units": "mm",
+ "variables": {
+  "tilt_deg": 30
+ },
+ "components": [
+  {
+   "id": "base",
+   "name": "Base",
+   "source": {
+    "kind": "family",
+    "family": "block",
+    "params": {
+     "length": 100,
+     "width": 100,
+     "height": 10
+    }
+   }
+  },
+  {
+   "id": "panel",
+   "name": "Panel",
+   "source": {
+    "kind": "family",
+    "family": "plate",
+    "params": {
+     "length": 60,
+     "width": 40,
+     "thickness": 2,
+     "holes": 0
+    }
+   }
+  }
+ ],
+ "relations": [
+  {
+   "id": "base_fixed",
+   "type": "fixed",
+   "component": "base"
+  },
+  {
+   "id": "hinge_pin",
+   "type": "point_coincident",
+   "a": "panel.corner_1",
+   "b": "base.top_corner_1"
+  },
+  {
+   "id": "edge_along_x",
+   "type": "angle",
+   "a": "panel.origin.x",
+   "b": "base.origin.x",
+   "value": 0
+  },
+  {
+   "id": "tilt",
+   "type": "angle",
+   "a": "base.top",
+   "b": "panel.top",
+   "value": "tilt_deg"
+  },
+  {
+   "id": "tilt_towards_y",
+   "type": "angle",
+   "a": "panel.top",
+   "b": "base.origin.y",
+   "value": "90 - tilt_deg"
+  }
+ ]
+}

@@ -64,7 +64,14 @@ def execute(store, name, args):
             'coincident': "Two planes coincide; 'opposed' normals mate faces, 'aligned' makes them flush.",
             'distance': 'Plane b lies at a signed offset (mm) from plane a along the normal of a.',
             'coaxial': "Two axes are collinear, directions 'aligned' or 'opposed'.",
+            'angle': 'Angle in degrees (0 to 180, value) between the directions of two references, plane normals or axis directions as listed; 0 aligns, 180 opposes. Leaves the rotation about the first direction free.',
+            'point_on_plane': 'Point a lies on plane b, at an optional signed offset (mm, value) along the normal of b.',
+            'point_on_axis': 'Point a lies on axis b.',
+            'point_coincident': 'Points a and b coincide (hole centres, corners, tips).',
             'clearance': 'Requested minimum gap between two solids, checked after solving (not a positioning relation).'},
+            'point_references': 'Named points: <hole>_center, corner_i / top_corner_i, bottom_center / top_center, head_center / tip_center (see each family).',
+            'screw_threads': {name: {'nominal_d_mm': t['nominal'], 'coarse_pitch_mm': t['pitch'], 'clearance_hole_mm': dict(zip(('fine', 'medium', 'coarse'), t['clearance']))}
+                              for name, t in families.THREADS.items()},
             'examples': examples(), 'schema': Assembly.model_json_schema()}
     if name == 'assembly_create':
         return with_links(store.create(args['request_id'], args['spec']))

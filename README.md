@@ -20,7 +20,7 @@ Copy and download share the complete native JSON text; preview counts entries,
 not unique meshes, and distinguishes folder status from model listing source.
 Price hints stay as stored text. No model files are included or products published.
 
-A 3D studio with independently activated modules: model library (Vulcan), editable figure relief and Blender projects (Gepetto), image-to-3D generation/refinement (Daedalus), silhouette composition and extrusion (Plato), measured CAD with assemblies, relations and interference checks (Heron, see [docs/HERON-ASSEMBLY.md](docs/HERON-ASSEMBLY.md)), and printable terrain/cities (Gulliver). The complete native editors, APIs, formats and engines are owned here.
+A 3D studio with independently activated modules: model library (Vulcan), editable figure relief and Blender projects (Gepetto), image-to-3D generation/refinement (Daedalus), silhouette composition and extrusion (Plato), measured CAD with assemblies, relations (planes, axes, angles, named points) and interference and thread-clearance checks (Heron, see [docs/HERON-ASSEMBLY.md](docs/HERON-ASSEMBLY.md)), and printable terrain/cities (Gulliver). The complete native editors, APIs, formats and engines are owned here.
 
 All six modules and their automation start **OFF** on first use. Open Vulcan explicitly, activate the function you need, and stop it from the same screen. Listing MCP tools starts no app, engine, database or watcher. Saved explicit choices are remembered; merely enabling generation does not resume historical queued jobs unless its automation is selected.
 

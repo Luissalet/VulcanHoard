@@ -26,10 +26,12 @@
     "kind": "family",
     "family": "screw",
     "params": {
-     "shaft_d": 4,
      "length": 12,
      "head_d": 7,
      "head_h": 4
+    },
+    "thread": {
+     "designation": "M4"
     }
    }
   }
