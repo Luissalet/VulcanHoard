@@ -66,6 +66,11 @@ export default function Nueva({ query }) {
   const [trackName, setTrackName] = useState("");
   const [busy, run] = useBusy();
   const checkSeq = useRef(0);
+  const [imagery, setImagery] = useStored("gulliver.imagery", false);
+  const [imageryProvider, setImageryProvider] = useStored("gulliver.imageryProvider", "auto");
+  const [imageryInfo, setImageryInfo] = useState(null);
+  const [imageryBusy, setImageryBusy] = useState(false);
+  const imagerySeq = useRef(0);
 
   // load presets and settings (and the model when editing)
   useEffect(() => {
@@ -115,6 +120,26 @@ export default function Nueva({ query }) {
     return () => clearTimeout(timer);
   }, [form]);
   useEffect(() => { setFeatures(null); }, [form?.lon, form?.lat, form?.width_m, form?.height_m]);
+
+  // the aerial picture of the area laid over the map (what the model page drapes over the 3D preview)
+  useEffect(() => {
+    if (!form || !imagery || form.synth) { imagerySeq.current += 1; setImageryInfo(null); setImageryBusy(false); return undefined; }
+    const mine = ++imagerySeq.current;
+    const timer = setTimeout(async () => {
+      setImageryBusy(true);
+      try {
+        const r = await api.call("area_imagery", { lon: form.lon, lat: form.lat, width_m: form.width_m, height_m: form.height_m,
+          provider: imageryProvider, max_px: 1536 });
+        if (mine === imagerySeq.current) setImageryInfo(r);
+      } catch (e) {
+        if (mine === imagerySeq.current) { setImageryInfo(null); notify(e.message, "error"); }
+      } finally {
+        if (mine === imagerySeq.current) setImageryBusy(false);
+      }
+    }, 600);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [imagery, imageryProvider, form?.lon, form?.lat, form?.width_m, form?.height_m, form?.synth]);
 
   const dirty = useMemo(() => !!form && !!base && JSON.stringify(form) !== JSON.stringify(base), [form, base]);
   useContextProvider(() => form && ({ kind: editId ? "model-params-form" : "new-model-form", object_id: editId || "new", dirty: dirty || !!name,
@@ -221,7 +246,12 @@ export default function Nueva({ query }) {
         <button type="button" className="btn btn-sm btn-icon map-fit" onClick={() => setFlyTo(boxAround(form))} aria-label={t("map_fit")} title={t("map_fit")}>
           <Icon d={ICONS.target} size={15} />
         </button>
+        <button type="button" className="btn btn-sm map-imagery" aria-pressed={!!imagery && !form.synth} disabled={!!form.synth}
+          onClick={() => setImagery(!imagery)} title={t("imagery_help")} data-testid="imagery-toggle">
+          {imageryBusy ? <span className="spinner" /> : <Icon d={ICONS.layers} size={14} />} {t("imagery")}
+        </button>
         <MapPicker value={form} base={layer} flyTo={flyTo} onChange={set} pickMode={picking} onPick={pickHighlight}
+          overlay={imagery && imageryInfo && !form.synth ? { url: imageryInfo.image_url, bbox: imageryInfo.bbox, attribution: imageryInfo.attribution } : null}
           highlight={hasHighlight ? { lon: form.highlight_lon, lat: form.highlight_lat } : null} route={trackInfo?.draw || null}
           labels={{ map: t("map_label"), move: t("map_move"), resize: t("map_resize") }} />
         <div className="map-hint help">{picking ? t("pick_hint") : t("map_hint")}</div>
@@ -269,6 +299,25 @@ export default function Nueva({ query }) {
             <NumberField id="f-lon" label={t("lon")} step={0.0001} value={form.lon} onChange={(v) => set({ lon: v })} />
           </div>
         </Group>
+
+        <SynthPanel form={form} set={set} />
+
+        {!form.synth && (
+          <Group title={t("g_imagery")} icon={ICONS.layers} open={!!imagery}>
+            <Toggle label={t("imagery_on_map")} checked={!!imagery} onChange={setImagery} hint={t("imagery_help")} />
+            <label className="block">
+              <span className="label">{t("imagery_provider")}</span>
+              <select className="field" value={imageryProvider} onChange={(e) => setImageryProvider(e.target.value)}>
+                {["auto", "esri", "s2cloudless", "pnoa"].map((k) => <option key={k} value={k}>{t(`imagery_${k}`)}</option>)}
+              </select>
+            </label>
+            {imagery && imageryInfo && (
+              <div className="help">{t("imagery_info", { name: imageryInfo.name, m: num(imageryInfo.m_per_px, 1, lang), w: imageryInfo.size_px[0], h: imageryInfo.size_px[1] })}
+                <div>{imageryInfo.attribution}</div></div>
+            )}
+            <div className="help">{t("imagery_after")}</div>
+          </Group>
+        )}
 
         <Group title={t("g_print")} icon={ICONS.ruler} open>
           <div className="grid grid-cols-2 gap-3">
@@ -487,6 +536,67 @@ export default function Nueva({ query }) {
   );
 }
 
+const SYNTH_STYLES = ["mountains", "ridged", "dunes", "terraced", "islands"];
+
+function RangeField({ id, label, value, min, max, step, onChange, unit = "", digits = 0 }) {
+  const { lang } = useApp();
+  return (
+    <label className="block range-field" htmlFor={id}>
+      <span className="label range-label"><span>{label}</span><b className="num">{num(value, digits, lang)}{unit ? ` ${unit}` : ""}</b></span>
+      <input id={id} type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} />
+    </label>
+  );
+}
+
+// An invented landscape instead of the place: style, seed and shape sliders with a live shaded preview; the build then runs
+// through the same pipeline as a real area (size, frame, plaque, tiles and pins below still apply).
+function SynthPanel({ form, set }) {
+  const { t, lang } = useApp();
+  const on = !!form.synth;
+  const [last, setLast] = useState("mountains");
+  const style = form.synth || last;
+  const spec = { style, seed: form.synth_seed ?? 1, relief_m: form.synth_relief_m ?? 1200, feature: form.synth_feature ?? 1,
+    warp: form.synth_warp ?? 0.6, terraces: form.synth_terraces ?? 7 };
+  const [shown, setShown] = useState(null);
+  const [stats, setStats] = useState(null);
+  const key = JSON.stringify([spec, Math.round(form.width_m), Math.round(form.height_m)]);
+  useEffect(() => {
+    let alive = true;
+    const timer = setTimeout(async () => {
+      const q = new URLSearchParams({ ...spec, width_m: Math.round(form.width_m), height_m: Math.round(form.height_m), size: 360 });
+      setShown(`/api/synth/preview.png?${q}`);
+      try {
+        const r = await api.call("synth_terrain", { ...spec, width_m: form.width_m, height_m: form.height_m });
+        if (alive) setStats(r.stats);
+      } catch { if (alive) setStats(null); }
+    }, 300);
+    return () => { alive = false; clearTimeout(timer); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+  const choose = (k) => { setLast(k); set({ synth: k }); };
+  return (
+    <Group title={t("g_synth")} icon={ICONS.star} open={on}>
+      <Toggle label={t("synth_use")} checked={on} onChange={(v) => { setLast(style); set({ synth: v ? style : "" }); }} hint={t("synth_help")} />
+      <div className="seg w-full synth-styles" role="group" aria-label={t("synth_style")}>
+        {SYNTH_STYLES.map((k) => <button key={k} type="button" aria-pressed={on && style === k} onClick={() => choose(k)}>{t(`synth_${k}`)}</button>)}
+      </div>
+      <div className="synth-preview" data-testid="synth-preview">
+        {shown && <img src={shown} alt={t("synth_preview_alt", { style: t(`synth_${style}`) })} />}
+        {stats && <div className="help">{t("synth_stats", { lo: num(stats.min_m, 0, lang), hi: num(stats.max_m, 0, lang), land: num(stats.land_share * 100, 0, lang) })}</div>}
+      </div>
+      <div className="flex items-end gap-2">
+        <div className="flex-1"><NumberField id="f-seed" label={t("synth_seed")} step={1} min={0} value={spec.seed} onChange={(v) => set({ synth_seed: v === "" ? 0 : Math.max(0, Math.round(v)) })} /></div>
+        <button type="button" className="btn btn-sm" onClick={() => set({ synth_seed: Math.floor(Math.random() * 1e6) })}><Icon d={ICONS.refresh} size={13} /> {t("synth_reseed")}</button>
+      </div>
+      <RangeField id="f-sr" label={t("synth_relief")} unit="m" min={50} max={5000} step={50} value={spec.relief_m} onChange={(v) => set({ synth_relief_m: v })} />
+      <RangeField id="f-sf" label={t("synth_feature")} unit="×" min={0.2} max={4} step={0.1} digits={1} value={spec.feature} onChange={(v) => set({ synth_feature: v })} />
+      <RangeField id="f-sw" label={t("synth_warp")} min={0} max={2} step={0.05} digits={2} value={spec.warp} onChange={(v) => set({ synth_warp: v })} />
+      {style === "terraced" && <RangeField id="f-st" label={t("synth_terraces")} min={2} max={30} step={1} value={spec.terraces} onChange={(v) => set({ synth_terraces: v })} />}
+      <div className="help">{t("synth_after")}</div>
+    </Group>
+  );
+}
+
 function Summary({ check, error, features, form, busy, onCount, onTiles, warnings }) {
   const { t, lang } = useApp();
   if (error) return <div className="banner banner-danger">{error.message}{error.hint && <div className="help">{error.hint}</div>}</div>;
@@ -523,6 +633,7 @@ function clean(form, { skipTrack = false, sendEmptyTrack = false } = {}) {
       if (skipTrack) continue;
       if (v === "" && sendEmptyTrack) { out[k] = ""; continue; }
     }
+    if (k === "synth" && v === "") { out[k] = ""; continue; }     // turning a synthetic terrain off must reach the server
     if (v === "" || v === null || v === undefined || Number.isNaN(v)) continue;
     out[k] = v;
   }

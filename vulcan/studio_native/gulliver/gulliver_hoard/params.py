@@ -23,6 +23,7 @@ DemSource = Literal["auto", "ign", "terrarium"]
 FrameStyle = Literal["flat", "bevel", "step"]
 Palette = Literal["classic", "sand", "grey", "white", "alpine"]
 TileCuts = Literal["straight", "streets"]
+SynthStyle = Literal["", "mountains", "ridged", "dunes", "terraced", "islands"]
 
 
 PLAQUE_FRAME_MM = 14.0       # narrowest frame that carries a plaque
@@ -143,6 +144,17 @@ class ModelParams(BaseModel):
     # output
     color: ColorMode = "color"
     dem: DemSource = "auto"
+    # synthetic terrain (instead of the real place: no map data is downloaded)
+    synth: SynthStyle = Field("", description="Synthetic terrain instead of the real place: mountains, ridged, dunes, terraced "
+                                              "or islands (gradient noise with domain warp and fBm; empty = the real place).")
+    synth_seed: int = Field(1, ge=0, le=2_147_483_647, description="Seed of the synthetic terrain (another seed, another landscape).")
+    synth_relief_m: float = Field(1200.0, ge=10, le=8000, description="Height of the synthetic terrain from its lowest to its "
+                                                                     "highest point, in metres.")
+    synth_feature: float = Field(1.0, ge=0.2, le=4.0, description="Size of the synthetic landforms against the area (larger = "
+                                                                  "fewer, broader mountains or dunes).")
+    synth_warp: float = Field(0.6, ge=0.0, le=2.0, description="Domain warp of the synthetic terrain: how much ridges and "
+                                                               "valleys meander.")
+    synth_terraces: int = Field(7, ge=2, le=30, description="Number of steps of the terraced style.")
     print_profile: Optional[PrintProfile] = Field(None, description="Printer, material and price snapshot for this model; registry edits do not alter it.")
 
     @model_validator(mode="after")

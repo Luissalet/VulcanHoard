@@ -130,8 +130,10 @@ class Services:
         fits = (tw <= s["bed_x_mm"] and th <= s["bed_y_mm"]) or (th <= s["bed_x_mm"] and tw <= s["bed_y_mm"])
         bbox = params.area.bbox
         from .sources import dtm
-        fine = dtm.candidates(bbox, params.cell_ground_m) if params.dem == "auto" else []
-        if getattr(self.sources, "fake", False):
+        fine = dtm.candidates(bbox, params.cell_ground_m) if params.dem == "auto" and not params.synth else []
+        if params.synth:
+            dem_text = f"synthetic {params.synth} (seed {params.synth_seed})"
+        elif getattr(self.sources, "fake", False):
             dem_text = "demo"
         elif fine:
             dem_text = f"{fine[0].name} (auto)"
@@ -189,7 +191,11 @@ class Services:
         }
         if fetch:
             pad = 3 * params.cell_ground_m + 30.0
-            raw = self.sources.osm(params.area.bbox_padded(pad), rounds=1)
+            if params.synth:
+                from .synth import SynthSources
+                raw = SynthSources(params).osm(params.area.bbox_padded(pad))
+            else:
+                raw = self.sources.osm(params.area.bbox_padded(pad), rounds=1)
             feats = osm_mod.parse(raw, params.area.projector, params.width_m, params.height_m, pad_m=pad)
             out["features"] = feats.summary()
         return out
@@ -322,6 +328,10 @@ class Services:
             if (folder / name).is_file():
                 files.append({"kind": "assembly", "name": name, "path": str(folder / name), "url": base + name + q,
                               "bytes": (folder / name).stat().st_size})
+        if (folder / "imagery.json").is_file():           # the photo draped over this build (model_imagery)
+            from .drape import _files as imagery_files
+            from .hoard_link.atomic import read_json
+            files.extend(imagery_files(pid, build_id, folder, read_json(folder / "imagery.json", {}) or {}))
         return {"model_id": pid, "name": rec["name"], "build_id": build_id or current, "current": not build_id,
                 "folder": str(folder), "files": files}
 

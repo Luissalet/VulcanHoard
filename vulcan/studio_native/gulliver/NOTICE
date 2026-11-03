@@ -23,3 +23,5 @@ Gulliver's Hoard builds models from open data. Credit these sources when you sha
 - Elevation elsewhere: Terrain Tiles (Mapzen / Amazon Web Services Open Data), built from SRTM, EU-DEM, USGS 3DEP,
   ETOPO1 and other sources, each under its own terms — https://registry.opendata.aws/terrain-tiles/
 - Base maps shown in the interface (display only): OpenStreetMap, OpenTopoMap (CC-BY-SA), PNOA © IGN España, Esri World Imagery.
+- Aerial imagery draped over models (preview texture, textured GLB, photo-coloured 3MF), chosen by the user: PNOA orthophoto © Instituto Geográfico Nacional de España, CC BY 4.0 (Spain); Esri World Imagery © Esri, Maxar, Earthstar Geographics and the GIS User Community (display with attribution); Sentinel-2 cloudless 2016 by EOX IT Services GmbH (contains modified Copernicus Sentinel data 2016), CC BY 4.0 — https://s2maps.eu
+- Synthetic terrain: original gradient-noise code (MIT, this project); the idea of combining domain warp, fBm and terraces follows FastNoise2 by Auburn (MIT), no code copied.

@@ -11,7 +11,45 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
  * A ref gives an imperative handle for listing media: `snapshot({width, height, background})` resolves a PNG Blob and
  * `turntable({seconds, fps, width, height, onProgress})` a WebM Blob, both rendered with a studio look (see `studio`).
  */
-const Viewer3D = forwardRef(function Viewer3D({ url, hidden, explode = 0, view = "iso", issues = [], onInfo, labels }, ref) {
+const DRAPE_SKIP = new Set(["frame", "plaque", "track", "highlight"]);
+const DRAPE_PAD = 8;                  // neutral border of the texture, where walls and the base point
+const DRAPE_BASE = "#d6cdbc";
+const DRAPE_UP = 0.35;                // faces whose normal points up at least this much take the photo
+
+/** A non-indexed copy of `geo` with texture coordinates on the photo: faces that look up and lie on the ground (`rect` =
+ * x0, y0, x1, y1 mm, model frame, Z up) map onto it; walls, the base and anything outside take the neutral border. */
+function drapeGeometry(geo, rect, size) {
+  const g = geo.index ? geo.toNonIndexed() : geo.clone();
+  const pos = g.attributes.position;
+  const [x0, y0, x1, y1] = rect;
+  const [w, h] = size;
+  const W = w + 2 * DRAPE_PAD, H = h + 2 * DRAPE_PAD;
+  const uv = new Float32Array(pos.count * 2);
+  const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), n = new THREE.Vector3(), e = new THREE.Vector3();
+  const side = [DRAPE_PAD / 2 / W, DRAPE_PAD / 2 / H];
+  for (let i = 0; i < pos.count; i += 3) {
+    a.fromBufferAttribute(pos, i); b.fromBufferAttribute(pos, i + 1); c.fromBufferAttribute(pos, i + 2);
+    n.subVectors(b, a).cross(e.subVectors(c, a));
+    const len = n.length() || 1;
+    const cx = (a.x + b.x + c.x) / 3, cy = (a.y + b.y + c.y) / 3;
+    const up = n.z / len >= DRAPE_UP && cx >= x0 && cx <= x1 && cy >= y0 && cy <= y1;
+    for (let k = 0; k < 3; k++) {
+      const v = k === 0 ? a : k === 1 ? b : c;
+      if (up) {
+        uv[(i + k) * 2] = (DRAPE_PAD + Math.min(1, Math.max(0, (v.x - x0) / (x1 - x0))) * w) / W;
+        uv[(i + k) * 2 + 1] = (DRAPE_PAD + Math.min(1, Math.max(0, (v.y - y0) / (y1 - y0))) * h) / H;
+      } else {
+        uv[(i + k) * 2] = side[0];
+        uv[(i + k) * 2 + 1] = side[1];
+      }
+    }
+  }
+  g.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
+  g.computeVertexNormals();
+  return g;
+}
+
+const Viewer3D = forwardRef(function Viewer3D({ url, hidden, explode = 0, view = "iso", issues = [], onInfo, labels, drape = null }, ref) {
   const holder = useRef(null);
   const s = useRef({});
   const [state, setState] = useState("loading");
@@ -110,6 +148,8 @@ const Viewer3D = forwardRef(function Viewer3D({ url, hidden, explode = 0, view =
         const material = new THREE.MeshStandardMaterial({ color, roughness: part === "water" ? 0.35 : 0.85, metalness: 0.0, flatShading: true });
         const m = new THREE.Mesh(geo, material);
         m.userData.part = part;
+        m.userData.baseMaterial = material;
+        m.userData.baseGeometry = geo;
         m.castShadow = part !== "water";
         m.receiveShadow = true;
         if (!groups.has(group)) groups.set(group, new THREE.Group());
@@ -148,6 +188,49 @@ const Viewer3D = forwardRef(function Viewer3D({ url, hidden, explode = 0, view =
   }, [url]);
 
   useEffect(() => { applyHidden(hidden); }, [hidden]);
+
+  // the aerial photo draped over the ground (model_imagery's imagery.jpg), or the part colours back
+  const drapeKey = drape?.url && drape?.rect ? `${drape.url}|${drape.rect.join(",")}` : "";
+  useEffect(() => {
+    if (state !== "ready") return undefined;
+    const { root, renderer } = s.current;
+    let cancelled = false;
+    let texture = null;
+    const restore = () => root.traverse((o) => {
+      if (!o.isMesh || !o.userData.baseMaterial || o.material === o.userData.baseMaterial) return;
+      o.material.dispose();
+      o.geometry.dispose();
+      o.material = o.userData.baseMaterial;
+      o.geometry = o.userData.baseGeometry;
+    });
+    if (!drapeKey) { restore(); return undefined; }
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      if (cancelled) return;
+      restore();
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth + 2 * DRAPE_PAD;
+      canvas.height = img.naturalHeight + 2 * DRAPE_PAD;
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = DRAPE_BASE;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, DRAPE_PAD, DRAPE_PAD);
+      texture = new THREE.CanvasTexture(canvas);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+      const size = [img.naturalWidth, img.naturalHeight];
+      root.traverse((o) => {
+        if (!o.isMesh || !o.userData.baseMaterial || DRAPE_SKIP.has(o.userData.part)) return;
+        o.geometry = drapeGeometry(o.userData.baseGeometry, drape.rect, size);
+        o.material = new THREE.MeshStandardMaterial({ map: texture, roughness: 0.9, metalness: 0.0, flatShading: true });
+        o.userData.draped = true;
+      });
+    };
+    img.src = drape.url;
+    return () => { cancelled = true; restore(); texture?.dispose(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state, drapeKey]);
   useEffect(() => {
     if (state !== "ready" || !issues.length) return undefined;
     const {root,groups,size} = s.current;
