@@ -1,0 +1,58 @@
+{
+ "title": "Soporte en L con tornillo / L bracket with screw",
+ "units": "mm",
+ "variables": {},
+ "components": [
+  {
+   "id": "bracket",
+   "name": "Soporte rev. A / Bracket rev A",
+   "source": {
+    "kind": "family",
+    "family": "bracket",
+    "params": {
+     "length": 40,
+     "width": 20,
+     "thickness": 4,
+     "height": 30,
+     "hole_d": 4.5,
+     "hole_x": 8
+    }
+   }
+  },
+  {
+   "id": "screw",
+   "name": "Tornillo M4x12 nominal / Nominal M4x12 screw",
+   "source": {
+    "kind": "family",
+    "family": "screw",
+    "params": {
+     "shaft_d": 4,
+     "length": 12,
+     "head_d": 7,
+     "head_h": 4
+    }
+   }
+  }
+ ],
+ "relations": [
+  {
+   "id": "bracket_fixed",
+   "type": "fixed",
+   "component": "bracket"
+  },
+  {
+   "id": "screw_seated",
+   "type": "coincident",
+   "a": "screw.under_head",
+   "b": "bracket.top",
+   "orientation": "opposed"
+  },
+  {
+   "id": "screw_in_hole",
+   "type": "coaxial",
+   "a": "screw.axis",
+   "b": "bracket.hole_1",
+   "orientation": "opposed"
+  }
+ ]
+}

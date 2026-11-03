@@ -1,0 +1,249 @@
+{
+ "title": "Caja con placa, separadores y tapa / Enclosure with board, standoffs and lid",
+ "units": "mm",
+ "variables": {
+  "standoff_h": 12,
+  "board_t": 1.6,
+  "gap": 8
+ },
+ "components": [
+  {
+   "id": "box",
+   "name": "Caja / Enclosure",
+   "source": {
+    "kind": "family",
+    "family": "enclosure",
+    "params": {
+     "inner_length": 100,
+     "inner_width": 70,
+     "inner_height": "standoff_h + board_t + gap",
+     "wall": 3,
+     "floor": 3,
+     "mount_dx": 80,
+     "mount_dy": 50,
+     "mount_hole_d": 3.2
+    }
+   }
+  },
+  {
+   "id": "standoff_1",
+   "name": "Separador 1 / Standoff 1",
+   "source": {
+    "kind": "family",
+    "family": "standoff",
+    "params": {
+     "height": "standoff_h",
+     "outer_d": 6,
+     "bore_d": 3.2
+    }
+   }
+  },
+  {
+   "id": "standoff_2",
+   "name": "Separador 2 / Standoff 2",
+   "source": {
+    "kind": "family",
+    "family": "standoff",
+    "params": {
+     "height": "standoff_h",
+     "outer_d": 6,
+     "bore_d": 3.2
+    }
+   }
+  },
+  {
+   "id": "standoff_3",
+   "name": "Separador 3 / Standoff 3",
+   "source": {
+    "kind": "family",
+    "family": "standoff",
+    "params": {
+     "height": "standoff_h",
+     "outer_d": 6,
+     "bore_d": 3.2
+    }
+   }
+  },
+  {
+   "id": "standoff_4",
+   "name": "Separador 4 / Standoff 4",
+   "source": {
+    "kind": "family",
+    "family": "standoff",
+    "params": {
+     "height": "standoff_h",
+     "outer_d": 6,
+     "bore_d": 3.2
+    }
+   }
+  },
+  {
+   "id": "board",
+   "name": "Placa / Board",
+   "source": {
+    "kind": "family",
+    "family": "plate",
+    "params": {
+     "length": 90,
+     "width": 60,
+     "thickness": "board_t",
+     "hole_d": 3.2,
+     "hole_dx": 80,
+     "hole_dy": 50,
+     "holes": 4
+    }
+   }
+  },
+  {
+   "id": "lid",
+   "name": "Tapa / Lid",
+   "source": {
+    "kind": "family",
+    "family": "plate",
+    "params": {
+     "length": 106,
+     "width": 76,
+     "thickness": 3,
+     "hole_d": 3.2,
+     "hole_dx": 80,
+     "hole_dy": 50,
+     "holes": 4
+    }
+   }
+  }
+ ],
+ "relations": [
+  {
+   "id": "box_fixed",
+   "type": "fixed",
+   "component": "box"
+  },
+  {
+   "id": "standoff_1_on_floor",
+   "type": "coincident",
+   "a": "standoff_1.bottom",
+   "b": "box.floor_top",
+   "orientation": "opposed"
+  },
+  {
+   "id": "standoff_1_on_mount",
+   "type": "coaxial",
+   "a": "standoff_1.axis",
+   "b": "box.mount_1",
+   "orientation": "aligned"
+  },
+  {
+   "id": "standoff_2_on_floor",
+   "type": "coincident",
+   "a": "standoff_2.bottom",
+   "b": "box.floor_top",
+   "orientation": "opposed"
+  },
+  {
+   "id": "standoff_2_on_mount",
+   "type": "coaxial",
+   "a": "standoff_2.axis",
+   "b": "box.mount_2",
+   "orientation": "aligned"
+  },
+  {
+   "id": "standoff_3_on_floor",
+   "type": "coincident",
+   "a": "standoff_3.bottom",
+   "b": "box.floor_top",
+   "orientation": "opposed"
+  },
+  {
+   "id": "standoff_3_on_mount",
+   "type": "coaxial",
+   "a": "standoff_3.axis",
+   "b": "box.mount_3",
+   "orientation": "aligned"
+  },
+  {
+   "id": "standoff_4_on_floor",
+   "type": "coincident",
+   "a": "standoff_4.bottom",
+   "b": "box.floor_top",
+   "orientation": "opposed"
+  },
+  {
+   "id": "standoff_4_on_mount",
+   "type": "coaxial",
+   "a": "standoff_4.axis",
+   "b": "box.mount_4",
+   "orientation": "aligned"
+  },
+  {
+   "id": "board_on_standoffs",
+   "type": "coincident",
+   "a": "board.bottom",
+   "b": "standoff_1.top",
+   "orientation": "opposed"
+  },
+  {
+   "id": "board_hole_1",
+   "type": "coaxial",
+   "a": "board.hole_1",
+   "b": "standoff_1.axis",
+   "orientation": "aligned"
+  },
+  {
+   "id": "board_hole_2",
+   "type": "coaxial",
+   "a": "board.hole_2",
+   "b": "standoff_2.axis",
+   "orientation": "aligned"
+  },
+  {
+   "id": "board_hole_3",
+   "type": "coaxial",
+   "a": "board.hole_3",
+   "b": "standoff_3.axis",
+   "orientation": "aligned"
+  },
+  {
+   "id": "board_hole_4",
+   "type": "coaxial",
+   "a": "board.hole_4",
+   "b": "standoff_4.axis",
+   "orientation": "aligned"
+  },
+  {
+   "id": "lid_on_rim",
+   "type": "coincident",
+   "a": "lid.bottom",
+   "b": "box.rim",
+   "orientation": "opposed"
+  },
+  {
+   "id": "lid_hole_1",
+   "type": "coaxial",
+   "a": "lid.hole_1",
+   "b": "box.mount_1",
+   "orientation": "aligned"
+  },
+  {
+   "id": "lid_hole_2",
+   "type": "coaxial",
+   "a": "lid.hole_2",
+   "b": "box.mount_2",
+   "orientation": "aligned"
+  },
+  {
+   "id": "board_lid_gap",
+   "type": "distance",
+   "a": "board.top",
+   "b": "lid.bottom",
+   "value": "gap",
+   "orientation": "opposed"
+  },
+  {
+   "id": "board_lid_clearance",
+   "type": "clearance",
+   "a": "board",
+   "b": "lid",
+   "min": 5
+  }
+ ]
+}
