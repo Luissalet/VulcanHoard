@@ -77,6 +77,15 @@
     ],
     "sourceEvidence": {
       "scope": "Local a la comparación de modelos; DESIGN.md raíz permanece intacto.",
+      "persistentEvidenceRoot": "E:/Development/IA/Research/Hangar-2026-11-02/",
+      "persistentCaptures": {
+        "desktop.jpg": "VULCAN-2016-ESCRITORIO-QA.jpg",
+        "mobile.jpg": "VULCAN-2016-MOVIL-QA.jpg",
+        "user-1920.jpg": "VULCAN-2016-1920-QA.jpg",
+        "historical_manifest": "VULCAN-2016-CAPTURAS.json",
+        "main_acceptance": "VULCAN-2016-MAIN-QA.jpg",
+        "main_manifest": "VULCAN-2016-MAIN-CAPTURA.json"
+      },
       "sourceSha256": {
         "client/src/index.css": "1a96806119b620735e96ff3d65f93e952d6b735068fc8879f37d2acfbf347172",
         "client/src/hoard-theme.css": "5bca9ec7d293198c0e5b2e0c2f9b6424af68b0c798ac71b0656708095de5c610",
