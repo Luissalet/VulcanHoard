@@ -14,7 +14,7 @@ import numpy as np
 
 from .spec import UNITS, evaluate
 
-FAMILY_VERSION = 'heron-assembly-families-1'
+FAMILY_VERSION = 'heron-assembly-families-2'
 
 
 def _plane(origin, normal, derived):
@@ -23,6 +23,41 @@ def _plane(origin, normal, derived):
 
 def _axis(origin, direction, derived):
     return {'kind': 'axis', 'origin': [float(v) for v in origin], 'direction': [float(v) for v in direction], 'derived_from': derived}
+
+
+def _point(origin, derived):
+    return {'kind': 'point', 'origin': [float(v) for v in origin], 'direction': [0.0, 0.0, 0.0], 'derived_from': derived}
+
+
+def _hole_axis(origin, direction, derived, diameter, length):
+    """Axis of a hole or bore. hole: its diameter and axial extent measured from the origin along the direction."""
+    ref = _axis(origin, direction, derived)
+    ref['hole'] = {'diameter': float(diameter), 'extent': [0.0, float(length)]}
+    return ref
+
+
+# ISO 261 coarse pitch and ISO 273 clearance hole diameters (fine / medium / coarse series), mm.
+THREADS = {
+    'M2': {'nominal': 2.0, 'pitch': 0.4, 'clearance': (2.2, 2.4, 2.6)},
+    'M2.5': {'nominal': 2.5, 'pitch': 0.45, 'clearance': (2.7, 2.9, 3.1)},
+    'M3': {'nominal': 3.0, 'pitch': 0.5, 'clearance': (3.2, 3.4, 3.6)},
+    'M4': {'nominal': 4.0, 'pitch': 0.7, 'clearance': (4.3, 4.5, 4.8)},
+    'M5': {'nominal': 5.0, 'pitch': 0.8, 'clearance': (5.3, 5.5, 5.8)},
+    'M6': {'nominal': 6.0, 'pitch': 1.0, 'clearance': (6.4, 6.6, 7.0)},
+    'M8': {'nominal': 8.0, 'pitch': 1.25, 'clearance': (8.4, 9.0, 10.0)},
+}
+
+
+def resolve_thread(thread, raw_params):
+    """Validate declared thread metadata: known designation, pitch not coarser than the coarse series. Returns the record."""
+    if thread['designation'] not in THREADS:
+        raise ValueError(f"screw: unknown thread {thread['designation']!r}; available: {', '.join(THREADS)}")
+    row = THREADS[thread['designation']]
+    pitch = thread.get('pitch') if thread.get('pitch') is not None else row['pitch']
+    if pitch > row['pitch'] + 1e-9:
+        raise ValueError(f"screw: pitch {pitch:g} mm is coarser than the coarse pitch {row['pitch']:g} mm of {thread['designation']}")
+    return {'designation': thread['designation'], 'nominal_d': row['nominal'], 'pitch': float(pitch),
+            'clearance_fine': row['clearance'][0], 'clearance_medium': row['clearance'][1], 'clearance_coarse': row['clearance'][2]}
 
 
 def _pattern(dx, dy, count):
@@ -65,7 +100,7 @@ FAMILIES = {
         'frame': 'Origin at the centre of the base bottom face; the upright rises at -X; +Z up.',
     },
     'screw': {
-        'label': 'Tornillo de cabeza cilíndrica (geometría nominal, sin rosca) / Cap screw (nominal, no thread)',
+        'label': 'Tornillo de cabeza cilíndrica (geometría nominal, rosca declarada como metadato) / Cap screw (nominal cylinder, declared thread metadata)',
         'params': [_p('shaft_d', 4, 0.5, 50, 'Diámetro de caña'), _p('length', 12, 1, 500, 'Longitud bajo cabeza'),
                    _p('head_d', 7, 1, 100, 'Diámetro de cabeza'), _p('head_h', 4, 0.5, 50, 'Altura de cabeza')],
         'frame': 'Origin at the centre of the underside of the head; the shaft runs towards -Z.',
@@ -81,14 +116,24 @@ FAMILIES = {
 
 def catalogue():
     return {name: {'label': f['label'], 'frame': f['frame'], 'params': f['params'], 'symmetry_axes': f.get('symmetry', []),
+                   **({'threads': {k: {'nominal_d_mm': t['nominal'], 'coarse_pitch_mm': t['pitch'], 'clearance_hole_mm': dict(zip(('fine', 'medium', 'coarse'), t['clearance']))} for k, t in THREADS.items()}} if name == 'screw' else {}),
                    'references': reference_names(name, {p['name']: p['default'] for p in f['params']})}
             for name, f in FAMILIES.items()}
 
 
-def resolve_params(family, raw, variables, units):
-    """Merge defaults, evaluate expressions, convert to mm and check bounds. Returns (mm values, record)."""
+def resolve_params(family, raw, variables, units, thread=None):
+    """Merge defaults, evaluate expressions, convert to mm and check bounds. Returns the mm values.
+
+    thread (screw only): declared metric thread. When shaft_d is not given it defaults to the nominal diameter; a shaft_d that
+    differs from the nominal diameter by more than 0.25 mm is refused. The thread is returned under values['thread']."""
     if family not in FAMILIES:
         raise ValueError(f'Unknown part family {family!r}; available: {", ".join(FAMILIES)}')
+    if thread is not None:
+        if family != 'screw':
+            raise ValueError(f'{family}: thread metadata applies to the screw family only')
+        thread = resolve_thread(thread, raw)
+        if 'shaft_d' not in raw:
+            raw = dict(raw, shaft_d=thread['nominal_d'] / UNITS[units])
     spec = {p['name']: p for p in FAMILIES[family]['params']}
     unknown = set(raw) - set(spec)
     if unknown:
@@ -108,6 +153,10 @@ def resolve_params(family, raw, variables, units):
             raise ValueError(f'{family}.{name}={number:g} mm is outside [{p["min"]}, {p["max"]}] mm')
         values[name] = number
     _validate(family, values)
+    if thread is not None:
+        if abs(values['shaft_d'] - thread['nominal_d']) > 0.25:
+            raise ValueError(f"screw: shaft_d {values['shaft_d']:g} mm does not match thread {thread['designation']} (nominal {thread['nominal_d']:g} mm)")
+        values['thread'] = thread
     return values
 
 
@@ -143,28 +192,48 @@ def family_references(family, v):
         refs['floor_top'] = _plane((0, 0, v['floor']), (0, 0, 1), 'interior floor face, z = floor')
         refs['rim'] = _plane((0, 0, top), (0, 0, 1), 'top edge of the walls, z = floor + inner_height')
         for i, (x, y) in enumerate(_pattern(v['mount_dx'], v['mount_dy'], 4), 1):
-            refs[f'mount_{i}'] = _axis((x, y, 0), (0, 0, 1), f'floor hole {i} axis')
+            refs[f'mount_{i}'] = _hole_axis((x, y, 0), (0, 0, 1), f'floor hole {i} axis', v['mount_hole_d'], v['floor'])
+            refs[f'mount_{i}_center'] = _point((x, y, 0), f'floor hole {i} centre on the outer bottom face')
+        L, W = v['inner_length'] + 2 * v['wall'], v['inner_width'] + 2 * v['wall']
+        for i, (x, y) in enumerate(_pattern(L, W, 4), 1):
+            refs[f'corner_{i}'] = _point((x, y, 0), f'outer bottom corner {i}')
     elif family == 'standoff':
         refs['bottom'] = _plane((0, 0, 0), (0, 0, -1), 'bottom face')
         refs['top'] = _plane((0, 0, v['height']), (0, 0, 1), 'top face, z = height')
         refs['axis'] = _axis((0, 0, 0), (0, 0, 1), 'cylinder axis')
+        if v['bore_d'] > 0:
+            refs['axis']['hole'] = {'diameter': float(v['bore_d']), 'extent': [0.0, float(v['height'])]}
+        refs['bottom_center'] = _point((0, 0, 0), 'centre of the bottom face')
+        refs['top_center'] = _point((0, 0, v['height']), 'centre of the top face')
     elif family == 'plate':
         refs['bottom'] = _plane((0, 0, 0), (0, 0, -1), 'bottom face')
         refs['top'] = _plane((0, 0, v['thickness']), (0, 0, 1), 'top face, z = thickness')
         for i, (x, y) in enumerate(_pattern(v['hole_dx'], v['hole_dy'], v['holes']), 1):
-            refs[f'hole_{i}'] = _axis((x, y, 0), (0, 0, 1), f'hole {i} axis')
+            refs[f'hole_{i}'] = _hole_axis((x, y, 0), (0, 0, 1), f'hole {i} axis', v['hole_d'], v['thickness'])
+            refs[f'hole_{i}_center'] = _point((x, y, 0), f'hole {i} centre on the bottom face')
+        for i, (x, y) in enumerate(_pattern(v['length'], v['width'], 4), 1):
+            refs[f'corner_{i}'] = _point((x, y, 0), f'bottom corner {i}')
+            refs[f'top_corner_{i}'] = _point((x, y, v['thickness']), f'top corner {i}')
     elif family == 'bracket':
         refs['bottom'] = _plane((0, 0, 0), (0, 0, -1), 'base bottom face')
         refs['top'] = _plane((0, 0, v['thickness']), (0, 0, 1), 'base top face')
         refs['back'] = _plane((-v['length'] / 2, 0, 0), (-1, 0, 0), 'outer face of the upright')
-        refs['hole_1'] = _axis((v['hole_x'], 0, 0), (0, 0, 1), 'base hole axis')
+        refs['hole_1'] = _hole_axis((v['hole_x'], 0, 0), (0, 0, 1), 'base hole axis', v['hole_d'], v['thickness'])
+        refs['hole_1_center'] = _point((v['hole_x'], 0, 0), 'base hole centre on the bottom face')
+        for i, (x, y) in enumerate(_pattern(v['length'], v['width'], 4), 1):
+            refs[f'corner_{i}'] = _point((x, y, 0), f'base bottom corner {i}')
     elif family == 'screw':
         refs['under_head'] = _plane((0, 0, 0), (0, 0, -1), 'underside of the head')
         refs['tip'] = _plane((0, 0, -v['length']), (0, 0, -1), 'shaft end')
         refs['axis'] = _axis((0, 0, 0), (0, 0, -1), 'shaft axis, insertion direction')
+        refs['head_center'] = _point((0, 0, 0), 'centre of the underside of the head')
+        refs['tip_center'] = _point((0, 0, -v['length']), 'centre of the shaft end')
     elif family == 'block':
         refs['bottom'] = _plane((0, 0, 0), (0, 0, -1), 'bottom face')
         refs['top'] = _plane((0, 0, v['height']), (0, 0, 1), 'top face')
+        for i, (x, y) in enumerate(_pattern(v['length'], v['width'], 4), 1):
+            refs[f'corner_{i}'] = _point((x, y, 0), f'bottom corner {i}')
+            refs[f'top_corner_{i}'] = _point((x, y, v['height']), f'top corner {i}')
     return refs
 
 
@@ -239,6 +308,18 @@ def materialized(solid, ref, tol=1e-5):
     """True when the solid has a planar face on the plane with that outward normal, or a cylindrical face on the axis."""
     from OCP.BRepAdaptor import BRepAdaptor_Surface
     origin, direction = np.array(ref['origin']), np.array(ref['direction'])
+    if ref['kind'] == 'point':
+        for vertex in solid.Vertices():
+            if np.linalg.norm(np.array(vertex.toTuple()) - origin) < tol:
+                return True
+        for face in solid.Faces():  # a hole centre lies on the axis of a cylindrical face
+            if face.geomType() == 'CYLINDER':
+                axis = BRepAdaptor_Surface(face.wrapped).Cylinder().Axis()
+                point = np.array((axis.Location().X(), axis.Location().Y(), axis.Location().Z()))
+                d = np.array((axis.Direction().X(), axis.Direction().Y(), axis.Direction().Z()))
+                if np.linalg.norm(np.cross(point - origin, d)) < tol:
+                    return True
+        return False
     for face in solid.Faces():
         kind = face.geomType()
         if ref['kind'] == 'plane' and kind == 'PLANE':

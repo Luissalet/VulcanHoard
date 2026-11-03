@@ -66,11 +66,19 @@ class Pose(BaseModel):
     rotation_deg: tuple[float, float, float] = Field((0, 0, 0), description='Extrinsic X, then Y, then Z rotation in degrees')
 
 
+class Thread(BaseModel):
+    """Declared thread metadata of a screw. The geometry stays a nominal cylinder; this only feeds the clearance checks."""
+    model_config = ConfigDict(extra='forbid', allow_inf_nan=False)
+    designation: str = Field(pattern=r'^M[0-9]{1,2}(\.[0-9])?$', description='ISO metric designation, for example M3 or M4')
+    pitch: float | None = Field(None, gt=0, le=3, description='Pitch in mm; the coarse pitch of the designation when omitted')
+
+
 class FamilySource(BaseModel):
     model_config = ConfigDict(extra='forbid', allow_inf_nan=False)
     kind: Literal['family'] = 'family'
     family: str = Field(pattern=r'^[a-z_]{1,30}$')
     params: dict[str, Value] = Field(default_factory=dict)
+    thread: Thread | None = Field(None, description='screw family only: declared metric thread used to check clearance holes (the solid stays a nominal cylinder)')
 
 
 class BuildSource(BaseModel):
@@ -98,11 +106,11 @@ class Component(BaseModel):
 class Relation(BaseModel):
     model_config = ConfigDict(extra='forbid', allow_inf_nan=False)
     id: str = Field(pattern=NAME)
-    type: Literal['fixed', 'coincident', 'distance', 'coaxial', 'clearance']
+    type: Literal['fixed', 'coincident', 'distance', 'coaxial', 'clearance', 'angle', 'point_on_plane', 'point_on_axis', 'point_coincident']
     component: str | None = Field(None, description='fixed: the component held at its pose')
-    a: str | None = Field(None, description='component.reference (planes for coincident/distance, axes for coaxial); a component id for clearance')
-    b: str | None = None
-    value: Value | None = Field(None, description='distance: signed offset of plane b from plane a along the normal of a (mm)')
+    a: str | None = Field(None, description='component.reference (planes for coincident/distance, axes for coaxial, planes or axes for angle, a point for point_on_plane/point_on_axis/point_coincident); a component id for clearance')
+    b: str | None = Field(None, description='component.reference (a plane for point_on_plane, an axis for point_on_axis, a point for point_coincident)')
+    value: Value | None = Field(None, description='distance: signed offset of plane b from plane a along the normal of a (mm); angle: angle in degrees (0 to 180) between the directions of a and b (plane normals / axis directions as listed); point_on_plane: optional signed offset of the point along the plane normal (mm)')
     min: Value | None = Field(None, description='clearance: requested minimum gap between the two solids (mm)')
     orientation: Literal['opposed', 'aligned', 'either'] = Field('opposed', description="coincident/distance default 'opposed' (faces mate); coaxial uses 'aligned' or 'opposed'; 'either' is solved for both and never chosen silently")
 
@@ -119,8 +127,10 @@ class Relation(BaseModel):
                 raise ValueError(f'{self.id}: {self.type} takes references a and b written component.reference')
             if self.a.split('.')[0] == self.b.split('.')[0]:
                 raise ValueError(f'{self.id}: a relation joins two different components')
-            if self.type == 'distance' and self.value is None:
-                raise ValueError(f'{self.id}: distance needs value')
+            if self.type in ('distance', 'angle') and self.value is None:
+                raise ValueError(f'{self.id}: {self.type} needs value')
+            if self.type in ('angle', 'point_on_plane', 'point_on_axis', 'point_coincident') and 'orientation' in self.model_fields_set and self.orientation != 'opposed':
+                raise ValueError(f'{self.id}: orientation does not apply to {self.type}')
         return self
 
 

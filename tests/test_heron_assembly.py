@@ -60,7 +60,7 @@ def test_standoff_height_change_keeps_mounting_axes_and_board_lid_distance(box):
     lid_bottom = result['poses']['lid']['translation_mm'][2]
     assert board_top == pytest.approx(3 + 20 + 1.6) and lid_bottom - board_top == pytest.approx(8)
     assert relation(result, 'board_lid_gap')['state'] == 'satisfied'
-    assert result['components']['standoff_1']['reference_changes']['moved_in_part'] == ['top']
+    assert result['components']['standoff_1']['reference_changes']['moved_in_part'] == ['top', 'top_center']
     assert not any(c['reference_changes']['invalidated'] for c in result['components'].values())
 
 
@@ -106,7 +106,7 @@ def test_references_that_disappear_are_invalidated_explicitly(box):
     assert not result['complete']
     assert {e['id']: e['state'] for e in result['excluded_relations']} == {'board_hole_3': 'invalidated', 'board_hole_4': 'invalidated'}
     changes = result['components']['board']['reference_changes']
-    assert changes['invalidated'] == ['hole_3', 'hole_4'] and {'hole_1', 'hole_2', 'top', 'bottom'} <= set(changes['survived'])
+    assert changes['invalidated'] == ['hole_3', 'hole_3_center', 'hole_4', 'hole_4_center'] and {'hole_1', 'hole_2', 'top', 'bottom'} <= set(changes['survived'])
     assert result['status'] == 'solved'  # holes 1 and 2 still fix the board
 
 
