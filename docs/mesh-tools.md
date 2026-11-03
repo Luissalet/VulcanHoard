@@ -11,26 +11,54 @@ slicer, and a dense-mesh viewer mode. Each one has a UI control, a REST route an
   `simplifySloppy` for the sloppy mode. The PyPI `meshoptimizer` package only ships a source archive (no Windows
   wheel), hence the Node route. Fallbacks: `fast-simplification` (quadric, `preserve_border`), then vertex clustering
   (numpy). `GET /api/simplify/engines` says which ones are available.
-- Parameters: `ratio` (fraction of triangles kept), `target_error` (mm; with both, whichever comes first), `mode`
-  `attribute` | `sloppy`, `keep_borders`, `save` (false only measures and returns a preview render).
-- Output: a NEW binary STL in `<data dir>/variants/<file>-m<id>-lod-<mode><ratio|error>[-b].stl`, indexed in the
-  library (import root `Imported · variants`), named `<source> · LOD <n> %`, tagged `lod`, `variante`, with
-  `source_ref = hoard://vulcan/model/<source id>`. The source file is never written. The same settings rewrite the same
-  variant.
+- Parameters: `ratio` (fraction of triangles kept), `target_error`, `mode` `attribute` | `sloppy`, `keep_borders`,
+  `save` (false only measures and returns a preview render), `allow_over_target`.
+- `target_error` is a **maximum surface deviation in mm measured with the reported metric** (`error.hausdorff_mm`,
+  below), not the engine's internal error. Each result is measured; while it is above the target the engine's own knob
+  is tightened (meshoptimizer error limit, fast-simplification kept ratio, clustering cell size) in proportion to the
+  overshoot, then bisected between the last passing and first failing setting, up to 8 measured tries; the passing
+  result with the fewest triangles wins. With `ratio` too, the ratio is the floor of kept triangles. The result says
+  `target_met`, `target_metric`, `target_attempts` (scale, triangles, measured max per try), and `engine_error_mm` is
+  labelled as the engine's estimate only. When no try meets the target the call returns `ok: false`,
+  `target_met: false` and the closest result (with a preview) and **saves nothing**, unless `allow_over_target: true`
+  (then it is saved, still `ok: false`, and its notes say `NOT met`).
+- `keep_borders` locks open-border vertices and edges in every engine: meshoptimizer `LockBorder` (attribute) or a
+  lock mask (sloppy), fast-simplification `preserve_border`, and clustering, where each border vertex is its own
+  cluster so it never moves and no border edge can collapse. The result checks it (`borders`: border vertices/edges
+  kept, `borders_kept`); a result whose borders moved is reported `ok: false` and never saved.
+- Output: a NEW binary STL in `<data dir>/variants/<file>-m<id>-lod-<mode><ratio|error>[-b]-<variant key>.stl`, indexed
+  in the library (import root `Imported · variants`), named `<source> · LOD <n> %`, tagged `lod`, `variante`, with
+  `source_ref = hoard://vulcan/model/<source id>`. The source file is never written. Identity: `variant_key` = first 16
+  hex of SHA-256 over the canonical JSON `recipe` (recipe version, source id, source file SHA-256, effective engine,
+  mode, full-precision ratio and target, keep_borders). The readable part of the name is only a label, so ratio 0.5001
+  and 0.5004 are two variants with their own bytes; the same source + settings rewrite the same variant (idempotent);
+  a new source revision makes a new one. The recipe is in the result and in the variant's notes.
 - Error: measured, not estimated. Distances from every vertex (up to 30 000 per side) and 1 500 surface samples of
   the original to the simplified surface and back, with `trimesh.proximity.closest_point` (needs `rtree`, pinned in
   requirements). Reported: `hausdorff_mm` (max), `mean_mm`, `p95_mm`, `relative` (to the bbox diagonal).
 - REST: `POST /api/models/{id}/simplify`, `GET /api/models/{id}/variants`. MCP: `model_simplify`.
-- UI: model page → **Simplificar (LOD)**: slider with the expected triangle count, mode, borders, optional max error,
-  **Vista previa** (before/after renders, measured error) and **Crear variante**; the list of variants links to them.
+- UI: model page → **Simplificar (LOD)**: slider with the expected triangle count, mode, borders, optional
+  **Desviación máxima de la superficie** (mm, the measured Hausdorff maximum), **Vista previa** (before/after renders,
+  measured deviation) and **Crear variante**; the result says whether the maximum was met (and offers **Guardar
+  igualmente (marcada)** when it was not), whether the borders were checked in place, and the recipe key; the list of
+  variants links to them.
 
 ## Compressed GLB for the web
 
 - `export_web_glb` writes `<data dir>/exports/web/<file>-m<id>-<sha8>.glb` with `gltfpack -cc` (npm `gltfpack@1.3.0`,
   MIT): EXT_meshopt_compression plus quantization. Without Node/gltfpack it writes a plain GLB and says so.
+- Units: glTF lengths are metres (glTF 2.0, "Coordinate System and Units"). The library geometry is millimetres
+  (whatever unit a 3MF/OBJ declared is converted on load), so the export scales it by 0.001: a 40 x 20 x 10 mm part
+  decodes as 0.04 x 0.02 x 0.01 m in any glTF viewer. The result and the `.json` sidecar declare `units: "m"`,
+  `source_units: "mm"`, `scale_from_source: 0.001`, `extent_mm`, `extent_m`, `quantization_tolerance_m` (two
+  14-bit position steps of the largest extent when compressed) and `semantics: "gltf-metres-v2"`. A cached GLB
+  without that semantics tag (written with millimetre numbers) is rebuilt on the next request.
+- `scripts/glb_extent.mjs <file.glb>` decodes a GLB with the shipping three.js `GLTFLoader` + `MeshoptDecoder`,
+  applies every node transform and prints the world extent in metres (used by the tests and for QA).
 - REST: `POST /api/models/{id}/web-glb`, `GET /api/models/{id}/web.glb`. MCP: `model_export_web_glb`.
-- UI: model page → **GLB comprimido para la web**: export, download, and **Ver en el visor** (three.js `GLTFLoader`
-  with `MeshoptDecoder`).
+- UI: model page → **GLB comprimido para la web**: export, download, the metre extent, and **Ver en el visor**
+  (three.js `GLTFLoader` with `MeshoptDecoder`; the viewer scales the metre GLB by 1000 so it shows at the same
+  millimetre scale as the library files, and prints the size it shows).
 
 ## Look and scene summary
 
