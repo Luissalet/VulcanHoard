@@ -58,11 +58,13 @@ async function makeRenderer(dense) {
 /** three.js viewer: orbit controls, Z-up print orientation, auto-fit, grid at the build plate. `glbUrl` shows a (meshopt
  * compressed) GLB instead of the model file. Dense mode: WebGPU renderer + three-virtual-geometry (cluster LOD picked per
  * frame on the GPU), offered for very dense meshes when the browser has WebGPU; anything failing falls back to WebGL. */
-export default function Viewer({ model, glbUrl = null, onCloseGlb }) {
+export default function Viewer({ model, glbUrl = null, onCloseGlb, overlay = null }) {
   const host = useRef(null);
+  const live = useRef({ scene: null, radius: 1 }); // scene + model radius, for the defect overlay layer
   const [state, setState] = useState({ phase: "loading", error: null });
   const [dense, setDense] = useState(false);
   const [denseNote, setDenseNote] = useState("");
+  const [sceneVersion, setSceneVersion] = useState(0);
   const denseOffer = hasWebGPU() && (model?.triangles || 0) >= DENSE_TRIANGLES;
   useEffect(() => { setDense(false); setDenseNote(""); }, [model?.id]);
 
@@ -71,6 +73,7 @@ export default function Viewer({ model, glbUrl = null, onCloseGlb }) {
     const container = host.current;
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0xfbf9f6);
+    live.current = { scene, radius: 1 };
     const camera = new THREE.PerspectiveCamera(40, 4 / 3, 0.1, 100000);
     camera.up.set(0, 0, 1);
     scene.add(new THREE.HemisphereLight(0xffffff, 0x8a7f74, 1.1));
@@ -103,6 +106,7 @@ export default function Viewer({ model, glbUrl = null, onCloseGlb }) {
       const size = box.getSize(new THREE.Vector3());
       const centre = box.getCenter(new THREE.Vector3());
       const radius = Math.max(size.length() / 2, 1e-3);
+      live.current.radius = radius;
       const distance = radius / Math.sin((camera.fov * Math.PI) / 360) * 1.15;
       camera.near = distance / 100;
       camera.far = distance * 100;
@@ -155,6 +159,7 @@ export default function Viewer({ model, glbUrl = null, onCloseGlb }) {
       scene.add(object);
       fit(object);
       setState({ phase: "ready", error: null });
+      setSceneVersion((v) => v + 1);
     };
     start().catch((error) => !disposed && setState({ phase: "error", error: error.message }));
 
@@ -171,6 +176,42 @@ export default function Viewer({ model, glbUrl = null, onCloseGlb }) {
     };
   }, [model?.id, model?.format, model?.sha256, glbUrl, dense]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Defect overlay (open-edge loops red, bodies blue boxes, thin-wall samples orange): file coordinates, original file only.
+  useEffect(() => {
+    const { scene, radius } = live.current;
+    if (!overlay || glbUrl || !scene || state.phase !== "ready") return undefined;
+    const group = new THREE.Group();
+    group.name = "defect-overlay";
+    const lines = [];
+    for (const loop of overlay.loops || []) lines.push(...loop.segments);
+    if (lines.length) {
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute("position", new THREE.Float32BufferAttribute(lines, 3));
+      const material = new THREE.LineBasicMaterial({ color: 0xe02020, depthTest: false, transparent: true });
+      const segments = new THREE.LineSegments(geometry, material);
+      segments.renderOrder = 10;
+      group.add(segments);
+    }
+    for (const body of overlay.bodies || []) {
+      const box = new THREE.Box3(new THREE.Vector3(...body.min), new THREE.Vector3(...body.max));
+      const helper = new THREE.Box3Helper(box, 0x2060d0);
+      helper.material.depthTest = false;
+      helper.renderOrder = 9;
+      group.add(helper);
+    }
+    for (const point of overlay.points || []) {
+      const marker = new THREE.Mesh(new THREE.SphereGeometry(radius * 0.015, 12, 8), new THREE.MeshBasicMaterial({ color: 0xf08000, depthTest: false }));
+      marker.position.set(...point.position);
+      marker.renderOrder = 11;
+      group.add(marker);
+    }
+    scene.add(group);
+    return () => {
+      scene.remove(group);
+      group.traverse((node) => { node.geometry?.dispose(); node.material?.dispose?.(); });
+    };
+  }, [overlay, glbUrl, sceneVersion, state.phase]);
+
   return (
     <div>
       <div className="viewer" ref={host} aria-label="Visor 3D" data-viewer-mode={dense ? "dense" : glbUrl ? "glb" : "normal"}>
@@ -181,6 +222,7 @@ export default function Viewer({ model, glbUrl = null, onCloseGlb }) {
         </div>
       </div>
       <div className="mt-1 flex flex-wrap items-center gap-3 text-[12px]">
+        {overlay && !glbUrl && <span className="help" data-overlay-note>Marcas del inspector: aristas abiertas en rojo, cuerpos en azul, zonas finas en naranja.</span>}
         {glbUrl && <span className="help">Viendo el GLB web comprimido · <button type="button" className="btn-link" onClick={onCloseGlb}>volver al archivo original</button></span>}
         {denseOffer && (
           <label className="inline-flex items-center gap-1" title="WebGPU + three-virtual-geometry: dibuja solo el detalle que se ve">

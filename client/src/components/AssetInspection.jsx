@@ -46,6 +46,52 @@ const COMPARE = [
   ["attributes.texture_max_px", "Textura máx. (px)"],
 ];
 
+const xyz = (v) => (Array.isArray(v) ? v.map((n) => Number(n).toFixed(2)).join(", ") : "—");
+const hasOverlay = (o) => !!o && ((o.loops?.length || 0) + (o.bodies?.length || 0) + (o.points?.length || 0) > 0);
+
+/** Where the defects are: open-edge loops, bodies, thin-wall samples (mm) and the colours a 3MF declares. */
+function Locations({ report, onOverlay }) {
+  const loc = report.locations;
+  const colours = report.measurements?.["attributes.colors_3mf"]?.value;
+  const wall = report.measurements?.["geometry.wall_thickness"]?.value;
+  const bodies = loc?.bodies || [];
+  const any = loc && (loc.open_loops?.length || bodies.length > 1 || loc.thin_regions?.length);
+  if (!any && !colours && !wall) return null;
+  return (
+    <div className="rounded-md border p-2 text-[12px]" style={{ borderColor: "var(--line)" }} data-asset-locations>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="help text-[11px] font-semibold uppercase tracking-wide">Dónde están (coordenadas en mm)</div>
+        {hasOverlay(loc?.overlay) && onOverlay && <button type="button" className="btn btn-sm" onClick={() => onOverlay(loc.overlay)} data-asset-overlay>Marcar en el visor</button>}
+      </div>
+      {wall && <p className="mt-1" data-asset-wall>Pared (estimación por muestreo, no una cota): mín {wall.min_mm} mm · p5 {wall.p5_mm} mm · mediana {wall.median_mm} mm · {num(wall.samples)} rayos hacia dentro.</p>}
+      {loc?.thin_regions?.length > 0 && (
+        <div className="mt-1"><b>Zonas más finas muestreadas</b>
+          <ul className="list-disc pl-5">{loc.thin_regions.map((t) => <li key={t.face}>{t.thickness_mm} mm en ({xyz(t.centroid_mm)}) · cara {t.face}</li>)}</ul>
+        </div>
+      )}
+      {loc?.open_loops?.length > 0 && (
+        <div className="mt-1"><b>Bucles de aristas abiertas ({loc.open_loops_total})</b>
+          <ul className="list-disc pl-5">{loc.open_loops.slice(0, 12).map((l) => <li key={l.id} data-loop={l.id}><b>{l.id}</b> {num(l.edges)} aristas · {l.length_mm} mm · centro ({xyz(l.centroid_mm)}) · caja ({xyz(l.bbox_mm.min)}) → ({xyz(l.bbox_mm.max)})</li>)}</ul>
+          {loc.open_loops_total > 12 && <p className="help">… y {loc.open_loops_total - 12} más (ver el informe completo por API/MCP).</p>}
+        </div>
+      )}
+      {bodies.length > 1 && (
+        <div className="mt-1"><b>Cuerpos ({loc.bodies_total})</b>
+          <ul className="list-disc pl-5">{bodies.slice(0, 12).map((b) => <li key={b.id} data-body={b.id}><b>{b.id}</b> {num(b.triangles)} triángulos · {b.closed ? `cerrado, ${num(Math.round(b.volume_mm3))} mm³${b.inverted ? " (invertido)" : ""}` : "abierto"} · caja ({xyz(b.bbox_mm.min)}) → ({xyz(b.bbox_mm.max)})</li>)}</ul>
+        </div>
+      )}
+      {colours && (
+        <div className="mt-1" data-asset-colours><b>Colores y texturas declarados en el 3MF</b>
+          <div className="flex flex-wrap items-center gap-1">
+            {colours.colours.map((c) => <span key={c} title={c} style={{ background: c.slice(0, 7), width: 14, height: 14, display: "inline-block", border: "1px solid var(--line)" }} />)}
+            <span className="help">{colours.colours_total} color(es) de grupo · {colours.base_materials.length} material(es) base{colours.base_materials.length ? `: ${colours.base_materials.map((b) => b.name || b.color).join(", ")}` : ""} · {colours.textures.length} textura(s) · {num(colours.triangles_with_property)}/{num(colours.triangles)} triángulos con propiedad</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function show(value) {
   if (value === null || value === undefined) return "—";
   if (value === true) return "sí";
@@ -64,7 +110,7 @@ function record(measurements, key, format) {
 }
 
 /** Destination inspector: draft report (changes nothing) and the preparation operation (new verified file). */
-export default function AssetInspectionPanel({ model, onPreview }) {
+export default function AssetInspectionPanel({ model, onPreview, onOverlay }) {
   const { act } = useApp();
   const [profiles, setProfiles] = useState([]);
   const [target, setTarget] = useState("web-configurator");
@@ -154,6 +200,7 @@ export default function AssetInspectionPanel({ model, onPreview }) {
               ))}
             </tbody>
           </table>
+          <Locations report={report} onOverlay={onOverlay} />
           {report.defects.length > 0 && (
             <div>
               <div className="help text-[11px] font-semibold uppercase tracking-wide">Defectos detectados</div>
@@ -225,7 +272,7 @@ export default function AssetInspectionPanel({ model, onPreview }) {
             <label className="inline-flex items-center gap-2"><input type="checkbox" checked={!!edit.require_watertight} onChange={(e) => setEdit({ ...edit, require_watertight: e.target.checked })} />Exigir malla cerrada</label>
             <label className="inline-flex items-center gap-2"><input type="checkbox" checked={!!edit.require_uvs_if_textured} onChange={(e) => setEdit({ ...edit, require_uvs_if_textured: e.target.checked })} />Exigir UV si hay texturas</label>
           </div>
-          <p className="help mt-1">Formatos: {show(edit.accepted_formats)} · unidad {edit.units} · salida {profile.output_format.toUpperCase()}{edit.min_wall_mm ? ` · pared mínima ${edit.min_wall_mm} mm (no se mide en esta versión)` : ""}</p>
+          <p className="help mt-1">Formatos: {show(edit.accepted_formats)} · unidad {edit.units} · salida {profile.output_format.toUpperCase()}{edit.min_wall_mm ? ` · pared mínima ${edit.min_wall_mm} mm (estimación por muestreo, p5)` : ""}</p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <button type="button" className="btn btn-sm" onClick={saveRules}>Guardar perfil</button>
             <input className="field" style={{ width: 160 }} value={cloneId} onChange={(e) => setCloneId(e.target.value)} placeholder="id-del-clon" aria-label="Id del clon" />
