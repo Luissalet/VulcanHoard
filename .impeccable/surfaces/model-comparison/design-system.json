@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-03T15:28:49.965891+00:00",
+  "generatedAt": "2026-11-03T15:45:44.582128+00:00",
   "title": "Design System: Vulcan's Hoard — comparación de revisiones",
   "extensions": {
     "colorMeta": {
@@ -80,11 +80,12 @@
       "sourceSha256": {
         "client/src/index.css": "1a96806119b620735e96ff3d65f93e952d6b735068fc8879f37d2acfbf347172",
         "client/src/hoard-theme.css": "5bca9ec7d293198c0e5b2e0c2f9b6424af68b0c798ac71b0656708095de5c610",
-        "client/src/components/ModelComparison.jsx": "dec066a7572072cbb85b70f92817d76ec8aae7d0298f63835b310b9842c94c20",
+        "client/src/components/ModelComparison.jsx": "83d6ce867d1d81674209cc5a388bc6a6d2c62f910faedba23ed2ff4559d403e2",
         "client/src/components/ComparisonViewer.jsx": "1314b829e8b43b48ee715aad53e596acba23dc45d8cd704c2001147151672b4d",
         "client/src/comparison-format.js": "7b0bdb59b7e980cbcebd4a44a2ce9ae952fc7f7f3b26b611eb7ca5884c9fbcb0",
         "client/src/pages/Modelo.jsx": "47f6e62e2a0680d6cb92225994e864fd3e0c70c582fe4cf4465fa55e1eb91770",
-        ".impeccable/surfaces/client-src-components-modelcomparison-jsx.md": "3762e412a87aa49eb7106d844cdd4950ff1cbbec89ed68ce4144c772116d3115"
+        ".impeccable/surfaces/client-src-components-modelcomparison-jsx.md": "3762e412a87aa49eb7106d844cdd4950ff1cbbec89ed68ce4144c772116d3115",
+        "tests/test_comparison_context.mjs": "da241623f263b0f51ed79136e05f4a078a2e1782385fb392e9626eb33b8de859"
       },
       "captures": {
         "method": "cua Tab.getScreenshot native raw bytes",
@@ -132,8 +133,20 @@
         },
         "fix": "F1 adaptive precision, tolerance1E-6 visible in screenshot; two Node cases pass"
       },
-      "reviewScope": "ship en veredicto de F1 resuelto únicamente; no nueva aprobación global. Etiquetas none y contexto Faustus pendientes de revisión formal de código.",
-      "notCanonized": "Sin rampas cromáticas sintéticas, nuevos conceptos, logos ni imágenes de producto. El marco del snippet no finge una escena WebGL."
+      "reviewScope": "Veredicto visual ship limitado a F1 resuelto; no nueva aprobación global ni validación del contexto Faustus. Formal2016r1: CHANGES únicamente por P2 (se borraba last_operation al editar). Corregido con lastCompleted independiente; formal2016r2 pendiente. Sin cambio de layout ni nuevas capturas.",
+      "notCanonized": "Sin rampas cromáticas sintéticas, nuevos conceptos, logos ni imágenes de producto. El marco del snippet no finge una escena WebGL.",
+      "contextContract": {
+        "currentDraft": [
+          "fields",
+          "dirty_fields",
+          "phase",
+          "last_error"
+        ],
+        "historicalOperation": "last_operation procede de lastCompleted, separado del resultado visible. Conserva fuentes, parámetros y medidas del último éxito vigente durante edición, petición pendiente y error; empieza nulo y un nuevo éxito vigente lo sustituye.",
+        "visibleResult": "Editar, iniciar petición o cambiar la referencia invalida el resultado visible; la operación histórica no se vuelve a mostrar como resultado actual.",
+        "behaviorEvidence": "tests/test_comparison_context.mjs: éxito → edición → petición pendiente → error → éxito. El autor informa 6 tests Node PASS con los existentes y build positivo; formal2016r2 pendiente.",
+        "visualEvidenceScope": "Los JPEG existentes corresponden al layout y F1; no certifican esta corrección de contexto."
+      }
     }
   },
   "components": [

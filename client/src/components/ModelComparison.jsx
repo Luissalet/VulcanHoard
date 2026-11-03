@@ -18,6 +18,7 @@ export default function ModelComparison({ model }) {
   const [query, setQuery] = useState(''), [matches, setMatches] = useState([]), [total, setTotal] = useState(0);
   const [searching, setSearching] = useState(false), [searchError, setSearchError] = useState('');
   const [result, setResult] = useState(null), [busy, setBusy] = useState(false), [error, setError] = useState('');
+  const [lastCompleted, setLastCompleted] = useState(null);
   const [aligned, setAligned] = useState(true), [notice, setNotice] = useState('');
   const request = useRef(0), searchRequest = useRef(0), selected = useRef(null);
   const region = `compare-${model.id}`;
@@ -25,11 +26,11 @@ export default function ModelComparison({ model }) {
   useCopilotContext({ model_id: model.id, editor: { kind: 'model-comparison',
     fields: { model_a: model.id, ...fields }, dirty_fields: Object.keys(fields).filter(key => fields[key] !== initial[key]),
     phase: busy ? 'running' : error ? 'error' : result ? 'done' : 'draft', last_error: error || null,
-    last_operation: result ? { source_a: result.source_a, source_b: result.source_b, tolerance_mm: result.tolerance_mm,
-      samples_per_direction: result.samples_per_direction, seed: result.seed, alignment: result.alignment,
-      raw_max_sampled_mm: result.raw.max_sampled_mm, aligned_max_sampled_mm: result.aligned.max_sampled_mm,
-      outside_count: result.aligned.outside_count, within_sampled_tolerance: result.aligned.within_sampled_tolerance,
-      limits: result.limits } : null } }, `comparison:${model.id}`, true);
+    last_operation: lastCompleted ? { source_a: lastCompleted.source_a, source_b: lastCompleted.source_b, tolerance_mm: lastCompleted.tolerance_mm,
+      samples_per_direction: lastCompleted.samples_per_direction, seed: lastCompleted.seed, alignment: lastCompleted.alignment,
+      raw_max_sampled_mm: lastCompleted.raw.max_sampled_mm, aligned_max_sampled_mm: lastCompleted.aligned.max_sampled_mm,
+      outside_count: lastCompleted.aligned.outside_count, within_sampled_tolerance: lastCompleted.aligned.within_sampled_tolerance,
+      limits: lastCompleted.limits } : null } }, `comparison:${model.id}`, true);
   useEffect(() => {
     if (referenceSha.current === model.sha256) return;
     referenceSha.current = model.sha256; request.current++; setResult(null); setBusy(false); setError('');
@@ -50,7 +51,7 @@ export default function ModelComparison({ model }) {
     try {
       const data = await api.compareModels({ model_a: model.id, model_b: Number(fields.model_b), units_a: fields.units_a, units_b: fields.units_b,
         alignment: fields.alignment, tolerance_mm: Number(fields.tolerance_mm), samples: Number(fields.samples), seed: Number(fields.seed) });
-      if (token === request.current) { setResult(data); setAligned(data.alignment.requested === 'rigid'); setNotice('Comparación terminada.'); }
+      if (token === request.current) { setResult(data); setLastCompleted(data); setAligned(data.alignment.requested === 'rigid'); setNotice('Comparación terminada.'); }
     } catch (e) { if (token === request.current) { setError(e.message); setNotice('No hay una comparación actualizada.'); } }
     finally { if (token === request.current) setBusy(false); }
   };

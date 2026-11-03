@@ -105,7 +105,7 @@ El comparador pertenece a la ficha del modelo. Se abre en línea, conserva el vi
 - Distancias originales y alineadas legibles junto a los límites del muestreo.
 - Una columna móvil y dos columnas de parámetros desde el corte mediano.
 
-La evidencia de acabado es `.impeccable/review/desktop.jpg`, `mobile.jpg` y `user-1920.jpg`; su manifiesto es `capture-metadata.json`. Son JPEG nativos sin redimensionado: píxeles físicos 1430 × 2383, 380 × 2923 y 1910 × 857; viewports CSS 1440 × 2400, 390 × 3000 y 1920 × 861, todos desde `scrollY: 0`. Esta diferencia está declarada; no se usan los PNG históricos rechazados. El último veredicto `ship` solo puntuó F1 (precisión numérica) como resuelto: no constituye una nueva aprobación global. Las etiquetas condicionales de alineación y el contexto opcional de Faustus se registran desde el código actual y siguen pendientes de revisión formal de código.
+La evidencia de acabado es `.impeccable/review/desktop.jpg`, `mobile.jpg` y `user-1920.jpg`; su manifiesto es `capture-metadata.json`. Son JPEG nativos sin redimensionado: píxeles físicos 1430 × 2383, 380 × 2923 y 1910 × 857; viewports CSS 1440 × 2400, 390 × 3000 y 1920 × 861, todos desde `scrollY: 0`. Esta diferencia está declarada; no se usan los PNG históricos rechazados. El último veredicto visual `ship` solo puntuó F1 (precisión numérica) como resuelto: no constituye una nueva aprobación global ni valida el contexto de Faustus. La revisión formal de código 2016r1 respondió `CHANGES` únicamente por P2: se perdía la última operación al editar. El código actual conserva esa operación aparte del borrador y del resultado visible; la revisión formal 2016r2 queda pendiente. Esta corrección de contexto no cambia el layout ni requiere otra captura visual.
 
 ## Colors
 
@@ -174,7 +174,9 @@ La leyenda identifica A y B encima del marco; Acercar, Alejar y Encajar proporci
 
 La tabla tiene caption con mm, cabeceras alineadas con los números y separadores por fila. Siempre muestra Original; añade Alineada si se solicitó registro rígido. Sin alineación solicitada, el texto confirma que se conserva la colocación original. Los volúmenes se acompañan de mm³; cuando faltan, la ayuda explica su omisión. Repetibilidad y puntos fuera de tolerancia se expanden con detalles nativos. Cada dirección conserva su nombre y el marco de coordenadas activo.
 
-Los errores usan `role="alert"` y los anuncios `role="status"`. La selección nueva y el cambio de referencia invalidan datos anteriores. Las unidades asumidas y los límites del muestreo aparecen como texto junto a la comparación. El contexto opcional de Faustus expone campos actuales y la última operación; este comportamiento procede de la fuente actual y no añade una certificación visual o de revisión.
+Los errores usan `role="alert"` y los anuncios `role="status"`. La selección nueva y el cambio de referencia invalidan el resultado visible anterior. Las unidades asumidas y los límites del muestreo aparecen como texto junto a la comparación.
+
+El contexto opcional de Faustus separa el borrador actual (`fields`, `dirty_fields`, `phase`, `last_error`) de la última operación terminada (`last_operation`). El estado local `lastCompleted` conserva las fuentes, parámetros y medidas de esa operación histórica aunque se edite el borrador, empiece otra petición o falle. Sin un éxito previo, `last_operation` es nulo; un nuevo éxito vigente lo sustituye. La fase describe el trabajo actual, no el éxito histórico, y el resultado visible obsoleto sigue vacío hasta obtener una comparación nueva. `tests/test_comparison_context.mjs` ejercita éxito → edición → petición pendiente → error → éxito; su evidencia de comportamiento es independiente del veredicto visual F1 y está pendiente de la revisión formal 2016r2.
 
 ## Do's and Don'ts
 
