@@ -18,6 +18,7 @@ from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from .asset_texts import _, defaults, language
 from .hoard_link import atomic
 
 FILE_NAME = "asset_targets.json"
@@ -92,66 +93,88 @@ def _read(data_dir: Path) -> dict:
 def _validate(data: dict) -> dict:
     profile = TargetProfile.model_validate(data)
     if profile.output_format == "glb" and profile.rules.units != "m":
-        raise ValueError("A profile that writes GLB must use metres: glTF stores positions in metres by specification.")
+        raise ValueError(_("e.glb_metres"))
     bad = [f for f in profile.rules.accepted_formats if f not in FORMATS]
     if bad:
-        raise ValueError(f"Unknown format(s) {', '.join(bad)}; use {', '.join(FORMATS)}.")
+        raise ValueError(_("e.formats", bad=", ".join(bad), formats=", ".join(FORMATS)))
     return profile.model_dump()
 
 
-def list_profiles(data_dir: Path) -> list[dict]:
-    """Built-ins (with the user's edits, if any) first, then the user's own profiles."""
-    with _lock:
+BUILTIN_TEXTS = {"web-configurator": "t.web", "fdm-print": "t.fdm"}
+
+
+def list_profiles(data_dir: Path, lang: str | None = None) -> list[dict]:
+    """Built-ins (with the user's edits, if any) first, then the user's own profiles. A built-in name or description the
+    user has not rewritten is given in `lang`; texts the user typed are returned as typed."""
+    with language(lang), _lock:
         stored = _read(data_dir)["profiles"]
-    out = []
-    for key, base in BUILTINS.items():
-        row = copy.deepcopy(stored.get(key) or base)
-        row.update(builtin=True, edited=key in stored)
-        out.append(row)
-    for key, row in sorted(stored.items()):
-        if key not in BUILTINS:
-            out.append({**row, "builtin": False, "edited": False})
+        out = []
+        for key, base in BUILTINS.items():
+            row = _localized(copy.deepcopy(stored.get(key) or base))
+            row.update(builtin=True, edited=key in stored)
+            out.append(row)
+        for key, row in sorted(stored.items()):
+            if key not in BUILTINS:
+                out.append({**_localized(dict(row)), "builtin": False, "edited": False})
     return out
 
 
-def get_profile(data_dir: Path, profile_id: str) -> dict:
-    for row in list_profiles(data_dir):
-        if row["id"] == profile_id:
-            return row
-    raise LookupError(f"Target profile '{profile_id}' does not exist. Known: {', '.join(r['id'] for r in list_profiles(data_dir))}.")
+def _localized(row: dict) -> dict:
+    """A name or description still equal to a built-in default (also in a clone) is given in the current language."""
+    for prefix in BUILTIN_TEXTS.values():
+        for field in ("name", "description"):
+            text_key = f"{prefix}.{field}"
+            if row.get(field) in defaults(text_key):
+                row[field] = _(text_key)
+    return row
 
 
-def save_profile(data_dir: Path, profile: dict, *, clone_from: str | None = None, create: bool | None = None) -> dict:
+def get_profile(data_dir: Path, profile_id: str, lang: str | None = None) -> dict:
+    with language(lang):
+        rows = list_profiles(data_dir)
+        for row in rows:
+            if row["id"] == profile_id:
+                return row
+        raise LookupError(_("e.profile_missing", id=profile_id, known=", ".join(r["id"] for r in rows)))
+
+
+def save_profile(data_dir: Path, profile: dict, *, clone_from: str | None = None, create: bool | None = None,
+                 lang: str | None = None) -> dict:
     """Create, edit or clone a profile. With clone_from, the given fields override a copy of that profile.
     create=True refuses to overwrite an existing id; create=False refuses to create a new one."""
+    with language(lang):
+        return _save_profile(data_dir, profile, clone_from, create)
+
+
+def _save_profile(data_dir: Path, profile: dict, clone_from: str | None, create: bool | None) -> dict:
     data = dict(profile or {})
     if clone_from:
         base = {k: v for k, v in get_profile(data_dir, clone_from).items() if k not in ("builtin", "edited")}
         rules = {**base["rules"], **(data.pop("rules", None) or {})}
         data = {**base, **data, "rules": rules}
         if data.get("id") in (None, "", clone_from):
-            raise ValueError("A clone needs a new id.")
+            raise ValueError(_("e.clone_id"))
     clean = _validate(data)
     with _lock:
         stored = _read(data_dir)
         exists = clean["id"] in stored["profiles"] or clean["id"] in BUILTINS
         if create is True and exists:
-            raise ValueError(f"Profile '{clean['id']}' already exists; edit it or choose another id.")
+            raise ValueError(_("e.profile_exists", id=clean["id"]))
         if create is False and not exists:
-            raise LookupError(f"Target profile '{clean['id']}' does not exist.")
+            raise LookupError(_("e.profile_unknown", id=clean["id"]))
         stored["profiles"][clean["id"]] = clean
         atomic.write_json_atomic(_path(data_dir), stored)
     return get_profile(data_dir, clean["id"])
 
 
-def delete_profile(data_dir: Path, profile_id: str) -> dict:
+def delete_profile(data_dir: Path, profile_id: str, lang: str | None = None) -> dict:
     """Remove a user profile, or the user's edits of a built-in (which then returns to its defaults)."""
-    with _lock:
+    with language(lang), _lock:
         stored = _read(data_dir)
         if profile_id not in stored["profiles"]:
             if profile_id in BUILTINS:
-                return {"ok": True, "id": profile_id, "reset": False, "note": "Built-in profile without edits: nothing to reset."}
-            raise LookupError(f"Target profile '{profile_id}' does not exist.")
+                return {"ok": True, "id": profile_id, "reset": False, "note": _("n.reset_nothing")}
+            raise LookupError(_("e.profile_unknown", id=profile_id))
         del stored["profiles"][profile_id]
         atomic.write_json_atomic(_path(data_dir), stored)
     return {"ok": True, "id": profile_id, "reset": profile_id in BUILTINS, "deleted": profile_id not in BUILTINS}

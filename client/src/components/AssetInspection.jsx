@@ -24,6 +24,7 @@ const PREP_STATUS = {
   rejected: ["chip-warn", "Rechazada: perdería atributos"],
   failed: ["chip-danger", "Fallida (explicada)"],
 };
+const PREP_CHIP = { unchanged: "sin cambios", prepared: "preparada", rejected: "rechazada", failed: "fallida" };
 const OP_LABEL = { simplify: "Simplificar (LOD)", resize_textures: "Reducir texturas", scale: "Cambiar de unidad", export: "Exportar" };
 const NUMBER_RULES = [
   ["max_triangles", "Triángulos máx."],
@@ -238,7 +239,7 @@ export default function AssetInspectionPanel({ model, onPreview }) {
         <div className="mt-3">
           <div className="help text-[11px] font-semibold uppercase tracking-wide">Preparaciones de este modelo ({history.length})</div>
           <ul className="mt-1 text-[12px]">
-            {history.slice(0, 6).map((h) => <li key={h.id}><span className={`chip ${PREP_STATUS[h.status]?.[0] || ""}`}>{h.status}</span> {h.profile_id} · {new Date(h.created_at * 1000).toLocaleString("es-ES")} · {h.id}</li>)}
+            {history.slice(0, 6).map((h) => <li key={h.id}><span className={`chip ${PREP_STATUS[h.status]?.[0] || ""}`}>{PREP_CHIP[h.status] || h.status}</span> {h.profile_id} · {new Date(h.created_at * 1000).toLocaleString("es-ES")} · {h.id}</li>)}
           </ul>
         </div>
       )}

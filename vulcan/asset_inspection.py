@@ -34,6 +34,7 @@ from pathlib import Path
 import numpy as np
 
 from . import asset_targets
+from .asset_texts import _, language, show
 from .hoard_link import atomic
 
 FORMATS = {".stl": "stl", ".obj": "obj", ".3mf": "3mf", ".glb": "glb", ".gltf": "gltf"}
@@ -41,12 +42,13 @@ UNIT_TO_MM = {"mm": 1.0, "cm": 10.0, "m": 1000.0, "in": 25.4}
 TRIMESH_UNITS = {"millimeter": "mm", "millimeters": "mm", "mm": "mm", "centimeter": "cm", "centimeters": "cm", "cm": "cm",
                  "meter": "m", "meters": "m", "m": "m", "inch": "in", "inches": "in", "in": "in"}
 DEVIATION_SAMPLES = 1_500  # surface samples per side (plus up to 30k vertices per side), see simplify.measure_error
-SAMPLED_NOTE = ("Sampled estimate: distances from a finite set of surface samples and vertices on both surfaces. It can miss "
-                "a narrow feature between samples, so it is not a guaranteed upper bound of the deviation.")
-ATTRIBUTE_LABELS = {"attributes.uvs": "UV coordinates", "attributes.vertex_colors": "vertex colours",
-                    "attributes.materials": "materials", "attributes.textures": "textures",
-                    "attributes.animations": "animations", "attributes.scene_nodes": "scene node structure and names",
-                    "attributes.normals": "authored normals"}
+ATTRIBUTE_KEYS = ("attributes.uvs", "attributes.vertex_colors", "attributes.materials", "attributes.textures", "attributes.animations",
+                  "attributes.scene_nodes", "attributes.normals")
+
+
+def label(key: str) -> str:
+    """Human name of an attribute measurement in the current language."""
+    return _("l." + key)
 
 
 # ---------- measurement records ----------
@@ -73,7 +75,7 @@ def sha256_of(path: Path) -> str:
 def format_of(path: Path) -> str:
     kind = FORMATS.get(Path(path).suffix.lower())
     if kind is None:
-        raise ValueError(f"Unsupported format '{Path(path).suffix}': use {', '.join(sorted(FORMATS))}.")
+        raise ValueError(_("e.format", ext=Path(path).suffix, formats=", ".join(sorted(FORMATS))))
     return kind
 
 
@@ -84,7 +86,7 @@ def read_gltf(path: Path) -> tuple[dict, bytes]:
     if Path(path).suffix.lower() == ".gltf":
         return json.loads(data.decode("utf-8-sig")), b""
     if len(data) < 20 or data[:4] != b"glTF":
-        raise ValueError("Not a binary glTF file (missing glTF header).")
+        raise ValueError(_("e.not_glb"))
     offset, document, binary = 12, None, b""
     while offset + 8 <= len(data):
         length, kind = struct.unpack_from("<I4s", data, offset)
@@ -95,7 +97,7 @@ def read_gltf(path: Path) -> tuple[dict, bytes]:
             binary = chunk
         offset += 8 + length
     if document is None:
-        raise ValueError("The GLB has no JSON chunk.")
+        raise ValueError(_("e.no_json"))
     return document, binary
 
 
@@ -210,7 +212,7 @@ def load_geometry(path: Path):
     else:
         meshes = [loaded] if isinstance(loaded, trimesh.Trimesh) and len(loaded.faces) else []
     if not meshes:
-        raise ValueError("No triangles found in the file.")
+        raise ValueError(_("e.no_triangles"))
     offset, vertices, faces = 0, [], []
     for mesh in meshes:
         vertices.append(np.asarray(mesh.vertices, dtype=np.float64))
@@ -223,116 +225,119 @@ def load_geometry(path: Path):
 
 def _edge_counts(faces: np.ndarray) -> tuple[int, int]:
     edges = np.sort(np.asarray(faces)[:, [0, 1, 1, 2, 2, 0]].reshape(-1, 2), axis=1)
-    _, counts = np.unique(edges, axis=0, return_counts=True)
+    _unused, counts = np.unique(edges, axis=0, return_counts=True)
     return int((counts == 1).sum()), int((counts > 2).sum())
 
 
 def welded_mm(path: Path):
     """The welded geometry of a file in millimetres (declared unit, or mm assumed), for deviation measurements."""
-    _, welded, declared, _ = load_geometry(path)
+    _meshes, welded, declared, _loaded = load_geometry(path)
     mesh = welded.copy()
     mesh.apply_scale(UNIT_TO_MM[declared or "mm"])
     return mesh
 
 
-def inspect_file(path: Path, max_mb: int | None = None) -> dict:
+def inspect_file(path: Path, max_mb: int | None = None, lang: str | None = None) -> dict:
     """Measurements of one file. Returns {file, measurements{id: record}, notes}. Never writes, never spawns."""
-    path = Path(path)
+    with language(lang):
+        return _inspect_file(Path(path), max_mb)
+
+
+def _inspect_file(path: Path, max_mb: int | None) -> dict:
     if not path.is_file():
-        raise LookupError(f"The file does not exist: {path}")
+        raise LookupError(_("e.file_missing", path=path))
     kind = format_of(path)
     size = path.stat().st_size
     if max_mb and size > max_mb * 1024 * 1024:
-        raise ValueError(f"The file is {size / 1048576:.0f} MB, over the {max_mb} MB analysis limit.")
+        raise ValueError(_("e.too_big", mb=f"{size / 1048576:.0f}", limit=max_mb))
     started = time.perf_counter()
     meshes, welded, declared, loaded = load_geometry(path)
     m: dict[str, dict] = {}
     triangles = int(len(welded.faces))
-    m["geometry.triangles"] = observed(triangles, "trimesh fresh load, all scene instances")
-    m["geometry.vertices_stored"] = observed(int(sum(len(x.vertices) for x in meshes)), "vertices as stored (split at UV/normal seams)")
-    m["geometry.vertices_welded"] = observed(int(len(welded.vertices)), "unique positions after welding")
+    m["geometry.triangles"] = observed(triangles, _("m.triangles"))
+    m["geometry.vertices_stored"] = observed(int(sum(len(x.vertices) for x in meshes)), _("m.vertices_stored"))
+    m["geometry.vertices_welded"] = observed(int(len(welded.vertices)), _("m.vertices_welded"))
     open_edges, nonmanifold = _edge_counts(welded.faces)
-    m["geometry.open_edges"] = observed(open_edges, "edges used by one triangle (welded positions)")
-    m["geometry.nonmanifold_edges"] = observed(nonmanifold, "edges used by more than two triangles (welded positions)")
-    m["geometry.watertight"] = observed(bool(open_edges == 0 and nonmanifold == 0), "no open and no non-manifold edges")
-    m["geometry.winding_consistent"] = observed(bool(welded.is_winding_consistent), "trimesh winding check")
+    m["geometry.open_edges"] = observed(open_edges, _("m.open_edges"))
+    m["geometry.nonmanifold_edges"] = observed(nonmanifold, _("m.nonmanifold_edges"))
+    m["geometry.watertight"] = observed(bool(open_edges == 0 and nonmanifold == 0), _("m.watertight"))
+    m["geometry.winding_consistent"] = observed(bool(welded.is_winding_consistent), _("m.winding"))
     try:
         bodies = int(welded.body_count)
     except Exception:  # noqa: BLE001 - graph library missing
         bodies = None
-    m["geometry.bodies"] = observed(bodies, "connected components of the welded mesh") if bodies else not_measured("graph analysis unavailable")
+    m["geometry.bodies"] = observed(bodies, _("m.bodies")) if bodies else not_measured(_("m.bodies_unavailable"))
     areas = welded.area_faces
-    m["geometry.degenerate_triangles"] = observed(int((areas <= 1e-12).sum()), "triangles with zero area")
+    m["geometry.degenerate_triangles"] = observed(int((areas <= 1e-12).sum()), _("m.degenerate"))
     unit = declared or "mm"
     extents = [round(float(x), 6) for x in welded.extents]
-    m["geometry.bbox"] = observed(extents, f"axis-aligned extents in file units ({unit})")
-    m["geometry.bbox_mm"] = observed([round(x * UNIT_TO_MM[unit], 4) for x in extents], f"extents converted from {unit}{' (assumed)' if declared is None else ''}")
-    m["geometry.volume_mm3"] = (observed(round(abs(float(welded.volume)) * UNIT_TO_MM[unit] ** 3, 4), "enclosed volume of the closed mesh")
-                                if open_edges == 0 and nonmanifold == 0 else not_measured("open mesh: no enclosed volume"))
+    m["geometry.bbox"] = observed(extents, _("m.bbox", unit=unit))
+    m["geometry.bbox_mm"] = observed([round(x * UNIT_TO_MM[unit], 4) for x in extents], _("m.bbox_mm_assumed" if declared is None else "m.bbox_mm", unit=unit))
+    m["geometry.volume_mm3"] = (observed(round(abs(float(welded.volume)) * UNIT_TO_MM[unit] ** 3, 4), _("m.volume"))
+                                if open_edges == 0 and nonmanifold == 0 else not_measured(_("m.volume_open")))
     from .geometry import guess_units
 
-    m["units.declared"] = (observed("m", "glTF unit is metres by specification") if kind in ("glb", "gltf") else
-                           observed(declared, "unit declared in the 3MF file") if declared else
-                           not_available(f"{kind.upper()} does not declare units") if kind in ("stl", "obj") else
-                           observed(None, "the file declares no unit"))
-    m["units.effective"] = observed(unit, "declared unit" if declared else "assumed millimetres (not declared by the file)")
-    m["units.assumed"] = observed(declared is None, "true when the unit was not declared")
-    m["units.size_hint"] = observed(guess_units(np.asarray(m["geometry.bbox_mm"]["value"])), "heuristic on the largest extent (printable objects are 5-500 mm)")
+    m["units.declared"] = (observed("m", _("m.unit_gltf")) if kind in ("glb", "gltf") else
+                           observed(declared, _("m.unit_3mf")) if declared else
+                           not_available(_("m.unit_none_format", fmt=kind.upper())) if kind in ("stl", "obj") else
+                           observed(None, _("m.unit_none_file")))
+    m["units.effective"] = observed(unit, _("m.unit_declared") if declared else _("m.unit_assumed"))
+    m["units.assumed"] = observed(declared is None, _("m.assumed_flag"))
+    m["units.size_hint"] = observed(guess_units(np.asarray(m["geometry.bbox_mm"]["value"])), _("m.size_hint"))
 
-    m["file.format"] = observed(kind, "file extension")
-    m["file.bytes"] = observed(size, "size on disk")
+    m["file.format"] = observed(kind, _("m.format"))
+    m["file.bytes"] = observed(size, _("m.bytes"))
     notes: list[str] = []
     resource_bytes = 0
     if kind == "stl":
-        for key, label in (("uvs", "UVs"), ("vertex_colors", "vertex colours"), ("materials", "materials"), ("textures", "textures"),
-                           ("animations", "animations")):
-            m[f"attributes.{key}"] = not_available(f"STL cannot store {label}")
-        m["attributes.texture_max_px"] = not_available("STL cannot store textures")
-        m["attributes.normals"] = observed("facet", "STL stores one normal per triangle; no vertex normals")
-        m["attributes.scene_nodes"] = not_available("STL has no scene structure")
+        for key in ("uvs", "vertex_colors", "materials", "textures", "animations"):
+            m[f"attributes.{key}"] = not_available(_("m.stl_cannot", what=_("w." + key)))
+        m["attributes.texture_max_px"] = not_available(_("m.stl_cannot", what=_("w.textures")))
+        m["attributes.normals"] = observed("facet", _("m.stl_normals"))
+        m["attributes.scene_nodes"] = not_available(_("m.stl_scene"))
     elif kind == "obj":
         facts = obj_facts(path)
         resource_bytes = facts["resource_bytes"]
-        m["attributes.uvs"] = observed(facts["uv"] > 0, f"{facts['uv']} vt lines")
-        m["attributes.normals"] = observed("vertex" if facts["normals"] else None, f"{facts['normals']} vn lines")
-        m["attributes.vertex_colors"] = observed(facts["colored_vertices"] > 0, f"{facts['colored_vertices']} v lines with colour components")
-        m["attributes.materials"] = observed(facts["materials"], f"newmtl entries in {', '.join(facts['libraries']) or 'no MTL'}")
-        m["attributes.textures"] = observed(facts["textures"], "map_* entries in the MTL")
-        m["attributes.texture_sizes"] = observed(facts["image_sizes"], "pixel size of each texture image (null = missing or unreadable)")
-        m["attributes.animations"] = not_available("OBJ cannot store animations")
-        m["attributes.scene_nodes"] = not_available("OBJ has groups but no node hierarchy")
+        m["attributes.uvs"] = observed(facts["uv"] > 0, _("m.obj_vt", n=facts["uv"]))
+        m["attributes.normals"] = observed("vertex" if facts["normals"] else None, _("m.obj_vn", n=facts["normals"]))
+        m["attributes.vertex_colors"] = observed(facts["colored_vertices"] > 0, _("m.obj_colors", n=facts["colored_vertices"]))
+        m["attributes.materials"] = observed(facts["materials"], _("m.obj_materials", libs=", ".join(facts["libraries"]) or _("m.obj_no_mtl")))
+        m["attributes.textures"] = observed(facts["textures"], _("m.obj_maps"))
+        m["attributes.texture_sizes"] = observed(facts["image_sizes"], _("m.obj_sizes"))
+        m["attributes.animations"] = not_available(_("m.obj_animations"))
+        m["attributes.scene_nodes"] = not_available(_("m.obj_scene"))
     elif kind in ("glb", "gltf"):
         facts = gltf_facts(path)
         resource_bytes = facts["resource_bytes"]
         prims = facts["primitives"] or 1
-        m["geometry.triangles_declared"] = observed(facts["triangles"], "glTF accessor counts (indices / 3) per node instance")
-        m["attributes.uvs"] = observed(facts["with_attr"]["TEXCOORD_0"] > 0, f"TEXCOORD_0 in {facts['with_attr']['TEXCOORD_0']}/{prims} primitives")
-        m["attributes.normals"] = observed("vertex" if facts["with_attr"]["NORMAL"] else None, f"NORMAL in {facts['with_attr']['NORMAL']}/{prims} primitives")
-        m["attributes.vertex_colors"] = observed(facts["with_attr"]["COLOR_0"] > 0, f"COLOR_0 in {facts['with_attr']['COLOR_0']}/{prims} primitives")
-        m["attributes.materials"] = observed(facts["materials"], "glTF materials")
-        m["attributes.textures"] = observed(facts["images"], "glTF images used by textures")
-        m["attributes.texture_sizes"] = observed(facts["image_sizes"], "decoded pixel size of each image (null = unreadable)")
-        m["attributes.animations"] = observed(facts["animations"], "glTF animations")
-        m["attributes.skins"] = observed(facts["skins"], "glTF skins")
-        m["attributes.scene_nodes"] = observed(facts["nodes"], "glTF nodes")
-        m["file.extensions_required"] = observed(facts["extensions_required"], "glTF extensionsRequired")
+        m["geometry.triangles_declared"] = observed(facts["triangles"], _("m.gltf_tris"))
+        m["attributes.uvs"] = observed(facts["with_attr"]["TEXCOORD_0"] > 0, _("m.gltf_attr", attr="TEXCOORD_0", n=facts["with_attr"]["TEXCOORD_0"], total=prims))
+        m["attributes.normals"] = observed("vertex" if facts["with_attr"]["NORMAL"] else None, _("m.gltf_attr", attr="NORMAL", n=facts["with_attr"]["NORMAL"], total=prims))
+        m["attributes.vertex_colors"] = observed(facts["with_attr"]["COLOR_0"] > 0, _("m.gltf_attr", attr="COLOR_0", n=facts["with_attr"]["COLOR_0"], total=prims))
+        m["attributes.materials"] = observed(facts["materials"], _("m.gltf_materials"))
+        m["attributes.textures"] = observed(facts["images"], _("m.gltf_images"))
+        m["attributes.texture_sizes"] = observed(facts["image_sizes"], _("m.gltf_sizes"))
+        m["attributes.animations"] = observed(facts["animations"], _("m.gltf_animations"))
+        m["attributes.skins"] = observed(facts["skins"], _("m.gltf_skins"))
+        m["attributes.scene_nodes"] = observed(facts["nodes"], _("m.gltf_nodes"))
+        m["file.extensions_required"] = observed(facts["extensions_required"], _("m.gltf_required"))
         if facts["triangles"] != triangles:
-            notes.append(f"trimesh read {triangles} triangles and the glTF accessors declare {facts['triangles']}: check unsupported primitives or extensions.")
+            notes.append(_("m.gltf_mismatch", a=triangles, b=facts["triangles"]))
     else:  # 3mf
-        reason = "3MF can carry colour groups and textures; this version does not read them"
+        reason = _("m.3mf_not_read")
         for key in ("uvs", "vertex_colors", "materials", "textures"):
             m[f"attributes.{key}"] = not_measured(reason)
-        m["attributes.animations"] = not_available("3MF cannot store animations")
-        m["attributes.normals"] = not_available("3MF stores no normals")
-        m["attributes.scene_nodes"] = observed(len(meshes), "build items / objects read")
+        m["attributes.animations"] = not_available(_("m.3mf_animations"))
+        m["attributes.normals"] = not_available(_("m.3mf_normals"))
+        m["attributes.scene_nodes"] = observed(len(meshes), _("m.3mf_items"))
     sizes = (m.get("attributes.texture_sizes") or {}).get("value")
     if "attributes.texture_max_px" not in m:
-        m["attributes.texture_max_px"] = (observed(max((max(s) for s in sizes if s), default=0), "largest side of the decoded texture images")
-                                          if sizes is not None else not_measured("texture sizes not read for this format"))
-    m["file.resource_bytes"] = observed(resource_bytes, "external files referenced (MTL, images, .bin buffers)")
-    m["file.total_bytes"] = observed(size + resource_bytes, "file plus external resources")
+        m["attributes.texture_max_px"] = (observed(max((max(s) for s in sizes if s), default=0), _("m.texture_max"))
+                                          if sizes is not None else not_measured(_("m.texture_sizes_unread")))
+    m["file.resource_bytes"] = observed(resource_bytes, _("m.resource_bytes"))
+    m["file.total_bytes"] = observed(size + resource_bytes, _("m.total_bytes"))
     return {"file": {"path": str(path), "format": kind, "bytes": size, "sha256": sha256_of(path)}, "measurements": m, "notes": notes,
-            "seconds": round(time.perf_counter() - started, 3), "method": "CPU only: trimesh + numpy + the file's own declarations"}
+            "seconds": round(time.perf_counter() - started, 3), "method": _("method")}
 
 
 # ---------- report (draft) ----------
@@ -354,14 +359,14 @@ def evaluate(profile: dict, m: dict) -> list[dict]:
     checks: list[dict] = []
 
     def check(rule, limit, key, ok, observed_value=None, reason=""):
-        record = m.get(key) or not_measured("no such measurement")
+        record = m.get(key) or not_measured(_("m.no_such"))
         if ok is None:
             status = "not_evaluated"
-            reason = reason or f"{key} is {record['status'].replace('_', ' ')}: {record['source']}"
+            reason = reason or _("r.status", key=key, status=_("st." + record["status"]), source=record["source"])
         else:
             status = "pass" if ok else "fail"
             if record["status"] == "not_available" and not reason:
-                reason = f"not available in {_value(m, 'file.format') or 'this format'}: counts as none"
+                reason = _("r.not_in_format", fmt=(_value(m, "file.format") or "").upper() or _("r.this_format"))
         checks.append({"rule": rule, "limit": limit, "measurement": key,
                        "observed": record["value"] if observed_value is None else observed_value, "status": status, "reason": reason})
 
@@ -387,7 +392,7 @@ def evaluate(profile: dict, m: dict) -> list[dict]:
             textured = False
         uvs = m["attributes.uvs"]
         ok = True if textured is False else (None if textured is None or uvs["status"] != "observed" else bool(uvs["value"]))
-        check("require_uvs_if_textured", True, "attributes.uvs", ok, reason="" if ok is not None else "texture presence or UVs not measured for this format")
+        check("require_uvs_if_textured", True, "attributes.uvs", ok, reason="" if ok is not None else _("r.uv_unknown"))
     if rules.get("max_bodies") is not None:
         check("max_bodies", rules["max_bodies"], "geometry.bodies", cmp(_value(m, "geometry.bodies"), lambda v: v <= rules["max_bodies"]))
     if rules.get("require_watertight"):
@@ -401,12 +406,12 @@ def evaluate(profile: dict, m: dict) -> list[dict]:
         effective = _value(m, "units.effective")
         assumed = _value(m, "units.assumed")
         if assumed:
-            check("units", rules["units"], "units.effective", None, reason=f"the file declares no unit; {effective} assumed")
+            check("units", rules["units"], "units.effective", None, reason=_("r.unit_assumed", unit=effective))
         else:
             check("units", rules["units"], "units.effective", effective == rules["units"])
     if rules.get("min_wall_mm") is not None:
         check("min_wall_mm", rules["min_wall_mm"], "geometry.min_wall_mm", None,
-              reason="wall thickness is not measured in this version: use the slicer's thin-wall preview")
+              reason=_("r.wall"))
     return checks
 
 
@@ -416,19 +421,18 @@ def _losses_of_rebuild(m: dict) -> list[dict]:
     for key in ("attributes.uvs", "attributes.vertex_colors", "attributes.materials", "attributes.textures", "attributes.animations"):
         record = m.get(key)
         if record and record["status"] == "observed" and record["value"]:
-            losses.append({"measurement": key, "label": ATTRIBUTE_LABELS[key], "before": record["value"]})
+            losses.append({"measurement": key, "label": label(key), "before": record["value"]})
     record = m.get("attributes.normals")
     if record and record["status"] == "observed" and record["value"] == "vertex":
-        losses.append({"measurement": "attributes.normals", "label": ATTRIBUTE_LABELS["attributes.normals"], "before": "vertex",
-                       "note": "recomputed from the new geometry"})
+        losses.append({"measurement": "attributes.normals", "label": label("attributes.normals"), "before": "vertex",
+                       "note": _("ln.recomputed")})
     nodes = m.get("attributes.scene_nodes")
     if nodes and nodes["status"] == "observed" and isinstance(nodes["value"], int) and nodes["value"] > 1:
-        losses.append({"measurement": "attributes.scene_nodes", "label": ATTRIBUTE_LABELS["attributes.scene_nodes"], "before": nodes["value"],
-                       "note": "all parts are merged into one mesh"})
+        losses.append({"measurement": "attributes.scene_nodes", "label": label("attributes.scene_nodes"), "before": nodes["value"],
+                       "note": _("ln.merged")})
     for key in ("attributes.materials", "attributes.textures", "attributes.uvs", "attributes.vertex_colors"):
         if m.get(key, {}).get("status") == "not_measured":
-            losses.append({"measurement": key, "label": ATTRIBUTE_LABELS[key], "before": None,
-                           "note": "not measured in the source; any it has would be dropped"})
+            losses.append({"measurement": key, "label": label(key), "before": None, "note": _("ln.unmeasured")})
     return losses
 
 
@@ -471,59 +475,59 @@ def plan_for(profile: dict, m: dict, checks: list[dict]) -> dict:
         losses = _losses_of_rebuild(m)
         ratio = target_tris / triangles
         operations.append({"op": "simplify", "target_triangles": int(target_tris), "ratio": round(ratio, 6), "mode": "attribute",
-                           "keep_borders": True, "why": "max_triangles" if target_tris == rules.get("max_triangles") else "max_file_bytes (estimate)"})
+                           "keep_borders": True, "why": "max_triangles" if target_tris == rules.get("max_triangles") else _("why.bytes_estimate")})
         recommend("max_triangles" if "max_triangles" in failed else "max_file_bytes", "simplify", True,
-                  f"Simplify from {triangles} to at most {int(target_tris)} triangles with the LOD engine; the result is re-measured.",
+                  _("rec.simplify", a=triangles, b=int(target_tris)),
                   [x["label"] for x in losses])
     if "max_texture_px" in failed:
         if needs_simplify:
-            recommend("max_texture_px", "resize_textures", False, "Textures are dropped by the simplification above; nothing to resize.")
+            recommend("max_texture_px", "resize_textures", False, _("rec.textures_dropped"))
         else:
             operations.append({"op": "resize_textures", "max_px": rules["max_texture_px"], "why": "max_texture_px"})
-            recommend("max_texture_px", "resize_textures", True, f"Downscale texture images to at most {rules['max_texture_px']} px per side (Lanczos).",
-                      ["texture resolution"])
-            losses.append({"measurement": "attributes.texture_max_px", "label": "texture resolution", "before": _value(m, "attributes.texture_max_px")})
+            recommend("max_texture_px", "resize_textures", True, _("rec.resize", px=rules["max_texture_px"]),
+                      [_("l.texture_resolution")])
+            losses.append({"measurement": "attributes.texture_max_px", "label": _("l.texture_resolution"), "before": _value(m, "attributes.texture_max_px")})
     unit_from = _value(m, "units.effective") or "mm"
     unit_to = "m" if output == "glb" else rules.get("units", "mm")
     if unit_from != unit_to:
         operations.append({"op": "scale", "factor": UNIT_TO_MM[unit_from] / UNIT_TO_MM[unit_to], "from": unit_from, "to": unit_to,
-                           "why": "glTF stores metres" if output == "glb" else "profile units"})
+                           "why": _("why.gltf_metres") if output == "glb" else _("why.profile_units")})
     if needs_simplify or source_format != output or operations:
-        operations.append({"op": "export", "format": output, "writer": "trimesh", "preserve": "geometry only" if needs_simplify else "geometry and visuals the writer supports"})
+        operations.append({"op": "export", "format": output, "writer": "trimesh", "preserve": _("pres.geometry") if needs_simplify else _("pres.visuals")})
     if "accepted_formats" in failed and output not in rules["accepted_formats"]:
-        blockers.append({"defect": by_rule["accepted_formats"], "reason": f"The profile writes {output}, which it does not accept itself: edit the profile."})
+        blockers.append({"defect": by_rule["accepted_formats"], "reason": _("blk.format", fmt=output.upper())})
     elif "accepted_formats" in failed:
-        recommend("accepted_formats", "convert", True, f"Export as {output.upper()}.")
+        recommend("accepted_formats", "convert", True, _("rec.convert", fmt=output.upper()))
     if "max_textures" in failed:
         if needs_simplify:
-            recommend("max_textures", "drop_textures", True, "The simplification drops every texture.")
+            recommend("max_textures", "drop_textures", True, _("rec.drop_textures"))
         else:
-            blockers.append({"defect": by_rule["max_textures"], "reason": "Merging textures into an atlas is not implemented: reduce them in the authoring tool."})
-            recommend("max_textures", "atlas", False, "Bake the materials into fewer textures in the authoring tool.")
+            blockers.append({"defect": by_rule["max_textures"], "reason": _("blk.atlas")})
+            recommend("max_textures", "atlas", False, _("rec.atlas"))
     if "require_uvs_if_textured" in failed:
         if needs_simplify:
-            recommend("require_uvs_if_textured", "drop_textures", True, "The simplification drops the textures, so no UVs are needed.")
+            recommend("require_uvs_if_textured", "drop_textures", True, _("rec.uv_dropped"))
         else:
-            blockers.append({"defect": by_rule["require_uvs_if_textured"], "reason": "Textured without UVs: UV unwrapping is not available in this version."})
-            recommend("require_uvs_if_textured", "unwrap", False, "Unwrap UVs in the authoring tool or drop the textures.")
+            blockers.append({"defect": by_rule["require_uvs_if_textured"], "reason": _("blk.uv")})
+            recommend("require_uvs_if_textured", "unwrap", False, _("rec.unwrap"))
     if "max_bodies" in failed:
-        blockers.append({"defect": by_rule["max_bodies"], "reason": "Separate bodies are not merged automatically (a boolean union changes the design)."})
-        recommend("max_bodies", "union_or_split", False, "Union the parts in CAD or export each body as its own file.")
+        blockers.append({"defect": by_rule["max_bodies"], "reason": _("blk.bodies")})
+        recommend("max_bodies", "union_or_split", False, _("rec.bodies"))
     if "require_watertight" in failed:
-        blockers.append({"defect": by_rule["require_watertight"], "reason": "Open or non-manifold edges are not repaired here."})
-        recommend("require_watertight", "repair", False, "Close the holes in CAD, or use the Daedalus repair module (daedalus_model_repair) or the slicer's repair, then inspect again.")
+        blockers.append({"defect": by_rule["require_watertight"], "reason": _("blk.watertight")})
+        recommend("require_watertight", "repair", False, _("rec.repair"))
     if "max_extent_mm" in failed:
-        blockers.append({"defect": by_rule["max_extent_mm"], "reason": "Scaling or splitting changes the design; not done automatically."})
-        recommend("max_extent_mm", "scale_or_split", False, "Scale the model down or split it into parts that fit the build volume.")
+        blockers.append({"defect": by_rule["max_extent_mm"], "reason": _("blk.extent")})
+        recommend("max_extent_mm", "scale_or_split", False, _("rec.extent"))
     if "units" in failed:
-        recommend("units", "scale", True, f"Rescale from {unit_from} to {unit_to} on export.")
+        recommend("units", "scale", True, _("rec.rescale", a=unit_from, b=unit_to))
     if _value(m, "units.assumed"):
-        recommend(None, "verify_units", False, f"The file declares no unit; {unit_from} is assumed (size hint: {_value(m, 'units.size_hint')}). Confirm before preparing.")
+        recommend(None, "verify_units", False, _("rec.verify_units", unit=unit_from, hint=_value(m, "units.size_hint")))
     if textured and needs_simplify:
-        recommend(None, "preserve_attributes", False, "An attribute-preserving simplification (UV seams kept) is not available yet; the variant would be untextured.")
+        recommend(None, "preserve_attributes", False, _("rec.preserve"))
     for c in checks:
         if c["status"] == "not_evaluated" and not (c["rule"] == "units" and _value(m, "units.assumed")):
-            recommend(None, "check_manually", False, f"{c['rule']} not evaluated: {c['reason']}.")
+            recommend(None, "check_manually", False, _("rec.manual", rule=c["rule"], reason=c["reason"]))
     if not failed:  # nothing to fix: a preparation would only rewrite the same content
         operations, losses, needs_simplify = [], [], False
     return {"defects": defects, "recommendations": recommendations, "operations": operations, "declared_losses": losses,
@@ -532,17 +536,13 @@ def plan_for(profile: dict, m: dict, checks: list[dict]) -> dict:
 
 def _defect_message(c: dict) -> str:
     rule, observed_value, limit = c["rule"], c["observed"], c["limit"]
-    texts = {"max_triangles": f"{observed_value} triangles, budget {limit}",
-             "max_file_bytes": f"{observed_value} bytes, limit {limit}",
-             "max_textures": f"{observed_value} textures, limit {limit}",
-             "max_texture_px": f"largest texture side {observed_value} px, limit {limit} px",
-             "require_uvs_if_textured": "textured but without UV coordinates",
-             "max_bodies": f"{observed_value} separate bodies, limit {limit}",
-             "require_watertight": f"not closed: {observed_value}",
-             "max_extent_mm": f"bounding box {observed_value} mm does not fit {limit} mm",
-             "units": f"unit {observed_value}, profile expects {limit}",
-             "accepted_formats": f"format {observed_value} not in {limit}"}
-    return texts.get(rule, f"{rule}: {observed_value} vs {limit}")
+    if rule == "accepted_formats":
+        observed_value, limit = str(observed_value).upper(), [str(x).upper() for x in limit]
+    key = "d." + rule
+    if key not in {"d.max_triangles", "d.max_file_bytes", "d.max_textures", "d.max_texture_px", "d.require_uvs_if_textured", "d.max_bodies",
+                   "d.require_watertight", "d.max_extent_mm", "d.units", "d.accepted_formats"}:
+        return _("d.other", rule=rule, obs=show(observed_value), lim=show(limit))
+    return _(key, obs=show(observed_value), lim=show(limit))
 
 
 def summarize(checks: list[dict]) -> dict:
@@ -551,16 +551,21 @@ def summarize(checks: list[dict]) -> dict:
             "compliant": "fail" not in statuses, "fully_verified": "fail" not in statuses and "not_evaluated" not in statuses}
 
 
-def report(profile: dict, inspection: dict) -> dict:
+def report(profile: dict, inspection: dict, lang: str | None = None) -> dict:
+    with language(lang):
+        return _report(profile, inspection)
+
+
+def _report(profile: dict, inspection: dict) -> dict:
     checks = evaluate(profile, inspection["measurements"])
     plan = plan_for(profile, inspection["measurements"], checks)
     summary = summarize(checks)
-    verdict = ("meets every measured rule" + ("" if summary["fully_verified"] else f"; {summary['not_evaluated']} rule(s) not evaluated")
-               if summary["compliant"] else f"{summary['fail']} defect(s)")
+    verdict = (_("v.meets") + ("" if summary["fully_verified"] else _("v.not_eval", n=summary["not_evaluated"]))
+               if summary["compliant"] else _("v.defects", n=summary["fail"]))
     return {"kind": "draft", "profile": {k: profile[k] for k in ("id", "name", "purpose", "output_format", "rules")}, "file": inspection["file"],
             "summary": {**summary, "verdict": verdict}, "checks": checks, **plan, "measurements": inspection["measurements"],
             "notes": inspection["notes"], "method": inspection["method"],
-            "next": "This report is a draft and changes nothing. asset_prepare runs the plan as a new file and verifies it."}
+            "next": _("next")}
 
 
 # ---------- library glue ----------
@@ -568,25 +573,30 @@ def resolve_source(services, model_id: int | None = None, path: str | None = Non
     if model_id:
         model = services.models.get(int(model_id))
         if model is None:
-            raise LookupError(f"Model {model_id} does not exist.")
+            raise LookupError(_("e.model_missing", id=model_id))
         file = Path(model["path"])
         if not file.is_file():
-            raise LookupError(f"The file of model {model_id} is no longer on disk: {file}")
+            raise LookupError(_("e.model_file_missing", id=model_id, path=file))
         return file, model
     text = (path or "").strip().strip('"')
     if not text:
-        raise ValueError("Give a model id or the absolute path of a file.")
+        raise ValueError(_("e.no_source"))
     file = Path(text).expanduser()
     if not file.is_absolute():
-        raise ValueError("The path must be absolute.")
+        raise ValueError(_("e.relative"))
     format_of(file)
     if not file.is_file():
-        raise LookupError(f"The file does not exist: {file}")
+        raise LookupError(_("e.file_missing", path=file))
     return file.resolve(), services.models.by_path(str(file.resolve()))
 
 
-def inspect_asset(services, target: str, model_id: int | None = None, path: str | None = None) -> dict:
-    """Draft report of one library model or file against a profile. Writes nothing."""
+def inspect_asset(services, target: str, model_id: int | None = None, path: str | None = None, lang: str | None = None) -> dict:
+    """Draft report of one library model or file against a profile. Writes nothing. `lang` = es | en for the texts."""
+    with language(lang):
+        return _inspect_asset(services, target, model_id, path)
+
+
+def _inspect_asset(services, target, model_id, path) -> dict:
     file, model = resolve_source(services, model_id, path)
     profile = asset_targets.get_profile(services.config.data_dir, target)
     out = report(profile, inspect_file(file, services.config.max_file_mb))
@@ -602,7 +612,7 @@ def _prepared_dir(services) -> Path:
 
 def _receipt_path(services, prep_id: str) -> Path:
     if not re.fullmatch(r"p[0-9a-f]{12}", prep_id or ""):
-        raise LookupError("Unknown preparation id.")
+        raise LookupError(_("e.prep_unknown"))
     return _prepared_dir(services) / "receipts" / f"{prep_id}.json"
 
 
@@ -635,7 +645,7 @@ def _simplify(welded, target: int) -> tuple[object, dict]:
 
     total = len(welded.faces)
     ratio, attempts = min(1.0, target / total), []
-    for _ in range(4):
+    for _attempt in range(4):
         out = simplify_mesh(welded, ratio=ratio, mode="attribute", keep_borders=True)
         after = len(out["faces"])
         attempts.append({"ratio": round(ratio, 6), "triangles": int(after), "engine": out["engine"]})
@@ -661,7 +671,7 @@ def _effective_changes(before: dict, after: dict) -> list[dict]:
 
 def _observed_losses(before: dict, after: dict) -> list[dict]:
     losses = []
-    for key, label in ATTRIBUTE_LABELS.items():
+    for key in ATTRIBUTE_KEYS:
         a, b = before.get(key), after.get(key)
         if not a or a["status"] != "observed" or not a["value"]:
             continue
@@ -670,7 +680,7 @@ def _observed_losses(before: dict, after: dict) -> list[dict]:
         if key == "attributes.normals" and a["value"] != "vertex":  # facet normals are implied by the triangles, not authored data
             continue
         if not b or b["status"] != "observed" or not b["value"] or (key == "attributes.normals" and b["value"] != a["value"]):
-            losses.append({"measurement": key, "label": label, "before": a["value"], "after": b["value"] if b else None,
+            losses.append({"measurement": key, "label": label(key), "before": a["value"], "after": b["value"] if b else None,
                            "status_after": b["status"] if b else "missing"})
     return losses
 
@@ -681,7 +691,14 @@ def _brief(receipt: dict) -> dict:
 
 
 def prepare(services, target: str, model_id: int | None = None, path: str | None = None, accept_losses: bool = False,
-            max_deviation_mm: float | None = None) -> dict:
+            max_deviation_mm: float | None = None, lang: str | None = None) -> dict:
+    """See _prepare; `lang` = es | en for every text of the receipt (stored in that language)."""
+    with language(lang):
+        return _prepare(services, target, model_id, path, accept_losses, max_deviation_mm)
+
+
+def _prepare(services, target: str, model_id: int | None, path: str | None, accept_losses: bool,
+             max_deviation_mm: float | None) -> dict:
     """Run the plan of the report as a NEW file and verify it. Returns the stored receipt.
 
     status: unchanged (already compliant, nothing written) | prepared (verified variant) | rejected (losses not accepted) |
@@ -705,7 +722,7 @@ def prepare(services, target: str, model_id: int | None = None, path: str | None
     def finish(status: str, message: str, **extra) -> dict:
         after_sha = sha256_of(file)
         if after_sha != sha_before:  # pragma: no cover - would be a bug in a writer
-            raise RuntimeError("The original file changed during the preparation; nothing is trusted.")
+            raise RuntimeError(_("p.original_changed"))
         receipt.update(status=status, message=message, original_unchanged=True, source_sha256_after=after_sha,
                        seconds=round(time.perf_counter() - started, 2), **extra)
         path_out = _receipt_path(services, prep_id)
@@ -714,14 +731,12 @@ def prepare(services, target: str, model_id: int | None = None, path: str | None
         return receipt
 
     if draft["summary"]["compliant"] and not draft["operations"]:
-        return finish("unchanged", "The file already meets every measured rule of the profile; no variant was written."
-                      + ("" if draft["summary"]["fully_verified"] else f" {draft['summary']['not_evaluated']} rule(s) could not be evaluated."))
+        return finish("unchanged", _("p.unchanged") + ("" if draft["summary"]["fully_verified"] else _("p.unchanged_ne", n=draft["summary"]["not_evaluated"])))
     if draft["blockers"]:
-        return finish("failed", "Not prepared: " + " ".join(b["reason"] for b in draft["blockers"]))
+        return finish("failed", _("p.blocked", reasons=" ".join(b["reason"] for b in draft["blockers"])))
     if draft["declared_losses"] and not accept_losses:
         labels = ", ".join(x["label"] for x in draft["declared_losses"])
-        return finish("rejected", f"Not prepared: the plan would lose {labels}. Call again with accept_losses=true to accept that, "
-                      "or edit the profile so no lossy operation is needed.")
+        return finish("rejected", _("p.rejected", labels=labels))
 
     import trimesh
 
@@ -729,12 +744,12 @@ def prepare(services, target: str, model_id: int | None = None, path: str | None
     output_format = profile["output_format"]
     engine_info = None
     if "simplify" in ops:
-        _, welded, _, _ = load_geometry(file)
+        _meshes, welded, _unit, _loaded = load_geometry(file)
         mesh, engine_info = _simplify(welded, ops["simplify"]["target_triangles"])
         ops["simplify"]["engine"] = engine_info
         export_obj = mesh
     else:
-        _, welded, _, loaded = load_geometry(file)
+        _meshes, welded, _unit, loaded = load_geometry(file)
         keeps_visuals = output_format == "glb" and bool(_losses_of_rebuild(inspection["measurements"]))
         if keeps_visuals:  # the loaded scene keeps UVs, materials and textures the GLB writer supports
             export_obj = loaded if isinstance(loaded, trimesh.Scene) else trimesh.Scene(loaded)
@@ -759,10 +774,10 @@ def prepare(services, target: str, model_id: int | None = None, path: str | None
     from .simplify import measure_error
 
     deviation = measure_error(welded_mm(file), welded_mm(out), DEVIATION_SAMPLES)
-    deviation.update(note=SAMPLED_NOTE, tolerance_mm=tolerance,
+    deviation.update(note=_("dev.note"), tolerance_mm=tolerance,
                      within_tolerance=None if tolerance is None or deviation["hausdorff_mm"] is None else deviation["hausdorff_mm"] <= tolerance)
     declared_after = after["measurements"].get("geometry.triangles_declared")
-    verification = {"loader": "fresh trimesh.load of the written file" + (" + glTF accessor counts" if declared_after else ""),
+    verification = {"loader": _("p.loader") + (_("p.loader_gltf") if declared_after else ""),
                     "triangles": after["measurements"]["geometry.triangles"]["value"],
                     "triangles_declared": declared_after["value"] if declared_after else None,
                     "counts_agree": None if not declared_after else declared_after["value"] == after["measurements"]["geometry.triangles"]["value"],
@@ -772,12 +787,12 @@ def prepare(services, target: str, model_id: int | None = None, path: str | None
                    observed_losses=_observed_losses(inspection["measurements"], after["measurements"]))
     problems = [f"{c['rule']}: {_defect_message(c)}" for c in checks_after if c["status"] == "fail"]
     if deviation["within_tolerance"] is False:
-        problems.append(f"sampled deviation {deviation['hausdorff_mm']} mm over the tolerance {tolerance} mm")
+        problems.append(_("p.over_tolerance", dev=deviation["hausdorff_mm"], tol=tolerance))
     if verification["counts_agree"] is False:
-        problems.append("the re-imported triangle count disagrees with the file's own accessors")
+        problems.append(_("p.counts_disagree"))
     if problems:
         out.unlink(missing_ok=True)
-        return finish("failed", "The variant was written, re-measured and discarded because it does not meet the profile: " + "; ".join(problems) + ".",
+        return finish("failed", _("p.discarded", problems="; ".join(problems)),
                       discarded_output=str(out))
     receipt.update(output_path=str(out), output_sha256=sha256_of(out), output_bytes=out.stat().st_size,
                    download_url=f"/api/asset-preparations/{prep_id}/file")
@@ -786,13 +801,13 @@ def prepare(services, target: str, model_id: int | None = None, path: str | None
 
         imported = import_file(services, str(out), model_ref(model["id"]))
         services.models.patch(imported["id"], {"name": f"{model['name']} · {profile['name']}",
-                                                "notes": f"Prepared for '{profile['name']}' from model #{model['id']} (receipt {prep_id}). The original is untouched."})
+                                                "notes": _("p.variant_note", profile=profile["name"], id=model["id"], receipt=prep_id)})
         services.models.tag(imported["id"], ["preparado", profile["id"]], [])
         receipt["variant_model_id"] = imported["id"]
     lost = ", ".join(x["label"] for x in receipt["observed_losses"])
-    return finish("prepared", f"Variant written and verified on re-import: {summary_after['pass']} rule(s) pass"
-                  + (f", {summary_after['not_evaluated']} not evaluated" if summary_after["not_evaluated"] else "")
-                  + f"; sampled deviation max {deviation['hausdorff_mm']} mm" + (f"; lost: {lost}" if lost else "") + ".")
+    return finish("prepared", _("p.prepared", n=summary_after["pass"])
+                  + (_("p.prepared_ne", n=summary_after["not_evaluated"]) if summary_after["not_evaluated"] else "")
+                  + _("p.prepared_dev", dev=deviation["hausdorff_mm"]) + (_("p.prepared_lost", lost=lost) if lost else "") + ".")
 
 
 def list_preparations(services, model_id: int | None = None, sha256: str | None = None, limit: int = 50) -> list[dict]:
@@ -817,5 +832,5 @@ def get_preparation(services, prep_id: str) -> dict:
     path = _receipt_path(services, prep_id)
     receipt = atomic.read_json(path, default=None)
     if not isinstance(receipt, dict):
-        raise LookupError(f"Preparation {prep_id} does not exist.")
+        raise LookupError(_("e.prep_missing", id=prep_id))
     return receipt

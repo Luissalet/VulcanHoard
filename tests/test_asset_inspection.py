@@ -300,3 +300,79 @@ def test_rest_endpoints(client, folder):
     assert client.get(f"/api/asset-preparations/{done['id']}/file").status_code == 404
     assert client.get("/api/asset-preparations/..%2F..%2Fetc").status_code == 404 and client.get("/api/asset-preparations/pzzzz").status_code == 404
     assert client.delete("/api/asset-targets/web-mini").json()["deleted"] is True
+
+
+# ---------- languages ----------
+def test_texts_in_spanish_and_english_with_unchanged_codes(services, folder):
+    from vulcan.asset_texts import TEXTS
+
+    assert all(set(v) == {"es", "en"} and v["es"] and v["en"] for v in TEXTS.values())
+    path = folder / "caja.stl"
+    open_box().export(path)
+    en = ai.inspect_asset(services, "fdm-print", path=str(path), lang="en")
+    es = ai.inspect_asset(services, "fdm-print", path=str(path), lang="es")
+    # machine fields identical
+    assert [(c["rule"], c["status"], c["measurement"], c["observed"], c["limit"]) for c in en["checks"]] == \
+           [(c["rule"], c["status"], c["measurement"], c["observed"], c["limit"]) for c in es["checks"]]
+    assert [(r["id"], r["operation"], r["automatic"]) for r in en["recommendations"]] == [(r["id"], r["operation"], r["automatic"]) for r in es["recommendations"]]
+    assert {k: v["value"] for k, v in en["measurements"].items()} == {k: v["value"] for k, v in es["measurements"].items()}
+    # human texts translated
+    assert en["method"].startswith("CPU only") and es["method"].startswith("Solo CPU")
+    assert en["measurements"]["attributes.uvs"]["source"] == "STL cannot store UVs"
+    assert es["measurements"]["attributes.uvs"]["source"] == "STL no puede guardar coordenadas UV"
+    defect_en = next(d for d in en["defects"] if d["rule"] == "require_watertight")["message"]
+    defect_es = next(d for d in es["defects"] if d["rule"] == "require_watertight")["message"]
+    assert defect_en.startswith("not closed: open edges") and defect_es.startswith("no está cerrada: aristas abiertas")
+    units_es = next(c for c in es["checks"] if c["rule"] == "units")["reason"]
+    assert units_es == "el archivo no declara unidad; se supone mm"
+    assert "repair" in next(r for r in en["recommendations"] if r["operation"] == "repair")["text"]
+    assert "Cierra los agujeros" in next(r for r in es["recommendations"] if r["operation"] == "repair")["text"]
+    assert es["next"].startswith("Este informe es un borrador")
+    # no Python reprs leak into sentences
+    web = ai.inspect_asset(services, "web-configurator", path=str(path), lang="es")
+    fmt = next(d for d in web["defects"] if d["rule"] == "accepted_formats")["message"]
+    assert fmt == "formato STL no está entre GLB" and "[" not in fmt
+    tex = next(c for c in web["checks"] if c["rule"] == "max_textures")["reason"]
+    assert tex == "no disponible en STL: cuenta como ninguno"
+    # the operation message too
+    refused_es = ai.prepare(services, "fdm-print", path=str(path), lang="es")
+    refused_en = ai.prepare(services, "fdm-print", path=str(path), lang="en")
+    assert refused_es["status"] == refused_en["status"] == "failed"
+    assert refused_es["message"].startswith("No preparada:") and refused_en["message"].startswith("Not prepared:")
+    with pytest.raises(LookupError, match="no existe"):
+        ai.inspect_asset(services, "nada", path=str(path), lang="es")
+    with pytest.raises(LookupError, match="does not exist"):
+        ai.inspect_asset(services, "nada", path=str(path), lang="en")
+
+
+def test_profile_names_follow_the_language_unless_the_user_rewrote_them(services):
+    data = services.config.data_dir
+    assert at.get_profile(data, "fdm-print", "es")["name"] == "Impresión FDM"
+    assert at.get_profile(data, "fdm-print", "en")["name"] == "FDM print"
+    spanish = at.get_profile(data, "web-configurator", "es")
+    edited = at.save_profile(data, {**{k: v for k, v in spanish.items() if k not in ("builtin", "edited")},
+                                    "rules": {**spanish["rules"], "max_triangles": 30_000}}, lang="es")
+    assert edited["edited"] and at.get_profile(data, "web-configurator", "en")["name"] == "Web configurator"  # untouched text still follows lang
+    at.save_profile(data, {"id": "web-clon", "name": "Clon"}, clone_from="web-configurator", lang="en")
+    assert at.get_profile(data, "web-clon", "es")["description"].startswith("Visor en tiempo real")  # copied default follows lang
+    at.save_profile(data, {**{k: v for k, v in edited.items() if k not in ("builtin", "edited")}, "name": "Mi visor"})
+    assert at.get_profile(data, "web-configurator", "en")["name"] == "Mi visor"
+
+
+def test_rest_defaults_to_spanish_and_tools_to_english(client, folder, services):
+    path = folder / "caja.stl"
+    open_box().export(path)
+    es = client.post("/api/asset-inspection", json={"target": "fdm-print", "path": str(path)}).json()
+    en = client.post("/api/asset-inspection", params={"lang": "en"}, json={"target": "fdm-print", "path": str(path)}).json()
+    assert es["method"].startswith("Solo CPU") and en["method"].startswith("CPU only")
+    assert es["profile"]["name"] == "Impresión FDM" and en["profile"]["name"] == "FDM print"
+    assert client.post("/api/asset-inspection", params={"lang": "fr"}, json={"target": "fdm-print", "path": str(path)}).status_code in (400, 422)
+    missing = client.post("/api/asset-inspection", json={"target": "nada", "path": str(path)})
+    assert missing.status_code == 404 and "no existe" in missing.json()["error"]
+    prep = client.post("/api/asset-preparations", json={"target": "fdm-print", "path": str(path)}).json()
+    assert prep["status"] == "failed" and prep["message"].startswith("No preparada:")
+    tool_default = call_tool(services, "asset_inspect", {"target": "fdm-print", "path": str(path)})
+    tool_es = call_tool(services, "asset_inspect", {"target": "fdm-print", "path": str(path), "lang": "es"})
+    assert tool_default["method"].startswith("CPU only") and tool_es["method"].startswith("Solo CPU")
+    names = call_tool(services, "asset_targets_list", {"lang": "es"})["profiles"]
+    assert [p["name"] for p in names[:2]] == ["Configurador web", "Impresión FDM"]
