@@ -77,7 +77,8 @@ def test_agent_tools_catalog_and_calls(scanned):
                       "collection_plan", "collection_apply", "collection_undo", "sheets_batch", "model_import_file", "listings_export_catalog",
                      "cad_spec_schema", "cad_from_text", "cad_regenerate", "copilot_context_get", "model_compare",
                      "model_simplify", "model_look", "model_scene_info", "model_export_web_glb", "slicers_list", "model_open_in_slicer",
-                     "asset_targets_list", "asset_target_save", "asset_inspect", "asset_prepare", "asset_preparations"]
+                     "asset_targets_list", "asset_target_save", "asset_inspect", "asset_prepare", "asset_preparations",
+                     "spatial_example", "spatial_layers_check", "spatial_coverage", "spatial_screen", "spatial_scenarios", "spatial_scenario_save", "spatial_export"]
     for tool in TOOLS:
         assert "Sinónimos:" in tool.description and set(tool.annotations) == {"readOnlyHint", "destructiveHint", "idempotentHint", "openWorldHint"}
     hits = call_tool(services, "models_search", {"q": "cubo", "format": "stl"})

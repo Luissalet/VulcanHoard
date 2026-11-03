@@ -81,5 +81,12 @@ export const api = {
   assetInspect: (id, target) => request("GET", `/api/models/${id}/inspection`, { params: { target, lang: "es" } }),
   assetPrepare: (body) => request("POST", "/api/asset-preparations", { params: { lang: "es" }, body }),
   assetPreparations: (modelId) => request("GET", "/api/asset-preparations", { params: { model_id: modelId, lang: "es" } }),
+  spatialExample: (crs) => request("GET", "/api/spatial/example", { params: { crs } }),
+  spatialScenarios: () => request("GET", "/api/spatial/scenarios"),
+  spatialScenario: (id) => request("GET", `/api/spatial/scenarios/${encodeURIComponent(id)}`),
+  spatialSaveScenario: (id, scenario, replace) => request("POST", `/api/spatial/scenarios/${encodeURIComponent(id)}`, { body: { scenario, replace } }),
+  spatialCheck: (scenario) => request("POST", "/api/spatial/check", { body: { scenario } }),
+  spatialCoverage: (scenario) => request("POST", "/api/spatial/coverage", { params: { lang: "es" }, body: { scenario } }),
+  spatialScreening: (scenario) => request("POST", "/api/spatial/screening", { params: { lang: "es" }, body: { scenario } }),
   assetPreparationFileUrl: (id) => `/api/asset-preparations/${id}/file`,
 };
