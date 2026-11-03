@@ -666,6 +666,9 @@ def build(params: ModelParams, sources: Any, *, progress: Optional[Progress] = N
           name: str = "") -> BuildResult:
     clock = _Clock(progress, cancelled)
     p = params
+    if p.synth:                                   # an invented landscape: its own elevation, nothing downloaded
+        from ..synth import SynthSources
+        sources = SynthSources(p)
     area = p.area
     k = p.scale_mm_per_m
     W_mm, H_mm = p.model_size_mm

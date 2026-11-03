@@ -28,6 +28,9 @@ export default function Maqueta({ param }) {
   const [adviceOpen, setAdviceOpen] = useState(false);
   const [exportBuild, setExportBuild] = useState(null);
   const [showLog, setShowLog] = useStored("gulliver.showLog", false);
+  const [texture, setTexture] = useStored("gulliver.texture", false);
+  const [drape, setDrape] = useState(null);
+  const [drapeBusy, setDrapeBusy] = useState(false);
 
   const active = m && (m.status === "building" || m.status === "queued");
   useEffect(() => {
@@ -63,6 +66,19 @@ export default function Maqueta({ param }) {
   const glb = report && build ? fileUrl(m.id, "preview.glb", { build }) : null;
   const panels = (report?.tiles || []).some((x) => x.panel);
   const parts = useMemo(() => PART_ORDER.filter((p) => report?.parts?.[p]), [report]);
+  const synthetic = !!m?.params?.synth;
+  // the aerial photo draped over the preview (model_imagery without exports: only the texture)
+  useEffect(() => {
+    if (!texture || !m?.id || !build || synthetic) { setDrape(null); setDrapeBusy(false); return undefined; }
+    let alive = true;
+    setDrapeBusy(true);
+    api.call("model_imagery", { model_id: m.id, exports: false })
+      .then((r) => { if (alive) setDrape({ url: `${r.image_url}${r.image_url.includes("?") ? "&" : "?"}b=${build}`, rect: r.rect_mm }); })
+      .catch((e) => { if (alive) { setDrape(null); notify(e.message, "error"); } })
+      .finally(() => { if (alive) setDrapeBusy(false); });
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [texture, m?.id, build, synthetic]);
 
   if (error) return <div className="p-6"><ErrorBox error={error} onRetry={reload} /></div>;
   if (!m) return <div className="p-6"><span className="spinner" /> {t("loading")}</div>;
@@ -86,7 +102,7 @@ export default function Maqueta({ param }) {
       <div className="model-view">
         {glb ? (
           <Viewer3D ref={viewerRef} url={glb} hidden={hidden} explode={explode} view={view}
-            issues={issues}
+            issues={issues} drape={texture && !synthetic ? drape : null}
             labels={{ viewer: t("viewer_label", { name: m.name }), loading: t("loading_3d"), error: t("viewer_error"), capturing: shotText(lang, "capturing") }} />
         ) : (
           <div className="viewer viewer-empty">
@@ -99,6 +115,12 @@ export default function Maqueta({ param }) {
               {["iso", "top", "front"].map((v) => <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)}>{t(`view_${v}`)}</button>)}
             </div>
             <ProductShot viewerRef={viewerRef} modelId={m.id} modelName={m.name} />
+            {!synthetic && (
+              <label className="btn btn-sm texture-toggle" title={t("texture_help")} data-testid="texture-toggle">
+                <input type="checkbox" checked={!!texture} onChange={(e) => setTexture(e.target.checked)} />
+                {drapeBusy ? <span className="spinner" /> : null} {t("texture")}
+              </label>
+            )}
             {!!report?.printability?.locations?.length && <button type="button" className="btn btn-sm" aria-pressed={!!issueLayer}
               onClick={()=>setIssueLayer(issueLayer?null:"all")}>{t(issueLayer?"thin_hide":"thin_show",{n:report.printability.locations.length})}</button>}
             <div className="part-toggles" role="group" aria-label={t("parts")}>
@@ -197,6 +219,7 @@ export default function Maqueta({ param }) {
                 </details>
               )}
             </section>
+            {!m.params?.synth && <ImageryExports key={m.id + build} model={m} build={build} />}
           </>
         )}
 
@@ -237,6 +260,49 @@ export default function Maqueta({ param }) {
 
 const VERDICT_CHIP = { ok: "chip-ok", review: "chip-amber", risky: "chip-danger" };
 const pct1 = (v, lang) => `${num(v, 1, lang)} %`;
+
+// The aerial photo of the model's area as downloads: a textured GLB and a 3MF coloured triangle by triangle (model_imagery).
+function ImageryExports({ model, build }) {
+  const { t, lang, notify } = useApp();
+  const [files, setFiles] = useState(null);
+  const [colors, setColors] = useStored("gulliver.imageryColors", 12);
+  const [busy, run] = useBusy();
+  const pick = (list) => (list || []).filter((f) => f.kind === "imagery-glb" || f.kind === "imagery-3mf");
+  useEffect(() => {
+    let alive = true;
+    api.call("model_files", { model_id: model.id }).then((r) => { if (alive) setFiles(pick(r.files)); }).catch(() => { if (alive) setFiles([]); });
+    return () => { alive = false; };
+  }, [model.id, build]);
+  const make = () => run("make", async () => {
+    const r = await api.call("model_imagery", { model_id: model.id, exports: true, colors: Number(colors) || 12 });
+    setFiles(pick(r.files));
+    notify(r.attribution);
+  });
+  return (
+    <section className="space-y-2" data-testid="imagery-exports">
+      <h2>{t("imagery_exports")}</h2>
+      <div className="help">{t("imagery_exports_help")}</div>
+      <div className="flex items-end gap-2">
+        <label className="block" style={{ width: 120 }}>
+          <span className="label">{t("imagery_colors")}</span>
+          <input className="field num" type="number" min={2} max={64} step={1} value={colors} onChange={(e) => setColors(e.target.value === "" ? "" : Number(e.target.value))} />
+        </label>
+        <Busy busy={busy.make} className="btn btn-sm" onClick={make}><Icon d={ICONS.download} size={13} /> {t("imagery_make")}</Busy>
+      </div>
+      {files?.length > 0 && (
+        <div className="dl-list">
+          {files.map((f) => (
+            <a key={f.name} className="dl" href={fileUrl(model.id, f.name, { download: true })}>
+              <Icon d={ICONS.download} size={15} />
+              <span><b>{f.kind === "imagery-glb" ? "GLB" : "3MF"}</b> {t(f.kind === "imagery-glb" ? "dl_imagery_glb" : "dl_imagery_3mf")}</span>
+              <small>{bytes(f.bytes, lang)}</small>
+            </a>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
 
 function Printability({ data, onFix, onLocate, activeLayer }) {
   const { t, lang } = useApp();
