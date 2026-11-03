@@ -120,6 +120,8 @@ Herramientas: `models_search` (buscar con filtros), `model_info` (todo sobre un 
 
 Para diseñar piezas: `cad_spec_schema` (esquema, referencia de nodos y ejemplo), `cad_from_text` (descripción o especificación propia; guarda STL + especificación + renderizado en la biblioteca y devuelve medidas y verificación) y `cad_regenerate` (cambiar parámetros de una pieza generada manteniendo su id).
 
+Inspector según destino: `asset_targets_list` / `asset_target_save` (perfiles editables: `web-configurator` y `fdm-print` de serie, clonables), `asset_inspect` (informe BORRADOR de solo lectura: cada medida marcada como observada, no disponible en el formato o no medida; una comprobación por regla enlazada a su medida; defectos, recomendaciones con lo que pierden y plan), `asset_prepare` (la OPERACIÓN: variante nueva en `data/prepared/`, reimportada y comprobada de nuevo, desviación muestreada en mm, recibo con receta y SHA-256 del original y del resultado; un plan con pérdidas exige `accept_losses`; si no cumple, fallo explicado) y `asset_preparations` (recibos). En la ficha del modelo, el panel «Inspector según destino» hace lo mismo.
+
 Ejemplos de lo que podéis pedir: «hazme una placa de 60x40x5 con cuatro agujeros de 5 mm», «ahora hazla de 80 mm de ancho», «busca mis modelos de dragón con más de 100 mm», «genera la ficha de este modelo», «¿cuántos triángulos tiene?», «¿qué duplicados tengo?», «etiqueta este modelo como soporte y cable».
 
 ## Pruebas
@@ -136,6 +138,7 @@ Cubren la extracción de geometría sobre mallas generadas (cubo, esfera, caja a
 - El volumen de una malla abierta es una estimación; tomadlo como aproximado cuando «estanco» sea no.
 - La detección de parecidos compara triángulos, volumen y caja envolvente: no distingue una copia remallada de otro modelo con los mismos números, por eso son «sugerencias».
 - Generador CAD: solo STL (sin STEP), sin redondeos de aristas arbitrarias, chaflanes, vaciados, roscas ni bocetos; las esferas son aproximaciones poligonales (volumen algo por debajo del ideal); el CSG incorporado es Python puro, así que las piezas con miles de triángulos booleanos tardan segundos y un límite de 60 s corta las especificaciones desbocadas.
+- Inspector según destino (primer corte): no mide el grosor de pared (sale «sin evaluar»), no lee colores/texturas de 3MF, no repara, une, desenvuelve UV ni simplifica conservando UV; la desviación es una estimación por muestreo, no una cota; los GLB preparados no van comprimidos con meshopt para poder volver a medirlos.
 - El renderizador de miniaturas mantiene todos los triángulos en memoria; un STL de 300 MB necesita unos cientos de MB de RAM durante unos segundos.
 
 ## Licencia

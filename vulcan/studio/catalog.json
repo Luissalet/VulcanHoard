@@ -2001,6 +2001,315 @@
     "native_name": "model_open_in_slicer"
   },
   {
+    "name": "asset_targets_list",
+    "description": "Destination profiles (web configurator, FDM print) and their measurable rules. Keywords: perfiles de destino.\nEach profile: triangle budget, file bytes, textures (count, max px), bodies, watertight, UVs if textured, accepted formats, units, build volume, minimum wall, deviation tolerance and the output format of a preparation. Built-ins can be edited; edited=true says so.\nSinónimos: perfiles, destino, presupuesto de triángulos, requisitos web, requisitos de impresión.",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "description": "A tool without arguments.",
+      "properties": {},
+      "title": "Empty",
+      "type": "object"
+    },
+    "module": "library",
+    "native_name": "asset_targets_list"
+  },
+  {
+    "name": "asset_target_save",
+    "description": "Create, edit or clone a destination profile (write). Keywords: editar perfil de destino.\nFields given replace the stored ones; rules merge with the current rules. clone_from copies another profile first. A GLB profile must use metres. Deleting is only in the app.\nSinónimos: nuevo perfil, clonar perfil, cambiar presupuesto, límite de triángulos.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "Profile id (lowercase, digits, hyphens). An existing id is edited.",
+          "maxLength": 48,
+          "title": "Id",
+          "type": "string"
+        },
+        "clone_from": {
+          "anyOf": [
+            {
+              "maxLength": 48,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Copy this profile and apply the given fields on top.",
+          "title": "Clone From"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "maxLength": 80,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "purpose": {
+          "anyOf": [
+            {
+              "pattern": "^(web|print|other)$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Purpose"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "maxLength": 600,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "output_format": {
+          "anyOf": [
+            {
+              "pattern": "^(glb|stl)$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Output Format"
+        },
+        "rules": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Any of max_triangles, max_file_bytes, max_textures, max_texture_px, max_bodies, require_watertight, require_uvs_if_textured, accepted_formats, units, max_extent_mm, min_wall_mm, max_deviation_mm.",
+          "title": "Rules"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "TargetSaveArgs",
+      "type": "object"
+    },
+    "module": "library",
+    "native_name": "asset_target_save"
+  },
+  {
+    "name": "asset_inspect",
+    "description": "Draft report: what stops a 3D asset meeting a destination profile, measured. Keywords: inspeccionar activo.\nMeasures a library model or file (STL/OBJ/3MF/GLB/glTF) on CPU: triangles, bytes, bodies, open edges, units, UVs, materials, textures, animations; each marked observed, not available in the format or not measured. Checks link to measurements; separates defects, recommendations (with losses) and the plan. Writes nothing.\nSinónimos: qué le impide, auditar activo, comprobar para web, para imprimir.",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "target": {
+          "default": "web-configurator",
+          "description": "Profile id from asset_targets_list, e.g. web-configurator or fdm-print.",
+          "maxLength": 48,
+          "title": "Target",
+          "type": "string"
+        },
+        "id": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Library model id.",
+          "title": "Id"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Or an absolute path to an STL, OBJ, 3MF, GLB or glTF file.",
+          "title": "Path"
+        }
+      },
+      "title": "SourceArgs",
+      "type": "object"
+    },
+    "module": "library",
+    "native_name": "asset_inspect"
+  },
+  {
+    "name": "asset_prepare",
+    "description": "Prepare a verified variant for a destination profile; the original is untouched (write). Keywords: preparar.\nRuns the plan of asset_inspect (LOD simplification, texture downscale, unit scale, export) into a NEW file, re-imports it, re-checks every rule, measures a sampled deviation and stores a receipt (recipe, SHA-256 before/after). Lossy plans are rejected unless accept_losses. Status unchanged, prepared, rejected or failed (explained).\nSinónimos: aligerar para web, variante, cumplir presupuesto.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "target": {
+          "default": "web-configurator",
+          "description": "Profile id from asset_targets_list, e.g. web-configurator or fdm-print.",
+          "maxLength": 48,
+          "title": "Target",
+          "type": "string"
+        },
+        "id": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Library model id.",
+          "title": "Id"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Or an absolute path to an STL, OBJ, 3MF, GLB or glTF file.",
+          "title": "Path"
+        },
+        "accept_losses": {
+          "default": false,
+          "description": "Allow an operation that drops UVs, colours, materials, textures or scene structure; they are declared first.",
+          "title": "Accept Losses",
+          "type": "boolean"
+        },
+        "max_deviation_mm": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Override the profile's tolerance for the sampled surface deviation.",
+          "title": "Max Deviation Mm"
+        }
+      },
+      "title": "PrepareArgs",
+      "type": "object"
+    },
+    "x-timeout-s": 600.0,
+    "module": "library",
+    "native_name": "asset_prepare"
+  },
+  {
+    "name": "asset_preparations",
+    "description": "Past preparations and their receipts (recipe, SHA-256, measures, deviation). Keywords: preparaciones.\nWithout id: the latest preparations (optionally of one model) with status and output. With id: the full receipt including the checks re-run on the re-imported variant, effective changes, declared and observed losses.\nSinónimos: historial, recibo, variantes preparadas.",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "maxLength": 20,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "A preparation id to read in full.",
+          "title": "Id"
+        },
+        "model_id": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Only preparations of this library model.",
+          "title": "Model Id"
+        },
+        "limit": {
+          "default": 10,
+          "maximum": 50,
+          "minimum": 1,
+          "title": "Limit",
+          "type": "integer"
+        }
+      },
+      "title": "PreparationsArgs",
+      "type": "object"
+    },
+    "module": "library",
+    "native_name": "asset_preparations"
+  },
+  {
     "name": "gulliver_model_assembly",
     "description": "Assembly guide for a kept build: numbered pieces, files and materials. Guia de montaje.\nUses only that generation. Piece pages share stable numbers; follow next_offset until null.\nSinónimos: montar, piezas, orientacion, filamentos",
     "annotations": {
