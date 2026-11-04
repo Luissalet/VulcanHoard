@@ -8,7 +8,7 @@ import { useDraft } from "../useDraft.js";
 import { useCopilotContext, useCopilotRefresh } from "../copilot.js";
 import CadParameters from "../components/CadParameters.jsx";
 import ModelComparison from '../components/ModelComparison.jsx';
-import { LookPanel, SimplifyPanel, WebGlbPanel } from "../components/MeshTools.jsx";
+import { LookPanel, PhotosPanel, SimplifyPanel, WebGlbPanel } from "../components/MeshTools.jsx";
 import SlicerButton from "../components/SlicerButton.jsx";
 import AssetInspectionPanel from "../components/AssetInspection.jsx";
 
@@ -260,6 +260,7 @@ export default function Modelo({ param }) {
           </section>
 
           {model.status === "ok" && <LookPanel model={model} />}
+          {model.status === "ok" && <PhotosPanel model={model} />}
           {model.status === "ok" && <WebGlbPanel model={model} onPreview={setGlbUrl} />}
 
           <section className="panel-white">

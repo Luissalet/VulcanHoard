@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
+from .. import blender_render
 from .. import look as look_mod
 from .. import simplify, slicers
 from .deps import services
@@ -96,6 +97,43 @@ def look_json(request: Request, model_id: int, views: str = Query("iso,top,front
 def look_png(request: Request, model_id: int, views: str = Query("iso,top,front,side", max_length=80), size: int = Query(384, ge=128, le=1024)):
     path = _guard(lambda: look_mod.render_sheet(services(request), model_id, views, size))
     return FileResponse(path, media_type="image/png", headers={"Cache-Control": "private, max-age=3600"})
+
+
+class PhotosBody(BaseModel):
+    views: list[str] | None = Field(None, max_length=7)
+    engine: str = Field("workbench", pattern="^(workbench|eevee|cycles)$")
+    color: str = Field("#d6cdc0", pattern="^#?[0-9a-fA-F]{6}$")
+    background: str = Field("#f4f3ee", pattern="^#?[0-9a-fA-F]{6}$")
+    transparent: bool = False
+    size: int = Field(1024, ge=256, le=2048)
+    samples: int | None = Field(None, ge=1, le=512)
+    force: bool = False
+
+
+@router.get("/blender")
+def blender_info():
+    return blender_render.blender_status()
+
+
+@router.post("/models/{model_id}/renders")
+def renders_make(request: Request, model_id: int, body: PhotosBody):
+    svc = services(request)
+    try:
+        return _guard(lambda: blender_render.render_photos(svc, model_id, body.views, body.engine, body.color, body.background,
+                                                           body.transparent, body.size, body.samples, force=body.force))
+    except RuntimeError as error:
+        raise HTTPException(503, str(error)) from error
+
+
+@router.get("/models/{model_id}/renders")
+def renders_list(request: Request, model_id: int):
+    return blender_render.list_photos(services(request), model_id)
+
+
+@router.get("/models/{model_id}/renders/{key}/{name}")
+def renders_file(request: Request, model_id: int, key: str, name: str):
+    path = _guard(lambda: blender_render.photo_file(services(request), model_id, key, name))
+    return FileResponse(path, media_type="image/png", headers={"Cache-Control": "private, max-age=86400"})
 
 
 @router.get("/slicers")

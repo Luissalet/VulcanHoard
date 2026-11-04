@@ -153,6 +153,89 @@ export function LookPanel({ model }) {
   );
 }
 
+const PHOTO_VIEWS = [["hero", "3/4"], ["iso", "Iso"], ["front", "Frontal"], ["side", "Lateral"], ["back", "Trasera"], ["left", "Izquierda"], ["top", "Planta"]];
+const PHOTO_ENGINES = { workbench: "Workbench (rápido, estudio)", eevee: "EEVEE (luces en tiempo real)", cycles: "Cycles en CPU (lento, el mejor)" };
+
+/** Listing photos rendered by Blender in the background: angles, engine, filament and background colour, transparent PNG. */
+export function PhotosPanel({ model }) {
+  const { act } = useApp();
+  const [status, setStatus] = useState(null);
+  const [views, setViews] = useState(["hero", "front", "side", "top"]);
+  const [engine, setEngine] = useState("workbench");
+  const [color, setColor] = useState("#d6cdc0");
+  const [background, setBackground] = useState("#f4f3ee");
+  const [transparent, setTransparent] = useState(false);
+  const [size, setSize] = useState(1024);
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState(null);
+  const [sets, setSets] = useState([]);
+  const loadSets = () => api.photoSets(model.id).then((r) => setSets(r.sets || [])).catch(() => setSets([]));
+  useEffect(() => {
+    setResult(null);
+    api.blender().then(setStatus).catch(() => setStatus(null));
+    loadSets();
+  }, [model.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const toggle = (view) => setViews((list) => (list.includes(view) ? list.filter((v) => v !== view) : [...list, view]));
+  const render = async (force = false) => {
+    setBusy(true);
+    const r = await act(() => api.renderPhotos(model.id, { views, engine, color, background, transparent, size: Number(size), force }), "Fotos listas.");
+    setBusy(false);
+    if (r) { setResult(r); loadSets(); }
+  };
+  const shown = result?.photos || sets[0]?.photos || [];
+  return (
+    <section className="panel-white" data-photos-panel>
+      <h2 className="text-[16px] font-semibold">Fotos para la ficha (Blender)</h2>
+      <p className="help mt-1">
+        Render en segundo plano con {status?.available ? `Blender ${status.version || ""}` : "Blender"}: el modelo sobre un suelo con sombra, cámara ajustada a su tamaño y luz de estudio. El archivo no se toca.
+      </p>
+      {status && !status.available && <p className="help mt-1" style={{ color: "var(--danger-ink)" }}>{status.note}</p>}
+      <div className="mt-3 flex flex-wrap gap-3 text-[13px]" role="group" aria-label="Ángulos">
+        {PHOTO_VIEWS.map(([key, label]) => (
+          <label key={key} className="inline-flex items-center gap-1"><input type="checkbox" checked={views.includes(key)} onChange={() => toggle(key)} />{label}</label>
+        ))}
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-3 text-[13px]">
+        <label className="inline-flex items-center gap-2">Motor
+          <select className="field" style={{ width: "auto" }} value={engine} onChange={(e) => setEngine(e.target.value)} data-photos-engine>
+            {Object.entries(PHOTO_ENGINES).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+          </select>
+        </label>
+        <label className="inline-flex items-center gap-2">Filamento<input type="color" value={color} onChange={(e) => setColor(e.target.value)} aria-label="Color del filamento" /></label>
+        <label className="inline-flex items-center gap-2">Fondo<input type="color" value={background} disabled={transparent} onChange={(e) => setBackground(e.target.value)} aria-label="Color del fondo" /></label>
+        <label className="inline-flex items-center gap-2"><input type="checkbox" checked={transparent} onChange={(e) => setTransparent(e.target.checked)} />PNG transparente</label>
+        <label className="inline-flex items-center gap-2">Tamaño
+          <select className="field" style={{ width: "auto" }} value={size} onChange={(e) => setSize(e.target.value)}>
+            {[512, 1024, 1600, 2048].map((s) => <option key={s} value={s}>{s} px</option>)}
+          </select>
+        </label>
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <button type="button" className="btn btn-sm btn-primary" disabled={busy || !views.length || (status && !status.available)} onClick={() => render(false)} data-photos-render>Renderizar fotos</button>
+        <button type="button" className="btn btn-sm" disabled={busy || !views.length || (status && !status.available)} onClick={() => render(true)}>Volver a renderizar</button>
+        {busy && <span className="help">Blender está renderizando…</span>}
+      </div>
+      {result && (
+        <p className="help mt-2 text-[12px]" data-photos-result>
+          {result.rendered.length ? `Renderizadas ${result.rendered.length}` : "Todas en caché"}{result.cached.length && result.rendered.length ? ` · ${result.cached.length} en caché` : ""} · {result.engine}
+          {result.blender?.version ? ` · Blender ${result.blender.version}` : ""} · {result.seconds} s · <a className="btn-link" href={result.sheet_url} target="_blank" rel="noreferrer">hoja de contacto</a>
+        </p>
+      )}
+      {shown.length > 0 && (
+        <div className="mt-3 grid grid-cols-2 gap-2" data-photos-grid>
+          {shown.map((p) => (
+            <figure key={p.url} className="rounded-md border p-1 text-center" style={{ borderColor: "var(--line)" }}>
+              <a href={p.url} target="_blank" rel="noreferrer" download={`${model.name}-${p.view}.png`}><img src={p.url} alt={`Foto ${p.label}`} className="mx-auto w-full" loading="lazy" /></a>
+              <figcaption className="help text-[12px]">{p.label} · {bytes(p.bytes)}</figcaption>
+            </figure>
+          ))}
+        </div>
+      )}
+      {sets.length > 1 && <p className="help mt-2 text-[11px]">{sets.length} juegos de fotos guardados para este modelo (el más reciente arriba).</p>}
+    </section>
+  );
+}
+
 /** GLB for the web, compressed with meshopt (gltfpack); the viewer can show it to check the result. */
 export function WebGlbPanel({ model, onPreview }) {
   const { act } = useApp();
