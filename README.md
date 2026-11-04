@@ -26,6 +26,8 @@ All six modules and their automation start **OFF** on first use. Open Vulcan exp
 
 Shared projects retain native object IDs/revisions and exported-file references with SHA256. You can open the native piece, download its retained file, and index an exported STL in the same library without converting the native project. The complete cold catalogue contains 189 tools (181 catalogue rows plus eight studio controls, including five asset inspection, seven Heron assembly and seven spatial analysis tools); names longer than the MCP limit have short public aliases while retaining their native names and schemas.
 
+A local joint multiview route takes ordered foreground/alpha views and makes one geometry-only 512 model through the native queue, API, MCP and form. Measured on four views of an original cup: 180 s on one 16 GB GPU, whole cup recovered, loose sheets removed on export, but the mesh is not watertight; no textures, UVs or PBR. See [multiview status and setup](vulcan/studio_native/daedalus/docs/multiview.md).
+
 Install CPU dependencies with `pip install -r requirements.txt` (source) or `pip install ".[studio]"`, then build the two React interfaces with `python scripts/build_studio.py` and run `python -m vulcan`. Blender and the separate Daedalus GPU environment/model store retain their existing roles and require explicit operations. Text/vision inference uses the exact global model configured in Faustus, through its authenticated stateless transport; provider credentials remain there. No local text fallback is used. See [studio operation and migration](docs/STUDIO.md), [source/verification status](docs/STUDIO-STATUS.md), and [licensing](NOTICE-STUDIO.md).
 
 ## Spatial analysis (F17)

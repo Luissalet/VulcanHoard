@@ -1,0 +1,626 @@
+{
+  "repository": "https://github.com/xibushu/UniForge3D",
+  "revision": "8b6094780e202b8a6b1d239e0997552e18547026",
+  "files": [
+    {
+      "source": "uniforge3d/__init__.py",
+      "git_blob": "31e395e6f254b0d76e2ed5a09c1ac78eb982e474",
+      "original_sha256": "39c43e89eb6ecc3b34f89a4b8a369b1f9e29eed7995f2de7ebb2cac48f2234ac",
+      "incorporated_sha256": "61fb904ab32c04b3c58e8bcf42f1f2a41e1b063dabd4c66eeedb4ab0eb81535d",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/configs/pipeline.json",
+      "git_blob": "58a5b54058e77193a8f80046e510810b56e01159",
+      "original_sha256": "f3002e8981741581c3e10d101bb7e1491f205d8c2a2b30cfd8afe2e54c054767",
+      "incorporated_sha256": null,
+      "retained": false
+    },
+    {
+      "source": "uniforge3d/models/__init__.py",
+      "git_blob": "52493d5e7aa9cfb662d853728c0a68e8530b5e87",
+      "original_sha256": "bf0494d3f4bede98e06c12cf7012856d9a08394e19a91528fab38658f395534f",
+      "incorporated_sha256": "bf0494d3f4bede98e06c12cf7012856d9a08394e19a91528fab38658f395534f",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/models/conditioning.py",
+      "git_blob": "e7560f05ed05f9583f19aee8189317de99a55d43",
+      "original_sha256": "94686accacb82e70dd2fee3307c3ead3066c3042aa1c53bc190d4f003a632f6b",
+      "incorporated_sha256": "94686accacb82e70dd2fee3307c3ead3066c3042aa1c53bc190d4f003a632f6b",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/models/dino.py",
+      "git_blob": "4f7afdef60e623c54bd23da6d559d72204de472a",
+      "original_sha256": "55abbbc7fdac47448ba7f5a710a1e2349198c68120d9ddfbfd2cdae3c2190f79",
+      "incorporated_sha256": "831c8dba0a57ee17b8e7d2a13101930c077adee20b7411e371a9a533e1588e00",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/models/joint_dit_vggt_stage1.py",
+      "git_blob": "26cde123a59ae5afed351cd37fb87bfe5114b620",
+      "original_sha256": "6088f8bd1d7a7ebfbdfa4a25ab0621ba115db87d10e59ba2d323330e256f8488",
+      "incorporated_sha256": "ff5156a0066db9cb990ecde48b600e385a1d8659978d8aad4f73e95541ecff6e",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/models/loaders.py",
+      "git_blob": "64c45df88dab7b73d542c189a3eeaa791bc0f287",
+      "original_sha256": "fd32ea311e23b9f1fd6dc1888f8286bfeea3ebe6cf5f2ad1b27690a04f6bfa8f",
+      "incorporated_sha256": "f8f794e60c539c2fbe3a9b452a085bdc5e150eab347fa131ff72a322fe26e5ec",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/models/lora.py",
+      "git_blob": "0d2ce0e9abcf9f882d450370ee502ab1ffe87b31",
+      "original_sha256": "b90afcfa25bb95cf6cb863e08b4b1d218e419b9fb5741e9d9893a0bf43a15023",
+      "incorporated_sha256": "b90afcfa25bb95cf6cb863e08b4b1d218e419b9fb5741e9d9893a0bf43a15023",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/models/sparse_structure_flow.py",
+      "git_blob": "da41705761cd5b97666e50e4c5d9278de18536ed",
+      "original_sha256": "7f985784fd38face785336073a41351f2ea94f9326e2044ff515ffa17d3c035d",
+      "incorporated_sha256": "b486f89e44806a87fe2aee67e282d061e519f183a4639e1b39c8875d46cf4173",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/models/structured_latent_flow.py",
+      "git_blob": "66b819d5d957b8b69f4091509d69ef3a00a1cf44",
+      "original_sha256": "6e12e12505fe913009d3ad004aff8789ccf31ff2505291c614ca7f12190ff04a",
+      "incorporated_sha256": "3a615c4ffcdf0aae89f4150853c6158b6bc44a9af9c419097cce93ae49e46360",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/models/vaes/__init__.py",
+      "git_blob": "01575a4b2f97a464473832440cdf78f75ac6e09c",
+      "original_sha256": "ff083f741bb6e8b7cd15cce6a4da772d046da78b2302e9f2e686ad66395747b9",
+      "incorporated_sha256": "ff083f741bb6e8b7cd15cce6a4da772d046da78b2302e9f2e686ad66395747b9",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/models/vaes/flexi_dual_grid.py",
+      "git_blob": "93f4b98be72fdced10b0d270995089d0d0ac20dc",
+      "original_sha256": "e130cc70323259d94027f54858c3189a402fe68de0781919b67476fd7b894736",
+      "incorporated_sha256": "0b4f3ac34575d0f24205b34ac9b32450e42c4642e7a352ec3063d190d212be1a",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/models/vaes/sparse_structure.py",
+      "git_blob": "8a25f48cd86fd8593b08e0dd55c402e2607442be",
+      "original_sha256": "f99d136e613a96bd071f45121f7ce2930c94f14258a6ccdcaaddf350b8ad20e0",
+      "incorporated_sha256": "f99d136e613a96bd071f45121f7ce2930c94f14258a6ccdcaaddf350b8ad20e0",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/models/vaes/sparse_unet.py",
+      "git_blob": "ed0de2e4d958ccf17e085796ff6ded0efa58f558",
+      "original_sha256": "b167e4ba14bee23578dc03bff441c61d5d51c721dd3da59daa130996d7e382c7",
+      "incorporated_sha256": "b167e4ba14bee23578dc03bff441c61d5d51c721dd3da59daa130996d7e382c7",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/models/vggt/__init__.py",
+      "git_blob": "891568debb7d5e17145c49e5b4533658e452060f",
+      "original_sha256": "dc75fa42d0208ef9d1173f1eec06bbdfccd6744305f9690b90bd0c126ba34545",
+      "incorporated_sha256": "dc75fa42d0208ef9d1173f1eec06bbdfccd6744305f9690b90bd0c126ba34545",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/models/vggt/heads/camera_head.py",
+      "git_blob": "410d3f80b088ed94fddeb867037f1d06ada86f97",
+      "original_sha256": "97682e633aac23ba13d7b738457ca5578ec309929d8a7fbfd13fa80c42eb648e",
+      "incorporated_sha256": "2225107641849d3ea837cc4f208446b175ab3d952838bd6a698c2775823c82fe",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/models/vggt/heads/dpt_head.py",
+      "git_blob": "da0289989db1955e63d23eb6a3040b9a05ef233d",
+      "original_sha256": "17ca92fae269dd98b74db3b0e5de17dcef3f3afcb5ab1cd2781f4dddff3fcfe3",
+      "incorporated_sha256": "17ca92fae269dd98b74db3b0e5de17dcef3f3afcb5ab1cd2781f4dddff3fcfe3",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/models/vggt/heads/head_act.py",
+      "git_blob": "aeac338feadb689acba922cf1402996dacb09ca6",
+      "original_sha256": "bb1d6e831c0ebeb7269bcb8a451157b9e780793a03b89742290db5eec58cdffb",
+      "incorporated_sha256": "bb1d6e831c0ebeb7269bcb8a451157b9e780793a03b89742290db5eec58cdffb",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/models/vggt/heads/utils.py",
+      "git_blob": "27f0e97a4d9cde59366e376f4ca741caa7334dd4",
+      "original_sha256": "dc784225bfc1171d8bdf4b4eae5269d60f8648d944cf577aee352a920ca413ab",
+      "incorporated_sha256": "dc784225bfc1171d8bdf4b4eae5269d60f8648d944cf577aee352a920ca413ab",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/models/vggt/layers/__init__.py",
+      "git_blob": "94651fdc3863440e244d7fdc6cd943be68e1d04b",
+      "original_sha256": "387899a0fef8f4234adbb52ad22b4f15e469903e08cd9feb2442d3b52b3e6694",
+      "incorporated_sha256": "387899a0fef8f4234adbb52ad22b4f15e469903e08cd9feb2442d3b52b3e6694",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/models/vggt/layers/attention.py",
+      "git_blob": "a3a9a96ed36f4a627859f980ff692208582b7cd0",
+      "original_sha256": "78bcfa7cc01e018cd8f26421de5a142b9bef83bb5e0c2e79aeeaeaa64f44c7c8",
+      "incorporated_sha256": "78bcfa7cc01e018cd8f26421de5a142b9bef83bb5e0c2e79aeeaeaa64f44c7c8",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/models/vggt/layers/block.py",
+      "git_blob": "bb55a5288f1dd93d40d7187dfb39a6a30dfac5bc",
+      "original_sha256": "4c273ddc515856dec5c0c4fc5558f7665f9b720abea2c6f291d668c6bafa209d",
+      "incorporated_sha256": "4c273ddc515856dec5c0c4fc5558f7665f9b720abea2c6f291d668c6bafa209d",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/models/vggt/layers/layer_scale.py",
+      "git_blob": "166f8ca7945dc95780d2f76cb2695607e599771d",
+      "original_sha256": "6f04a89ae61334952e5b3fc6a7f908eeca0c907b2945adea1d777f12452d3d4a",
+      "incorporated_sha256": "6f04a89ae61334952e5b3fc6a7f908eeca0c907b2945adea1d777f12452d3d4a",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/models/vggt/layers/mlp.py",
+      "git_blob": "f2395d25a21d02c2e714879097e7706a918b2686",
+      "original_sha256": "50780df4baf23b3bba9057c63b8b386e5704e4fb0ab663e14f1fc7d48d252ad9",
+      "incorporated_sha256": "50780df4baf23b3bba9057c63b8b386e5704e4fb0ab663e14f1fc7d48d252ad9",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/models/vggt/layers/patch_embed.py",
+      "git_blob": "187ec0f07af3afdea521e6736dafa599aee20df2",
+      "original_sha256": "97506b61fba301eecefe4e6015d2ff452aef21d4a4b69784444d2de1a84ae5ac",
+      "incorporated_sha256": "97506b61fba301eecefe4e6015d2ff452aef21d4a4b69784444d2de1a84ae5ac",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/models/vggt/layers/rope.py",
+      "git_blob": "4e0de1aab9ae170e0455da449d9b8247fe5692e4",
+      "original_sha256": "8eef38a699d0d223afe4d0d755c2e5b6e1df8c0c8807cdf7ca66a09a169df98b",
+      "incorporated_sha256": "8eef38a699d0d223afe4d0d755c2e5b6e1df8c0c8807cdf7ca66a09a169df98b",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/models/vggt/layers/swiglu_ffn.py",
+      "git_blob": "60a05cebdd6f17433cd9399cbcbc0884a2022cc2",
+      "original_sha256": "de77187f562e4ab80d84b140419db2ef076a9e1b5a47236a0a0e41d6e3602463",
+      "incorporated_sha256": "de77187f562e4ab80d84b140419db2ef076a9e1b5a47236a0a0e41d6e3602463",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/models/vggt/layers/vision_transformer.py",
+      "git_blob": "4a2c7db5d03717a48fbb17e4416e03f6fdd6061a",
+      "original_sha256": "db9f3a137f898dcab4283982a7b4ef59ac699ec83a63ca160d7d82ed241a755b",
+      "incorporated_sha256": "db9f3a137f898dcab4283982a7b4ef59ac699ec83a63ca160d7d82ed241a755b",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/models/vggt/models/aggregator.py",
+      "git_blob": "11c8ab1cc2dec33ddf523ddd9de48d94feb4c8d7",
+      "original_sha256": "f96fb06ad1776ff38f512d0c34edd52094220bb4dbfa3829902d27f8d475b835",
+      "incorporated_sha256": "14d162046ac36caeb960d12cddc71c89bcaf193e6ba92b487f644a8a92ece220",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/models/vggt/models/vggt.py",
+      "git_blob": "22c273ea94e660a8d3070c47b5c60fe36270355c",
+      "original_sha256": "390a25ce1a179f25c5a4868aec3ac5aedfbd23fc10c0bafe7f4e6f374ed51902",
+      "incorporated_sha256": "6845e1ac96dbff9baaae882ece1521efda6aef87cc23d6bb7951e40bad995244",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/models/vggt/utils/pose_enc.py",
+      "git_blob": "b75f0326afb4dce1b3b82d2e2c83799afa3b8f2f",
+      "original_sha256": "0213ad8be8e566d7bdaa905bf739567f1886a6e73e81d85ee87029ced81d593b",
+      "incorporated_sha256": "0213ad8be8e566d7bdaa905bf739567f1886a6e73e81d85ee87029ced81d593b",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/models/vggt/utils/rotation.py",
+      "git_blob": "7b009b537fac4f83c9b4626624d768e4164d3447",
+      "original_sha256": "1cd0d7f61639c86833f32c6260512ad3fddbd0c9fb3012f6c4642704b5452177",
+      "incorporated_sha256": "1cd0d7f61639c86833f32c6260512ad3fddbd0c9fb3012f6c4642704b5452177",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/models/vggt_adapter.py",
+      "git_blob": "c21ed7b84c0e520168bd4119e0f1874e65ccf9a2",
+      "original_sha256": "91c12456bcbf102672b98cb592065641e29fc0a49c164012dac3f56b83f27268",
+      "incorporated_sha256": "a6f2618271840ae0ee2d556d4b5bf77004e6d355cce0bee9b51bcb1d33a41046",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/models/vggt_routed_features.py",
+      "git_blob": "1d4f85085ac9cc9a6cf4ffa032e58b743c18e9a5",
+      "original_sha256": "462bb62ce52ea971d678cc43d1d07b7de0c08ce5102e699c4477380053721e51",
+      "incorporated_sha256": "462bb62ce52ea971d678cc43d1d07b7de0c08ce5102e699c4477380053721e51",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/models/view_router.py",
+      "git_blob": "96ea59a70ac31d0fb5ce4304fdd03fdca18c2104",
+      "original_sha256": "a98e4824c004362664d78042d5ff12b00564b7c85eb9c2669b6c6e7f10a4a6aa",
+      "incorporated_sha256": "a98e4824c004362664d78042d5ff12b00564b7c85eb9c2669b6c6e7f10a4a6aa",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/modules/attention/__init__.py",
+      "git_blob": "6a083a226a225020235da359511ce02142ed0ec6",
+      "original_sha256": "aa606981d51579e84cee2fc9f19ff02f1fb5551edd55c865d38341b1cdf260e5",
+      "incorporated_sha256": "aa606981d51579e84cee2fc9f19ff02f1fb5551edd55c865d38341b1cdf260e5",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/modules/attention/config.py",
+      "git_blob": "e231917b5d584645724fcf0121b4541cb0cf884e",
+      "original_sha256": "871b6999b8c642bfe6bc67c7c3eb7fd35b0544d3b06732fe2b129e91d56e9fe3",
+      "incorporated_sha256": "ddfc308c0ec4f33545d179c3340191802b7ea4ae3cd0ecb83b55739f081db96f",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/modules/attention/full_attn.py",
+      "git_blob": "4e98f414cf4baaa1602ed754c768599204ffde68",
+      "original_sha256": "8c6e09befa6f329f20a1c78b62759da6c2c659d4fbecb65ef985d4222c076361",
+      "incorporated_sha256": "8c6e09befa6f329f20a1c78b62759da6c2c659d4fbecb65ef985d4222c076361",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/modules/attention/modules.py",
+      "git_blob": "2810624970e70b99de16ebfb0af3595df9013934",
+      "original_sha256": "96e9c2c13220b74147b7d34b5e19498567eae1ca06f7bcfd11d1061d8f4bef05",
+      "incorporated_sha256": "96e9c2c13220b74147b7d34b5e19498567eae1ca06f7bcfd11d1061d8f4bef05",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/modules/attention/rope.py",
+      "git_blob": "75d8e475af20b309a1a50d77484ad706551fa4d0",
+      "original_sha256": "22c79842a13c431df56bb3e0efc3429c222489df79e5b0926178e88871784cab",
+      "incorporated_sha256": "c133511c339bce2f6cce4e1c2b8fa2cad3ff7b89294ed32940c217cb559a5cf8",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/modules/norm.py",
+      "git_blob": "e84d98c90f9be642b0c31373ea658106e7975f44",
+      "original_sha256": "bbe0846d3f1c62c0ed6c65686c10caed84cca24e44c99301c8d33de3f7e47a0a",
+      "incorporated_sha256": "bbe0846d3f1c62c0ed6c65686c10caed84cca24e44c99301c8d33de3f7e47a0a",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/modules/sparse/__init__.py",
+      "git_blob": "90ea8436af469b029f1ba0d4482e67a3942dbc7b",
+      "original_sha256": "789b310767215d71a2b183567529315006f474dbd3266005c04bce34ad22455a",
+      "incorporated_sha256": "789b310767215d71a2b183567529315006f474dbd3266005c04bce34ad22455a",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/modules/sparse/attention/__init__.py",
+      "git_blob": "1b1136b5946e7f5f35b234d6057d032c8099343d",
+      "original_sha256": "e3ac71c58a7a70d4ad925a0c404c6aeda54522ef9d7f6121db7cae485e824abf",
+      "incorporated_sha256": "e3ac71c58a7a70d4ad925a0c404c6aeda54522ef9d7f6121db7cae485e824abf",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/modules/sparse/attention/full_attn.py",
+      "git_blob": "4bf6d8203e4e595d4a90782567155dbd02b7ec7c",
+      "original_sha256": "80ca374ff58e25b5c323e0b30805ceccc9639161fce989559095b87b8f75462c",
+      "incorporated_sha256": "4bed0a917621186c7dab5815df636392f1ccb44bfa6aaa077608d20d3826c132",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/modules/sparse/attention/modules.py",
+      "git_blob": "47a21962f49dff65b610ded34049131a7abf3abb",
+      "original_sha256": "980cd7c20621b3024703db750b2601b8d54168cdfb79236512ea2f32c4af3c04",
+      "incorporated_sha256": "980cd7c20621b3024703db750b2601b8d54168cdfb79236512ea2f32c4af3c04",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/modules/sparse/attention/rope.py",
+      "git_blob": "5f5efeebba9b2974dd5c063645345314a7892148",
+      "original_sha256": "5f8522f4c5dabd0177e142560ca6d4056450cb626bd73ef01ee2b352ea82a64e",
+      "incorporated_sha256": "a1a8db9f03acfc680ecc4adcf7c2ee256006e77cd1c350b1ab050f847978f532",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/modules/sparse/attention/routed_full_only_flash.py",
+      "git_blob": "4aa9edc7ad28a70a211ed2df736ce5168f958ff9",
+      "original_sha256": "87291766077f6decbab23efb230a02977a900d2967cb058534c4f243c4b7964f",
+      "incorporated_sha256": null,
+      "retained": false
+    },
+    {
+      "source": "uniforge3d/modules/sparse/attention/windowed_attn.py",
+      "git_blob": "1560f53d67105cfd7bc51a446f6dedf06446b8a8",
+      "original_sha256": "db371ec36948c28371e39fc12a124f30e498ce99fa9d5d10fb336c75f6cfd763",
+      "incorporated_sha256": "db371ec36948c28371e39fc12a124f30e498ce99fa9d5d10fb336c75f6cfd763",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/modules/sparse/basic.py",
+      "git_blob": "7bd72c833c75e1ed673a0a865bd802306a07e1de",
+      "original_sha256": "509899f20bfc50c7a3f78909b1be8fd33f2e149af8b5922c02052902b32ea502",
+      "incorporated_sha256": "509899f20bfc50c7a3f78909b1be8fd33f2e149af8b5922c02052902b32ea502",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/modules/sparse/config.py",
+      "git_blob": "1857a83c5d47f50520fe7e460117ef47b229d836",
+      "original_sha256": "96495611262488fd95ad4e230e7735b58ca256e6981fc592e0e4951bfefe07c5",
+      "incorporated_sha256": "63b2cad3967a24bd93ca82688f45ae30469a561fc397b177381ce6f61cb721ed",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/modules/sparse/conv/__init__.py",
+      "git_blob": "505768b178bb782b8067539b8a3e36cdd847c98e",
+      "original_sha256": "b9af9370070a0a42525ef2355b5d31dade13b877349706cab79b7f3f97dd003b",
+      "incorporated_sha256": "b9af9370070a0a42525ef2355b5d31dade13b877349706cab79b7f3f97dd003b",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/modules/sparse/conv/config.py",
+      "git_blob": "6d443111a1662ca68685c3c29c338db867203cbc",
+      "original_sha256": "704286a53dc25859d8eb33a3025c77f7d59b6864952f9433f41656668bb35aa4",
+      "incorporated_sha256": "704286a53dc25859d8eb33a3025c77f7d59b6864952f9433f41656668bb35aa4",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/modules/sparse/conv/conv.py",
+      "git_blob": "e68cfedc63f92cc101cec49e93e812a1c7900089",
+      "original_sha256": "17360fb8337556090c426492e86555607ab014088f4b7459ff00c9d7b96b2c47",
+      "incorporated_sha256": "17360fb8337556090c426492e86555607ab014088f4b7459ff00c9d7b96b2c47",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/modules/sparse/conv/conv_flex_gemm.py",
+      "git_blob": "d88d777cad1691a9bc5994bf12f1efa6a54281b0",
+      "original_sha256": "996b5275db7d4fe87bede0a3b7def34c0cbd9c2d7e001a7c991eb20747053145",
+      "incorporated_sha256": null,
+      "retained": false
+    },
+    {
+      "source": "uniforge3d/modules/sparse/linear.py",
+      "git_blob": "f877fbb2df45b1a7064bb5916d3c061f1caacf34",
+      "original_sha256": "55fd093910b858d256d7f7434707a0ed1702c83ed6eeeb6fad76e00f79982fac",
+      "incorporated_sha256": "55fd093910b858d256d7f7434707a0ed1702c83ed6eeeb6fad76e00f79982fac",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/modules/sparse/nonlinearity.py",
+      "git_blob": "189f5dc11e137c4bb9974d8b67bafa9339643e13",
+      "original_sha256": "c052cb8372567ae27304ea11c968296750a4a73922e6400c4e32ea5ecc8e3041",
+      "incorporated_sha256": "c052cb8372567ae27304ea11c968296750a4a73922e6400c4e32ea5ecc8e3041",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/modules/sparse/norm.py",
+      "git_blob": "ebd7e4ac8064ec037d6f629ba5b7fac6e496073f",
+      "original_sha256": "1444627125c824aa1b14ca5f4cade61116df2da87f24d03fdd874e886a53f5b4",
+      "incorporated_sha256": "1444627125c824aa1b14ca5f4cade61116df2da87f24d03fdd874e886a53f5b4",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/modules/sparse/spatial/__init__.py",
+      "git_blob": "5d8bbcc1365e6648243c59bc7860424254a78c4e",
+      "original_sha256": "9d9f31769917bbe174fa0023ac1584f91467cb2f10de90ae9ead8fa3d8a60a02",
+      "incorporated_sha256": "9d9f31769917bbe174fa0023ac1584f91467cb2f10de90ae9ead8fa3d8a60a02",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/modules/sparse/spatial/basic.py",
+      "git_blob": "49d4764fae6d419a1bdfa1c70021d40dd8cde2ba",
+      "original_sha256": "5df6799d551ea0918845743efd89975794ee417a00d7f73253e499883496debf",
+      "incorporated_sha256": "5df6799d551ea0918845743efd89975794ee417a00d7f73253e499883496debf",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/modules/sparse/spatial/spatial2channel.py",
+      "git_blob": "1b37b24d0fb55f62c59d4300ea6d1bf3571df3f0",
+      "original_sha256": "40645fa24080648cf8bcd6faa42fc6b264c87eb5f393c1b12b43dc65e3f732d1",
+      "incorporated_sha256": "40645fa24080648cf8bcd6faa42fc6b264c87eb5f393c1b12b43dc65e3f732d1",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/modules/sparse/transformer/__init__.py",
+      "git_blob": "92deb200ea54da8f150354f1e7baff1931c2df1b",
+      "original_sha256": "e8cafd2f42cc723c9a89ee96b6baa4cb2e0c6ff8531c4546cacd4666b1ff174e",
+      "incorporated_sha256": "e8cafd2f42cc723c9a89ee96b6baa4cb2e0c6ff8531c4546cacd4666b1ff174e",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/modules/sparse/transformer/blocks.py",
+      "git_blob": "61cf14344469a8ccffd378bfb0c7b11cf50e383a",
+      "original_sha256": "394c72f35a7d86b8e63e118637e372703b7da3e2cfe98aea50959444dcf873a7",
+      "incorporated_sha256": "394c72f35a7d86b8e63e118637e372703b7da3e2cfe98aea50959444dcf873a7",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/modules/sparse/transformer/modulated.py",
+      "git_blob": "a74bda97f661d4b95ab04900b4c4e37e3582b08f",
+      "original_sha256": "af9149728cd0914548933bc5ccbf16393349dfeab66386acebeff7dbca3042dc",
+      "incorporated_sha256": "af9149728cd0914548933bc5ccbf16393349dfeab66386acebeff7dbca3042dc",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/modules/spatial.py",
+      "git_blob": "8e93cc1f3f85cff446a27fbac8bbf54b342b9552",
+      "original_sha256": "ef12a26dc15b7c4ef5baa3323b8f51114695fbada08141c4879d15214ba29138",
+      "incorporated_sha256": "ef12a26dc15b7c4ef5baa3323b8f51114695fbada08141c4879d15214ba29138",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/modules/transformer/__init__.py",
+      "git_blob": "92deb200ea54da8f150354f1e7baff1931c2df1b",
+      "original_sha256": "e8cafd2f42cc723c9a89ee96b6baa4cb2e0c6ff8531c4546cacd4666b1ff174e",
+      "incorporated_sha256": "e8cafd2f42cc723c9a89ee96b6baa4cb2e0c6ff8531c4546cacd4666b1ff174e",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/modules/transformer/blocks.py",
+      "git_blob": "23b0c901a9955b902681e2a76d14bc5ff6593e72",
+      "original_sha256": "cc1c7ae7aa95a4e076b4b4ae07daf6ba0f30eaef9f8a837299a7a141b0530773",
+      "incorporated_sha256": "645cc80cb2eb2c024706298cab1a23d43b73d2f745f000e2a6fdbdbbd3565102",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/modules/transformer/modulated.py",
+      "git_blob": "14685f8c60a635e14c1319485b089d83638ffd87",
+      "original_sha256": "8b90626eded4dc5c382f6a1d4ea94bc67c9f4fa7d6df61d76d2896310bda3e39",
+      "incorporated_sha256": "8b90626eded4dc5c382f6a1d4ea94bc67c9f4fa7d6df61d76d2896310bda3e39",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/modules/utils.py",
+      "git_blob": "44ee5b60c62e3bf1befa83e13d5aeaebb227ca95",
+      "original_sha256": "d8749bf7c2173500a430290f528c28d8ffa3466316056af9b55618c1629d486d",
+      "incorporated_sha256": "d8749bf7c2173500a430290f528c28d8ffa3466316056af9b55618c1629d486d",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/pipelines/__init__.py",
+      "git_blob": "bb2afe1bd7f85b7c4d182c5f964ddc6305c60ae6",
+      "original_sha256": "7ff9133684c4d1251628fadedb8f6e14979514519771646ef8f86a87153a548a",
+      "incorporated_sha256": "61fb904ab32c04b3c58e8bcf42f1f2a41e1b063dabd4c66eeedb4ab0eb81535d",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/pipelines/samplers/__init__.py",
+      "git_blob": "a4661899866cadb74052301cb4e5979fb69f7e1a",
+      "original_sha256": "80fec86854182f9e0193f7480c3a18d570015a9fafe2b3ef265c1b13f6bafd01",
+      "incorporated_sha256": "80fec86854182f9e0193f7480c3a18d570015a9fafe2b3ef265c1b13f6bafd01",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/pipelines/samplers/flow_euler.py",
+      "git_blob": "40b84020066e0c67374da0e095d8839bcf3c42d4",
+      "original_sha256": "f0334244e42ee02fd568fb545be9a08c3bb3a15b935fc53d85b58df6d1d42635",
+      "incorporated_sha256": "f0334244e42ee02fd568fb545be9a08c3bb3a15b935fc53d85b58df6d1d42635",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/pipelines/shape.py",
+      "git_blob": "c84dac43df662b60b105f793c5b56f9f0cf877b9",
+      "original_sha256": "b9b32927844b4f2e991996dd91a3148988f46dc038c0e1ac93962b1f01feb8c6",
+      "incorporated_sha256": "b9b32927844b4f2e991996dd91a3148988f46dc038c0e1ac93962b1f01feb8c6",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/pipelines/sparse_structure.py",
+      "git_blob": "0886d78eb53983296a2a5897a309cd77ff2aacb6",
+      "original_sha256": "b7a2e4df1ee5c6ef69622dc24b3e1d1f286cfa57dc17ef5f4b2e7d8ccb73cb3c",
+      "incorporated_sha256": "b7a2e4df1ee5c6ef69622dc24b3e1d1f286cfa57dc17ef5f4b2e7d8ccb73cb3c",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/pipelines/texture.py",
+      "git_blob": "0493eb09c1b22f6ee3aeecd138a3d8a916bba659",
+      "original_sha256": "dad35db61cb5a2e720e2776225299a7bea0ded96dc653b4cb1a3205c7721d4a7",
+      "incorporated_sha256": null,
+      "retained": false
+    },
+    {
+      "source": "uniforge3d/pipelines/types.py",
+      "git_blob": "4415b415f7b992ec18d49931c572e2618bd05abb",
+      "original_sha256": "f22df003fcdc09551a366656e45793247e4194edbba69bc55f4b0aa5c441f88f",
+      "incorporated_sha256": null,
+      "retained": false
+    },
+    {
+      "source": "uniforge3d/pipelines/uniforge3d_image_to_3d.py",
+      "git_blob": "35c7edcdb12c0c857b465d8ec88dfa8cd4861842",
+      "original_sha256": "57fb1c07248792c8f962ba650d959ab4a86184ac42f2ed5e05460d724c74d7c1",
+      "incorporated_sha256": null,
+      "retained": false
+    },
+    {
+      "source": "uniforge3d/representations/__init__.py",
+      "git_blob": "9a3c57f16caa7e1ed2f396374f231a0d9d1e40c7",
+      "original_sha256": "cf81a3ebbdb9c0be3b6f58e3481434c1b162ebdc1cbf03dbf3aec5f173150d0c",
+      "incorporated_sha256": "f855da29ebfbe9b3d76302c38afe450f295f1a86f56e7c00fb04a4f80377f9d4",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/representations/mesh/__init__.py",
+      "git_blob": "a850298a593bf5e8e86855dab53e3084c776d018",
+      "original_sha256": "05a5d63b0c73db7485b1d87f9ff93897166ef518062f8044aab80742a0836fc2",
+      "incorporated_sha256": "4f83dd6685955b79e54cf0d65d191cb872546b101211f016b3834ecb4883e3d8",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/representations/mesh/base.py",
+      "git_blob": "f742396da71841316b759a8ac6150cc29d6a906f",
+      "original_sha256": "30af7734fb4ff1db6623a38ca6b847b193dcc52724357a48ce627b2d6e6cf572",
+      "incorporated_sha256": "2b18864a416066d92986e06abc59103e38b926073daad4af6be9f23416dcf0a5",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/representations/voxel/__init__.py",
+      "git_blob": "a5d68494db7998f21a2805ee23b4743e167d9ae6",
+      "original_sha256": "d61ba63b0671a389e4c531892c3a4e6b0f54c59e3d880ed2a0a633d4108b6814",
+      "incorporated_sha256": null,
+      "retained": false
+    },
+    {
+      "source": "uniforge3d/representations/voxel/voxel_model.py",
+      "git_blob": "8399fc169c2dce04aadcb6f52f74739358606e04",
+      "original_sha256": "a3ab93bb7295a11560901ed958798468100343bc297811694412217886a069fb",
+      "incorporated_sha256": null,
+      "retained": false
+    },
+    {
+      "source": "uniforge3d/utils/__init__.py",
+      "git_blob": "9f40a9b8f702beeddc6979b573338cda2b120c18",
+      "original_sha256": "bb61e165a4824d024e945b03b6f95aeddcb31fcbaf4b8a3fe52a80c6cd3ca3ce",
+      "incorporated_sha256": "bb61e165a4824d024e945b03b6f95aeddcb31fcbaf4b8a3fe52a80c6cd3ca3ce",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/utils/device.py",
+      "git_blob": "afd7921a5d6aeec5f79dbedf5108ed8e22b0ec74",
+      "original_sha256": "1ea0a5c7402296b860e5ec8fca93159db68a36d52b2c5ef77d4bee8b6c50fcb8",
+      "incorporated_sha256": null,
+      "retained": false
+    },
+    {
+      "source": "uniforge3d/utils/mesh.py",
+      "git_blob": "9e0e68c98163f651c64306095043305363534931",
+      "original_sha256": "dfd14d718f6a92a720d9bfaeac25f494c2930423f6cfa28d486f62318564a8bb",
+      "incorporated_sha256": null,
+      "retained": false
+    },
+    {
+      "source": "uniforge3d/utils/preprocessing.py",
+      "git_blob": "68244dfbcd8b3ee7883986a5a957d9ffc2558c30",
+      "original_sha256": "ed26c7134b7e4988b04bdc348ad0b59e49093513e1fccad9c3bd44a6fcce87e6",
+      "incorporated_sha256": "ecb6eb3cca0438a614862fbad7d1fbe0b10bee0033f0083e163c98f4d5db197b",
+      "retained": true
+    },
+    {
+      "source": "uniforge3d/utils/texture_baking.py",
+      "git_blob": "1ce82271bab56dc757b3cd45ceea4f88d1bea551",
+      "original_sha256": "ef51a1ba0f2748ffb4c265b47d382cee956f23c6a52d0f3587e6d8beccb7e54a",
+      "incorporated_sha256": null,
+      "retained": false
+    }
+  ],
+  "license_notices": [
+    {
+      "url": "https://raw.githubusercontent.com/facebookresearch/vggt/a288dd0f14786c93483e45524328726ab7b1b4ce/LICENSE.txt",
+      "revision": "a288dd0f14786c93483e45524328726ab7b1b4ce",
+      "sha256": "b94e46746792d1adfa0ebdbccada5d4576d244ae230be9de8a46b5868fff001b"
+    },
+    {
+      "url": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    }
+  ],
+  "modifications": [
+    "Native package imports and native image encoder",
+    "PyTorch SDPA for packed and per-view attention",
+    "Native sparse convolution and dual-grid mesh extraction",
+    "Strict mmap/meta local checkpoint loaders",
+    "Removed reference download, remote background segmentation, texture and mesh-extension pipelines"
+  ]
+}

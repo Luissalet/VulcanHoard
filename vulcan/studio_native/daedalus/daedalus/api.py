@@ -43,6 +43,12 @@ class RefineInput(BaseModel):
     transfer_materials:bool=True
     seed:int=Field(default=42,ge=0,le=2**63-1)
 
+class MultiviewInput(BaseModel):
+    image_ids:list[str]=Field(min_length=2)
+    title:str=''
+    seed:int=Field(default=42,ge=0,le=2**63-1)
+    gpu:int=Field(default=1,ge=0)
+
 class UpscaleInput(BaseModel):
     steps:int=Field(default=12,ge=1)
     seed:int=Field(default=42,ge=0,le=2**63-1)
@@ -65,6 +71,7 @@ def public_job(job):
     job['comparison_url']=f'/?job={job["id"]}&compare=1' if job.get('parent_id') else None
     job['full_comparison_url']=job['comparison_url']+'&full=1' if job['comparison_url'] else None
     job['reference_url']=f'/api/images/{job["image_id"]}/file'
+    job['reference_urls']=[f'/api/images/{identity}/file' for identity in job['params'].get('image_ids',[job['image_id']])]
     if job['result']:
         result=dict(job['result'])
         result['urls']={key:f'/api/jobs/{job["id"]}/files/{name}' for key,name in result.get('files',{}).items()}
@@ -144,6 +151,23 @@ def create_app(data_dir=None,runner=None,port=None,automatic=False):
         app.state.manager.enqueue(job['id'])
         return public_job(job)
 
+    def submit_multiview(body):
+        request=MultiviewInput.model_validate(body)
+        images=[store.image(identity) for identity in request.image_ids]
+        if not all(images):
+            raise HTTPException(404,'Importa todas las vistas antes de reconstruir el objeto.')
+        if runner is None:
+            if not config.model_status()['multiview']['ready']:
+                raise HTTPException(409,'Faltan pesos locales de reconstrucción multivista. Revisa Motores locales.')
+            if not config.multiview_python or not Path(config.multiview_python).is_file():
+                raise HTTPException(409,'Configura el entorno Python de reconstrucción multivista en Motores locales.')
+            if request.gpu not in {device['index'] for device in model_status()['devices']}:
+                raise HTTPException(400,'No se encuentra la gráfica elegida para reconstrucción multivista.')
+        params={'generator':'multiview','resolution':512,**request.model_dump(exclude={'title'})}
+        job=store.create('generate',images[0]['id'],request.title.strip() or Path(images[0]['name']).stem,params)
+        app.state.manager.enqueue(job['id'])
+        return public_job(job)
+
     def submit_refinement(identity,body):
         parent=store.job(identity)
         if not parent or parent['status']!='complete':
@@ -154,7 +178,9 @@ def create_app(data_dir=None,runner=None,port=None,automatic=False):
             original=store.job(original['parent_id'])
             if not original:
                 raise HTTPException(409,'La generación de origen ya no está disponible.')
-        if original['params'].get('generator')=='triposr' and request.transfer_materials:
+        if original['params'].get('generator') in {'triposr','multiview'} and request.transfer_materials:
+            if original['params'].get('generator')=='multiview':
+                raise HTTPException(400,'Esta reconstrucción no contiene materiales. Desactiva Conservar aspecto para crear una versión refinada separada.')
             raise HTTPException(400,'El refinador no puede conservar el aspecto de este borrador. Desactiva Conservar aspecto para crear una versión distinta; Para juegos permite hornear sus colores.')
         if request.backend=='detail' and request.tokens==32768:
             raise HTTPException(400,'DetailGen admite las pasadas de 2048 u 8192 latentes.')
@@ -208,6 +234,7 @@ def create_app(data_dir=None,runner=None,port=None,automatic=False):
             pass
         return {'models':config.model_status(),'devices':devices,'selected_gpus':config.gpus,
                 'draft_runtime_configured':bool(config.draft_python and Path(config.draft_python).is_file()),
+                'multiview_runtime_configured':bool(config.multiview_python and Path(config.multiview_python).is_file()),
                 'refinement_note':'El refinado crea otra versión; no garantiza una mejora.'}
 
     @app.post('/api/images')
@@ -228,6 +255,10 @@ def create_app(data_dir=None,runner=None,port=None,automatic=False):
     @app.get('/api/jobs')
     def list_jobs():
         return {'jobs':[public_job(job) for job in store.list()]}
+
+    @app.post('/api/multiview')
+    def multiview(body:MultiviewInput):
+        return submit_multiview(body.model_dump())
 
     @app.get('/api/jobs/{identity}')
     def get_job(identity:str):
@@ -343,6 +374,8 @@ def create_app(data_dir=None,runner=None,port=None,automatic=False):
     def dispatch(name,args):
         if name=='model_generate':
             return submit_generation(args)
+        if name=='model_generate_multiview':
+            return submit_multiview(args)
         if name=='model_refine':
             identity=args.pop('job_id')
             return submit_refinement(identity,args)
@@ -383,21 +416,26 @@ def create_app(data_dir=None,runner=None,port=None,automatic=False):
         draft_python=body.get('draft_python',config.draft_python)
         if draft_python and not Path(draft_python).expanduser().is_file():
             raise HTTPException(400,'No se encuentra el ejecutable del entorno de borradores.')
+        multiview_python=body.get('multiview_python',config.multiview_python)
+        if multiview_python and not Path(multiview_python).expanduser().is_file():
+            raise HTTPException(400,'No se encuentra el ejecutable del entorno multivista.')
         with settings_lock:
             settings_path=config.data/'settings.json'
             saved=json.loads(settings_path.read_text(encoding='utf-8')) if settings_path.is_file() else {}
             saved.update(model_dir=str(path),draft_python=str(Path(draft_python).expanduser().resolve()) if draft_python else None)
+            saved['multiview_python']=str(Path(multiview_python).expanduser().resolve()) if multiview_python else None
             temporary=config.data/'settings.json.tmp'
             temporary.write_text(json.dumps(saved),encoding='utf-8')
             temporary.replace(config.data/'settings.json')
             config.models=path
             config.draft_python=saved['draft_python']
-            return {'model_dir':str(path),'draft_python':config.draft_python,'models':config.model_status()}
+            config.multiview_python=saved['multiview_python']
+            return {'model_dir':str(path),'draft_python':config.draft_python,'multiview_python':config.multiview_python,'models':config.model_status()}
 
     @app.get('/api/settings')
     def settings():
         with settings_lock:
-            return {'model_dir':str(config.models),'draft_python':config.draft_python,'models':config.model_status()}
+            return {'model_dir':str(config.models),'draft_python':config.draft_python,'multiview_python':config.multiview_python,'models':config.model_status()}
 
     @app.patch('/api/settings')
     def save_settings(body:dict):

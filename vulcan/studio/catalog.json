@@ -9949,6 +9949,39 @@
     "native_name": "model_generate"
   },
   {
+    "name": "daedalus_model_generate_multiview",
+    "description": "Reconstruct one joint 512 geometry from two or more local foreground/alpha views of the same object. Unposed views jointly condition structure and shape; no external inference API, no generated PBR textures. Reserves one GPU and preserves every reference. Returns a job ID.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "image_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 2
+        },
+        "title": {
+          "type": "string"
+        },
+        "seed": {
+          "type": "integer",
+          "default": 42
+        },
+        "gpu": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 1
+        }
+      },
+      "required": [
+        "image_ids"
+      ]
+    },
+    "module": "daedalus",
+    "native_name": "model_generate_multiview"
+  },
+  {
     "name": "daedalus_model_refine",
     "description": "Create a separate refined version. Choose backend explicitly: UltraShape is image-guided, DetailGen is the legacy default. Compare the result through comparison_url; improvement is not guaranteed.",
     "inputSchema": {
@@ -10263,6 +10296,13 @@
             "null"
           ],
           "description": "Python executable in the installed draft environment; omit to preserve current setting."
+        },
+        "multiview_python": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Python executable in the local multiview environment; omit to preserve current setting."
         }
       },
       "required": [
