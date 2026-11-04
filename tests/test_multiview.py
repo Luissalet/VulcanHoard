@@ -226,3 +226,19 @@ def test_surface_cleanup_drops_loose_fragments_but_keeps_real_parts():
     mesh = finalize_mesh(merged.vertices[:, [2, 0, 1]], merged.faces)
     assert len(mesh.faces) == len(body.faces) + len(part.faces)
     assert mesh.metadata['fragments_removed'] == 1
+
+
+def test_surface_processing_note_reports_the_dropped_fragments():
+    """The recorded provenance must say that loose pieces were removed and how many, not only that faces were de-duplicated."""
+    from vulcan.studio_native.daedalus.daedalus.geometry.multiview_generation import (
+        finalize_mesh, fragments_removed, surface_processing_note)
+    import trimesh
+    body = trimesh.creation.icosphere(subdivisions=3)
+    speck = trimesh.Trimesh([[9, 9, 9], [10, 9, 9], [9, 10, 9]], [[0, 1, 2]], process=False)
+    dirty = trimesh.util.concatenate([body, speck])
+    cleaned = finalize_mesh(dirty.vertices[:, [2, 0, 1]], dirty.faces)
+    assert fragments_removed(cleaned) == 1
+    assert '1 loose piece(s)' in surface_processing_note(cleaned) and 'removed' in surface_processing_note(cleaned)
+    clean = finalize_mesh(body.vertices[:, [2, 0, 1]], body.faces)
+    assert fragments_removed(clean) == 0
+    assert 'no loose piece' in surface_processing_note(clean)
