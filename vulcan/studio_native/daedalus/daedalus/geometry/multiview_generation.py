@@ -87,6 +87,19 @@ def drop_fragments(mesh, fraction=FRAGMENT_FRACTION):
     return kept
 
 
+def fragments_removed(mesh):
+    return int(mesh.metadata.get('fragments_removed', 0))
+
+
+def surface_processing_note(mesh):
+    """What the export did to the decoded surface, including the loose pieces it dropped."""
+    note = 'remove duplicate/degenerate faces and orient connected triangles; no hole filling'
+    removed = fragments_removed(mesh)
+    pieces = (f'{removed} loose piece(s) smaller than {FRAGMENT_FRACTION:.0%} of the largest piece removed' if removed
+              else f'no loose piece smaller than {FRAGMENT_FRACTION:.0%} of the largest piece found')
+    return f'{note}; {pieces}'
+
+
 def release_model(model):
     if isinstance(model, torch.nn.Module):
         model.to_empty(device='meta')
@@ -202,13 +215,14 @@ def run(spec, progress):
         'weights_license': 'CC-BY-NC-4.0', 'joint_multiview': True,
         'precision': 'declared FP32/FP16 weights; BF16 autocast for encoding and sampling',
         'resolution': 512, 'textures': False,
-        'surface_processing': 'remove duplicate/degenerate faces and orient connected triangles; no hole filling',
+        'surface_processing': surface_processing_note(output_mesh),
         'input': 'foreground alpha or already cropped images', 'views': references,
     }
     (folder / 'multiview.json').write_text(json.dumps(provenance, indent=2), encoding='utf-8')
     result = {
         'vertices': len(output_mesh.vertices), 'faces': len(output_mesh.faces), 'watertight': bool(output_mesh.is_watertight),
         'winding_consistent': bool(output_mesh.is_winding_consistent),
+        'fragments_removed': fragments_removed(output_mesh),
         'seconds_total': time.perf_counter() - started, 'generator': 'multiview',
         'model_provenance': provenance, 'stage_times': timings,
         'memory': [{'logical_gpu': 0, 'peak_allocated_mib': torch.cuda.max_memory_allocated(device) / 2**20}],
