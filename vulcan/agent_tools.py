@@ -537,12 +537,10 @@ def run_model_delete(services: Services, args: DeleteArgs) -> dict:
 
 
 TOOLS.append(Tool("model_delete", "Remove one model from the library (write, only when asked). Keywords: borrar modelo, quitar de la biblioteca.\n"
-    "Deletes the library entry with its listing, album membership and thumbnail (kept when an identical copy still uses it). "
-    "Files Vulcan created in its own data folder (CAD parts with their spec and check render, simplified variants) are deleted too. "
-    "A file in one of the user's folders is NEVER deleted: only its entry goes, and the result explains that the next scan lists it again "
-    "unless exclude=true (adds an exclude pattern for it) or the user removes the file. Files imported one by one are also dropped from their import list. "
-    "dry_run=true shows what would happen. Only when the user asks to delete that model.\n"
-    "Sinónimos: borrar modelo, eliminar pieza, quitar de la biblioteca, borrar pieza CAD de prueba, eliminar entrada, limpiar biblioteca.",
+    "Deletes the entry, listing, albums and thumbnail (kept if an identical copy uses it), plus files Vulcan made in its own data folder "
+    "(CAD parts, simplified variants). A file in the user's folders is NEVER deleted: only its entry goes, and the next scan lists it again "
+    "unless exclude=true. dry_run=true shows what would happen.\n"
+    "Sinónimos: borrar modelo, eliminar pieza, quitar de la biblioteca, limpiar biblioteca.",
     DeleteArgs, ann(False, True, False), run_model_delete))
 
 
