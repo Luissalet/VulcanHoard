@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import math
 import os
 from contextlib import AsyncExitStack, asynccontextmanager
 from pathlib import Path
@@ -124,6 +125,24 @@ class Module:
                 return await client.request(method, path, **kwargs)
         finally:
             self.requests.pop(task, None)
+
+
+def non_finite_argument(value, path='arguments'):
+    """Path of the first NaN/Infinity number inside a tool call's arguments, or None. JSON from Python clients can carry them
+    but the tools' REST routes cannot, so the call is refused up front instead of failing with a 500."""
+    if isinstance(value, float) and not math.isfinite(value):
+        return path
+    if isinstance(value, dict):
+        children = ((f'{path}.{key}', item) for key, item in value.items())
+    elif isinstance(value, list):
+        children = ((f'{path}[{index}]', item) for index, item in enumerate(value))
+    else:
+        return None
+    for child_path, item in children:
+        found = non_finite_argument(item, child_path)
+        if found:
+            return found
+    return None
 
 
 def create_app(data_dir=None, port=None, factory=None, catalog=None):
@@ -290,6 +309,9 @@ def create_app(data_dir=None, port=None, factory=None, catalog=None):
             raise HTTPException(401, 'Invalid token')
         payload = await request.json()
         name, args = payload.get('name') or payload.get('tool'), payload.get('arguments') or {}
+        bad = non_finite_argument(args)
+        if bad:
+            raise HTTPException(400, f'{bad}: Input should be a finite number (NaN and Infinity are not valid values).')
         if name == 'vulcan_modules':
             return await module_list()
         if name == 'vulcan_set_module':

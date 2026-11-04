@@ -108,6 +108,8 @@ def test_inputs_keep_distinct_alpha_views_and_black_background(tmp_path):
 
 def test_native_encoder_matches_reference_feature_path_for_small_model():
     transformers = pytest.importorskip('transformers')
+    if not hasattr(transformers, 'DINOv3ViTModel'):
+        pytest.skip(f'transformers {transformers.__version__} has no DINOv3ViTModel; the multiview extra pins transformers==4.57.3')
     from vulcan.studio_native.daedalus.daedalus.geometry import ops
     from vulcan.studio_native.daedalus.daedalus.geometry.image_encoder import DINOv3ViTModel
     config = {'hidden_size':32,'intermediate_size':64,'num_hidden_layers':2,'num_attention_heads':4,

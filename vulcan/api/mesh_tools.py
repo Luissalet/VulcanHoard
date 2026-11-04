@@ -17,8 +17,8 @@ router = APIRouter(prefix="/api")
 
 
 class SimplifyBody(BaseModel):
-    ratio: float | None = Field(None, gt=0, le=1, description="Fraction of triangles to keep.")
-    target_error: float | None = Field(None, ge=0, description="Maximum surface deviation in mm, measured as error.hausdorff_mm (0/null = none).")
+    ratio: float | None = Field(None, gt=0, le=1, allow_inf_nan=False, description="Fraction of triangles to keep.")
+    target_error: float | None = Field(None, ge=0, allow_inf_nan=False, description="Maximum surface deviation in mm, measured as error.hausdorff_mm (0/null = none).")
     mode: str = Field("attribute", pattern="^(attribute|sloppy)$")
     keep_borders: bool = True
     save: bool = True

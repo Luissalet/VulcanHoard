@@ -15,8 +15,8 @@ class IdArgs(BaseModel):
 
 class SimplifyArgs(BaseModel):
     id: int = Field(..., ge=1, description="Model id to simplify (its file is never modified).")
-    ratio: float | None = Field(None, gt=0, le=1, description="Fraction of triangles to keep, e.g. 0.25. Default 0.5 when target_error is not given.")
-    target_error: float | None = Field(None, ge=0, description=(
+    ratio: float | None = Field(None, gt=0, le=1, allow_inf_nan=False, description="Fraction of triangles to keep, e.g. 0.25. Default 0.5 when target_error is not given.")
+    target_error: float | None = Field(None, ge=0, allow_inf_nan=False, description=(
         "Maximum SURFACE deviation in mm (e.g. 0.05), measured as error.hausdorff_mm (two-sided sampled distance, the "
         "number the result reports): results are measured and the engine tightened until it holds; target_met says if it "
         "did. 0/null = no maximum. With ratio too, the ratio is the floor of kept triangles."))
