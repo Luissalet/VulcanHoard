@@ -73,6 +73,27 @@ slicer, and a dense-mesh viewer mode. Each one has a UI control, a REST route an
   `GET /api/models/{id}/scene`.
 - UI: model page → **Vistas y comprobación** (warnings, view set, **Ver vistas**).
 
+## Listing photos with Blender (headless)
+
+- Code: `vulcan/blender_render.py` (settings, cache, contact sheet) and `vulcan/blender_photo_worker.py` (runs inside
+  Blender: `blender -b --factory-startup --python blender_photo_worker.py -- spec.json`). Blender is found with
+  `VULCAN_BLENDER`, then the newest `Program Files\Blender Foundation\Blender X.Y\blender.exe`, then PATH; works on
+  3.6 to 5.x (STL importer and EEVEE engine ids changed in 4.2).
+- The mesh goes to Blender as a temporary STL (STL/3MF/OBJ alike; over 1.5 M triangles it is decimated for the photo
+  only). It is placed bottom-centre on a photo backdrop (floor, curved sweep and back wall turned towards each camera, so
+  no horizon line shows), scaled to a fixed size, with an orbit camera fitted to its bounding sphere and studio light.
+- Angles: `hero` (3/4 from the front right), `iso`, `front`, `side`, `back`, `left`, `top`. Engines: `workbench`
+  (studio clay look, about a second per photo), `eevee` (area lights) and `cycles` (path traced on the CPU, the GPUs
+  stay free; denoised). Filament and background colour, transparent PNG (Cycles keeps the floor shadow with a shadow
+  catcher), size 256-2048 px, samples.
+- Cached in `<data dir>/renders/m<id>-<file hash>-<settings hash>/<angle>.png` with `meta.json` and a contact sheet;
+  only missing angles are rendered, in one Blender process.
+- MCP: `model_render_photos` (returns the photo URLs and the contact sheet as an image). REST: `GET /api/blender`,
+  `POST /api/models/{id}/renders`, `GET /api/models/{id}/renders`, `GET /api/models/{id}/renders/{key}/{file}.png`
+  (503 with the reason when Blender is missing or fails).
+- UI: model page → **Fotos para la ficha (Blender)** (angles, engine, filament and background colour, transparent PNG,
+  size, **Renderizar fotos** / **Volver a renderizar**, the photos and the saved sets).
+
 ## Open in slicer
 
 - Code: `vulcan/slicers.py`. PrusaSlicer, Bambu Studio, OrcaSlicer and UltiMaker Cura are autodetected in their usual
