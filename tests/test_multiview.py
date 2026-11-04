@@ -213,3 +213,16 @@ def test_surface_cleanup_rejects_all_degenerate_faces():
     vertices = np.array([[0, 0, 0], [1, 0, 0], [2, 0, 0]], dtype=float)
     with pytest.raises(RuntimeError, match='cleanup returned an empty mesh'):
         finalize_mesh(vertices, np.array([[0, 1, 2]]))
+
+
+def test_surface_cleanup_drops_loose_fragments_but_keeps_real_parts():
+    from vulcan.studio_native.daedalus.daedalus.geometry.multiview_generation import finalize_mesh
+    import trimesh
+    body = trimesh.creation.icosphere(subdivisions=3)
+    part = trimesh.creation.icosphere(subdivisions=2)
+    part.apply_translation([3, 0, 0])
+    speck = trimesh.Trimesh([[9, 9, 9], [10, 9, 9], [9, 10, 9]], [[0, 1, 2]], process=False)
+    merged = trimesh.util.concatenate([body, part, speck])
+    mesh = finalize_mesh(merged.vertices[:, [2, 0, 1]], merged.faces)
+    assert len(mesh.faces) == len(body.faces) + len(part.faces)
+    assert mesh.metadata['fragments_removed'] == 1
