@@ -23,6 +23,7 @@ async function request(method, path, { params, body, raw = false } = {}) {
 export const api = {
   catalogText: (folder) => request("GET", "/api/folder-listings/catalog", { params: { folder }, raw: true }),
   cadInfo: (id) => request("GET", `/api/cad/${id}`),
+  cadFit: (body) => request("POST", "/api/cad/fit", { body }),
   cadRegenerate: (id, params) => request("POST", `/api/cad/${id}/regenerate`, { body: { params } }),
   cadCreateVariant: (body) => request("POST", "/api/cad/from-text", { body }),
   copilotContext: (body) => request("POST", "/api/copilot/context", { body }),
