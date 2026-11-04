@@ -61,8 +61,30 @@ def finalize_mesh(vertices, faces):
     mesh.remove_unreferenced_vertices()
     if not len(mesh.faces):
         raise RuntimeError('Multiview surface cleanup returned an empty mesh')
+    mesh = drop_fragments(mesh)
     mesh.fix_normals(multibody=True)
     return mesh
+
+
+FRAGMENT_FRACTION = 0.02
+
+
+def drop_fragments(mesh, fraction=FRAGMENT_FRACTION):
+    """Remove connected pieces smaller than ``fraction`` of the largest piece's faces.
+
+    The sparse decoder leaves thin sheets lying on the domain boundary next to the object (a measured cup job: the
+    object was 96% of the faces, 764 loose pieces the rest). Pieces that large are kept, so a handle or a detached
+    part of the object survives; nothing is filled or moved."""
+    pieces = mesh.split(only_watertight=False)
+    if len(pieces) < 2:
+        return mesh
+    largest = max(len(piece.faces) for piece in pieces)
+    keep = [piece for piece in pieces if len(piece.faces) >= largest * fraction]
+    if len(keep) == len(pieces):
+        return mesh
+    kept = trimesh.util.concatenate(keep)
+    kept.metadata['fragments_removed'] = len(pieces) - len(keep)
+    return kept
 
 
 def release_model(model):
