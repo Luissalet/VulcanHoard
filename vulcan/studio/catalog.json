@@ -2251,6 +2251,55 @@
     "native_name": "cad_fit_parameters"
   },
   {
+    "name": "cad_design_intent",
+    "description": "What each named dimension of a CAD recipe drives (read-only). Keywords: intención de diseño, qué parámetro.\nFor a saved part (id) or a draft spec: every parameter with its value, limits, the features and exact fields it changes (sketch points, extrusion height, pattern step, hole diameter...), the derived parameters it defines and the features it reaches through them; features with their labels and driving parameters; parameters nothing uses. Use it to turn a request such as 'move the holes 5 mm apart' into the parameter to change with cad_regenerate, instead of rewriting the spec.\nSinónimos: intención de diseño, qué cota cambia esto, separa los agujeros, parámetro que controla, dónde se usa, cotas con nombre, boceto acotado.",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "A part made with cad_from_text (its stored recipe is read).",
+          "title": "Id"
+        },
+        "spec": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Or a spec not saved yet (same format as cad_from_text).",
+          "title": "Spec"
+        }
+      },
+      "title": "CadIntentArgs",
+      "type": "object"
+    },
+    "module": "library",
+    "native_name": "cad_design_intent"
+  },
+  {
     "name": "asset_targets_list",
     "description": "Destination profiles (web configurator, FDM print) and their measurable rules. Keywords: perfiles de destino.\nEach profile: triangle budget, file bytes, textures (count, max px), bodies, watertight, UVs if textured, accepted formats, units, build volume, minimum wall, deviation tolerance and the output format of a preparation. Built-ins can be edited; edited=true says so.\nSinónimos: perfiles, destino, presupuesto de triángulos, requisitos web, requisitos de impresión.",
     "annotations": {

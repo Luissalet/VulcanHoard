@@ -50,6 +50,16 @@ def info(request: Request, model_id: int):
     return _not_found(lambda: cad_service.get(services(request)).info(model_id))
 
 
+class IntentBody(BaseModel):
+    id: int | None = Field(None, ge=1)
+    spec: dict | str | None = None
+
+
+@router.post("/intent")
+def intent(request: Request, body: IntentBody):
+    return _not_found(lambda: cad_service.get(services(request)).intent(body.id, body.spec))
+
+
 @router.post("/fit")
 def fit(request: Request, body: FitArgs):
     return _not_found(lambda: fit_models(services(request), body))

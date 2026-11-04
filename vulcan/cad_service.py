@@ -26,7 +26,9 @@ from .studio.global_http import job as global_job
 HISTORY_LIMIT = 20
 CAPABILITIES = {
     "primitives": ["box", "rounded_box", "cylinder (cones with radius_top)", "sphere"],
+    "sketches": ["extrude (dimensioned 2D outline with inner loops, along x, y or z)", "revolve (profile around an axis, full or partial turn)"],
     "operations": ["union", "difference (+ hole)", "intersection", "translate", "rotate", "scale", "linear_pattern", "polar_pattern"],
+    "design_intent": "every parameter lists the features and fields it drives (cad_design_intent)",
     "formats": {"stl": True, "step": False},
     "unsupported": sorted(cad.UNSUPPORTED),
 }
@@ -52,7 +54,7 @@ class CadService:
 
     # ---------- public ----------
     def schema(self) -> dict:
-        return {"schema": cad.spec_schema(), "reference": cad.REFERENCE, "example": cad.EXAMPLE_SPEC, "engine": csg.backend(),
+        return {"schema": cad.spec_schema(), "reference": cad.REFERENCE, "example": cad.EXAMPLE_SPEC, "examples": cad.EXAMPLES, "engine": csg.backend(),
                 "capabilities": CAPABILITIES,
                 "notes": ["Pass a spec to cad_from_text (spec=...) to skip the language model and build exactly what you wrote.",
                           "STEP export is not available (no CAD kernel is installed); the part is saved as STL.",
@@ -116,6 +118,15 @@ class CadService:
         return {"id": model_id, "spec": spec, "recipe_sha256": fingerprint, "params": cad.params_info(spec), "description": record.get("description", ""), "source": record.get("source"),
                 "created_at": record.get("created_at"), "updated_at": record.get("updated_at"), "history": record.get("history", []),
                 "measures": record.get("last_measures"), "verification": record.get("last_verification"), **self._paths(files, model_id)}
+
+    def intent(self, model_id: int | None = None, spec=None) -> dict:
+        """What each named dimension of a saved recipe (or of a spec not saved yet) drives. Reads only."""
+        if (model_id is None) == (spec is None):
+            raise ValueError("Give either the id of a CAD part or a spec, not both.")
+        if model_id is not None:
+            _, record = self._load(model_id)
+            return {"id": model_id, **cad.design_intent(record["spec"])}
+        return {"id": None, **cad.design_intent(cad.parse_spec(spec))}
 
     def check_png(self, model_id: int) -> Path:
         files, _ = self._load(model_id)

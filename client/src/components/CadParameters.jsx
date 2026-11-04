@@ -4,6 +4,7 @@ import { cadAcknowledgedFields, cadDraftValues, cadParamChanges, cadVariantReque
 import { useDraft } from "../useDraft.js";
 import { useCopilotContext, useCopilotRefresh } from "../copilot.js";
 import CadFitPanel from "./CadFitPanel.jsx";
+import { cadUsageText } from "../cad-intent.js";
 
 const measure = (value) => value == null ? "—" : Array.isArray(value) ? `${value.join(" × ")} mm` : `${value} mm³`;
 const warningText = (warning) => warning === "the part does not match the requested measures: see verification.items" ? "La pieza no coincide con los objetivos guardados; revisa la tabla de verificación." : warning;
@@ -95,6 +96,7 @@ export default function CadParameters({ id, onRegenerated }) {
               <label className="label" htmlFor={`cad-${id}-${param.name}`}>{param.name} · {param.unit || "sin unidad registrada"}</label>
               <input id={`cad-${id}-${param.name}`} className="field num" inputMode="decimal" data-copilot-field={param.name} value={draft.fields[param.name] ?? ""} onChange={(event) => draft.edit({ [param.name]: event.target.value })} />
               <p className="help mt-1">Guardado: {String(param.value ?? "—")} · Mínimo: {param.min ?? "no registrado"} · Máximo: {param.max ?? "no registrado"}{param.description ? ` · ${param.description}` : ""}</p>
+              {param.used_by && <p className="help mt-1" data-cad-usage={param.name} style={{ overflowWrap: "anywhere" }}>{cadUsageText(param)}</p>}
               {expression(info, param) && <p className="help mt-1" style={{ overflowWrap: "anywhere" }}>Expresión guardada: <code>{expression(info, param)}</code>. Si cambias este valor, la sustituyes por un número fijo. Si no lo editas, se conserva.</p>}
             </div>)}
             {!info.params.length && <p className="help">La receta no declara parámetros editables.</p>}

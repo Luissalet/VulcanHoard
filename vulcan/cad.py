@@ -21,18 +21,18 @@ from . import csg
 
 MAX_NODES = 600  # nodes in a spec
 MAX_COPIES = 200  # copies in one pattern
+MAX_PROFILE_POINTS = 400  # points in one sketch outline or inner loop
+MAX_LOOPS = 50  # inner loops (holes) in one sketch
 MAX_TRIANGLES = 600_000
 MAX_SIZE_MM = 5000.0
-SEGMENTS_DEFAULT = {"cylinder": 48, "sphere": 32, "rounded_box": 12}
+SEGMENTS_DEFAULT = {"cylinder": 48, "sphere": 32, "rounded_box": 12, "revolve": 64}
 NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,40}$")
 UNSUPPORTED = {
     "fillet": "fillets of arbitrary edges are not supported (use 'rounded_box' for a box with rounded edges)",
     "chamfer": "chamfers are not supported (build the bevel from rotated boxes or a cone-shaped cylinder with radius_top)",
     "shell": "shell / hollowing is not supported (subtract a smaller solid with 'difference')",
-    "extrude": "extruding sketches is not supported (compose primitives instead)",
-    "loft": "lofting is not supported (compose primitives instead)",
-    "sweep": "sweeping is not supported (compose primitives instead)",
-    "revolve": "revolving profiles is not supported (use a cylinder with radius_top for cones and frustums)",
+    "loft": "lofting is not supported (compose primitives, 'extrude' or 'revolve' instead)",
+    "sweep": "sweeping is not supported (compose primitives, 'extrude' or 'revolve' instead)",
     "text": "engraved text is not supported",
     "thread": "threads are not supported (model a plain hole of the core diameter)",
 }
@@ -52,6 +52,8 @@ VEC = "vec3"
 NUM = "num"
 NODE = "node"
 NODES_LIST = "nodes"
+PROFILE = "profile2d"  # [[u, v], ...] sketch points, numbers or expressions
+LOOPS = "loops2d"  # [[[u, v], ...], ...] inner loops of a sketch
 GRAMMAR: dict[str, dict] = {
     "box": {"req": {"size": VEC}, "opt": {"center": bool}},
     "rounded_box": {"req": {"size": VEC, "radius": NUM}, "opt": {"center": bool, "segments": int}},
@@ -67,6 +69,8 @@ GRAMMAR: dict[str, dict] = {
     "scale": {"req": {"factor": "num_or_vec3", "child": NODE}, "opt": {}},
     "linear_pattern": {"req": {"count": int, "step": VEC, "child": NODE}, "opt": {}},
     "polar_pattern": {"req": {"count": int, "child": NODE}, "opt": {"angle": NUM, "axis": str, "center": VEC}},
+    "extrude": {"req": {"profile": PROFILE, "height": NUM}, "opt": {"holes": LOOPS, "axis": str, "center": bool}},
+    "revolve": {"req": {"profile": PROFILE}, "opt": {"angle": NUM, "axis": str, "segments": int}},
 }
 COMMON_KEYS = {"type", "label"}
 PASS_THROUGH = {"translate", "rotate", "scale", "linear_pattern", "polar_pattern"}  # a hole may sit under these inside the cuts of a difference
@@ -127,6 +131,11 @@ def _is_number(value) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
 
 
+def _is_profile(value) -> bool:
+    return (isinstance(value, list) and 3 <= len(value) <= MAX_PROFILE_POINTS
+            and all(isinstance(p, list) and len(p) == 2 and all(_is_number(c) or isinstance(c, str) for c in p) for p in value))
+
+
 # ---------- parameters ----------
 def resolve_params(spec: dict, overrides: dict | None = None) -> dict[str, float]:
     """Parameter name -> value, in declaration order (a value may be an expression of earlier ones). Overrides win."""
@@ -164,12 +173,104 @@ def resolve_params(spec: dict, overrides: dict | None = None) -> dict[str, float
 def params_info(spec: dict, values: dict[str, float] | None = None) -> list[dict]:
     """The editable parameters of a spec: name, current value, unit, limits, description."""
     values = values if values is not None else resolve_params(spec)
+    usage = param_usage(spec)
     out = []
     for name, entry in (spec.get("params") or {}).items():
         meta = entry if isinstance(entry, dict) else {}
         out.append({"name": name, "value": values.get(name), "unit": meta.get("unit", "mm"), "min": meta.get("min"), "max": meta.get("max"),
-                    "description": meta.get("description", ""), "expression": meta["value"] if isinstance(meta.get("value"), str) else None})
+                    "description": meta.get("description", ""), "expression": meta["value"] if isinstance(meta.get("value"), str) else None,
+                    **usage.get(name, {"used_by": [], "indirect": [], "drives": []})})
     return out
+
+
+# ---------- design intent ----------
+_REF = re.compile(r"\$([A-Za-z_][A-Za-z0-9_]*)")
+
+
+def _refs(value) -> list[str]:
+    if isinstance(value, str):
+        return _REF.findall(value)
+    if isinstance(value, list):
+        return [name for item in value for name in _refs(item)]
+    return []
+
+
+def _features(node, path: str, out: list[dict]) -> None:
+    """Every typed node with the parameter references written in its own fields (children are visited separately)."""
+    if not isinstance(node, dict) or node.get("type") not in GRAMMAR:
+        return
+    rule = GRAMMAR[node["type"]]
+    kinds = {**rule["req"], **rule["opt"]}
+    fields = []
+    for key, value in node.items():
+        if kinds.get(key) == NODE:
+            continue
+        if kinds.get(key) == NODES_LIST:
+            continue
+
+        def scan(item, where):
+            if isinstance(item, list):
+                for i, inner in enumerate(item):
+                    scan(inner, f"{where}[{i}]")
+            elif isinstance(item, str) and key not in ("type", "label", "axis", "side"):
+                names = sorted(set(_REF.findall(item)))
+                if names:
+                    fields.append({"field": where, "expression": item, "params": names})
+        scan(value, f"{path}.{key}")
+    out.append({"node": path, "type": node["type"], "label": node.get("label"), "fields": fields})
+    for key, value in node.items():
+        if kinds.get(key) == NODE:
+            _features(value, f"{path}.{key}", out)
+        elif kinds.get(key) == NODES_LIST and isinstance(value, list):
+            for i, child in enumerate(value):
+                _features(child, f"{path}.{key}[{i}]", out)
+
+
+def param_usage(spec: dict) -> dict[str, dict]:
+    """For each declared parameter: the node fields that use it, the fields it reaches through derived parameters, and the parameters it defines."""
+    declared = spec.get("params") if isinstance(spec.get("params"), dict) else {}
+    usage = {name: {"used_by": [], "indirect": [], "drives": []} for name in declared}
+    for name, entry in declared.items():
+        raw = entry.get("value") if isinstance(entry, dict) else entry
+        for ref in sorted(set(_refs(raw))):
+            if ref in usage and name not in usage[ref]["drives"]:
+                usage[ref]["drives"].append(name)
+    features: list[dict] = []
+    _features(spec.get("root"), "root", features)
+    for feature in features:
+        for item in feature["fields"]:
+            for ref in item["params"]:
+                if ref in usage:
+                    usage[ref]["used_by"].append({"node": feature["node"], "type": feature["type"], "label": feature["label"], "field": item["field"]})
+    for name, entry in usage.items():
+        seen, queue = {name}, list(entry["drives"])
+        while queue:
+            derived = queue.pop(0)
+            if derived in seen:
+                continue
+            seen.add(derived)
+            entry["indirect"] += [{**use, "via": derived} for use in usage[derived]["used_by"]]
+            queue += usage[derived]["drives"]
+    return usage
+
+
+def design_intent(spec, values: dict[str, float] | None = None) -> dict:
+    """The named dimensions of a recipe and what each one changes: which features, through which derived values, and which are unused."""
+    spec = parse_spec(spec)
+    errors = validate_spec(spec)
+    if errors:
+        raise CadError(errors)
+    params = params_info(spec, values if values is not None else resolve_params(spec))
+    features: list[dict] = []
+    _features(spec["root"], "root", features)
+    direct = {p["name"]: p for p in params}
+    for feature in features:
+        names = {ref for item in feature["fields"] for ref in item["params"]}
+        names |= {ancestor for ref in list(names) for ancestor, entry in direct.items() if any(use["via"] == ref for use in entry["indirect"])}
+        feature["params"] = sorted(names)
+    return {"name": spec.get("name"), "params": params, "features": [f for f in features if f["params"] or f["label"]],
+            "unused": [p["name"] for p in params if not p["used_by"] and not p["indirect"]],
+            "note": "To change a feature, change the named parameter that drives it (cad_regenerate or a variant); the recipe and its expressions stay intact."}
 
 
 # ---------- validation ----------
@@ -253,6 +354,12 @@ def _check_node(node, path: str, errors: list[str], count: list[int], in_cuts: b
         elif kinds == VEC:
             if not (isinstance(value, list) and len(value) == 3 and all(_is_number(v) or isinstance(v, str) for v in value)):
                 errors.append(f"{where}: must be a list of 3 numbers or expressions [x, y, z]")
+        elif kinds == PROFILE:
+            if not _is_profile(value):
+                errors.append(f"{where}: must be a list of 3 to {MAX_PROFILE_POINTS} sketch points [u, v] (numbers or expressions), going once around the outline")
+        elif kinds == LOOPS:
+            if not (isinstance(value, list) and len(value) <= MAX_LOOPS and all(_is_profile(loop) for loop in value)):
+                errors.append(f"{where}: must be a list of up to {MAX_LOOPS} inner loops, each a list of 3 to {MAX_PROFILE_POINTS} points [u, v]")
         elif kinds == "num_or_vec3":
             ok = _is_number(value) or isinstance(value, str) or (isinstance(value, list) and len(value) == 3)
             if not ok:
@@ -428,6 +535,10 @@ def _build(node: dict, path: str, b: Build, base: Mesh | None = None) -> Mesh:
         return _sphere(radius, b.whole(node.get("segments", SEGMENTS_DEFAULT["sphere"]), f"{path}.segments", 8, 128))
     if kind == "hole":
         return _hole(node, path, b, base)
+    if kind == "extrude":
+        return _extrude(node, path, b)
+    if kind == "revolve":
+        return _revolve(node, path, b)
     if kind in ("union", "intersection"):
         parts = [_build(c, f"{path}.children[{i}]", b, base if kind == "union" else None) for i, c in enumerate(node["children"])]
         if kind == "union":
@@ -481,6 +592,68 @@ def _radius(b: Build, node: dict, path: str, radius_key: str, diameter_key: str,
     else:
         raise CadError(f"{path}: needs '{radius_key}' or '{diameter_key}'")
     return value
+
+
+def _sketch(b: Build, node: dict, path: str):
+    """The closed 2D outline of a sketch (with its inner loops) as a counter-clockwise shapely polygon."""
+    from shapely.geometry import Polygon
+    from shapely.geometry.polygon import orient
+    from shapely.validation import explain_validity
+
+    def points(raw, where):
+        return [(b.num(p[0], f"{where}[{i}][0]"), b.num(p[1], f"{where}[{i}][1]")) for i, p in enumerate(raw)]
+
+    outer = points(node["profile"], f"{path}.profile")
+    loops = [points(loop, f"{path}.holes[{i}]") for i, loop in enumerate(node.get("holes") or [])]
+    if Polygon(outer).convex_hull.area <= 1e-9:
+        raise CadError(f"{path}.profile: the outline encloses no area (its points are in a line or repeated)", "out_of_range")
+    polygon = Polygon(outer, loops)
+    if not polygon.is_valid:
+        raise CadError(f"{path}.profile: the sketch is not a valid closed outline ({explain_validity(polygon)}); the points must go "
+                       "around once without crossing and every inner loop must lie inside it without touching another", "invalid_spec")
+    return orient(polygon, 1.0)
+
+
+def _extrude(node: dict, path: str, b: Build) -> Mesh:
+    """A sketch pushed `height` along its axis. The sketch plane is XY for axis z, XZ for axis y and YZ for axis x."""
+    import trimesh
+
+    polygon = _sketch(b, node, path)
+    height = b.num(node["height"], f"{path}.height", positive=True)
+    solid = trimesh.creation.extrude_polygon(polygon, height)
+    vertices, faces = csg.clean(np.asarray(solid.vertices, dtype=np.float64), np.asarray(solid.faces, dtype=np.int64))
+    if node.get("center", True):
+        vertices = vertices - np.array([0.0, 0.0, height / 2])
+    axis = node.get("axis", "z")
+    if axis == "y":  # (u, v, w) -> (u, -w, v)
+        vertices = vertices @ _axis_rotation("x", 90).T
+    elif axis == "x":  # (u, v, w) -> (w, u, v)
+        vertices = vertices @ np.array([[0.0, 0.0, 1.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]).T
+    return _orient(vertices, faces)
+
+
+def _revolve(node: dict, path: str, b: Build) -> Mesh:
+    """A profile [radius, height] turned around the axis (z by default); a partial turn is closed with flat caps."""
+    import trimesh
+
+    polygon = _sketch(b, node, path)
+    if polygon.bounds[0] < -1e-9:
+        raise CadError(f"{path}.profile: the first coordinate is the distance to the axis; the profile may touch the axis but not cross it", "out_of_range")
+    angle = b.num(node.get("angle", 360), f"{path}.angle", positive=True)
+    if angle > 360 + 1e-9:
+        raise CadError(f"{path}.angle: {angle:g} must be at most 360 degrees", "out_of_range")
+    segments = b.whole(node.get("segments", SEGMENTS_DEFAULT["revolve"]), f"{path}.segments", 8, 256)
+    ring = np.asarray(polygon.exterior.coords, dtype=np.float64)
+    full = abs(angle - 360) <= 1e-9
+    sections = segments if full else max(2, math.ceil(segments * angle / 360))
+    solid = trimesh.creation.revolve(ring, angle=None if full else math.radians(angle), cap=not full, sections=sections)
+    vertices, faces = csg.clean(np.asarray(solid.vertices, dtype=np.float64), np.asarray(solid.faces, dtype=np.int64))
+    axis = node.get("axis", "z")
+    if axis == "x":
+        vertices = vertices @ _axis_rotation("y", 90).T
+    elif axis == "y":
+        vertices = vertices @ _axis_rotation("x", -90).T
+    return _orient(vertices, faces)
 
 
 def _hole(node: dict, path: str, b: Build, base: Mesh | None) -> Mesh:
@@ -547,6 +720,8 @@ def compile_spec(spec, overrides: dict | None = None, budget_s: float = 60.0) ->
     warnings = list(build.warnings)
     if _has(spec["root"], "sphere") or _has(spec["root"], "rounded_box"):
         warnings.append("spheres and rounded edges are polygon approximations: volume is a little below the ideal one (raise 'segments' for more precision)")
+    if _has(spec["root"], "revolve"):
+        warnings.append("revolved profiles are polygon approximations: volume is a little below the ideal one (raise 'segments' for more precision)")
     return Compiled(vertices, faces, values, csg.backend(), warnings)
 
 
@@ -621,7 +796,10 @@ def spec_schema() -> dict:
     for kind, rule in GRAMMAR.items():
         fields: dict[str, dict] = {"type": {"const": kind}, "label": {"type": "string"}}
         for key, how in {**rule["req"], **rule["opt"]}.items():
-            fields[key] = ({"$ref": "#/$defs/node"} if how == NODE else {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/node"}} if how == NODES_LIST
+            point = {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": ["number", "string"]}}
+            outline = {"type": "array", "minItems": 3, "maxItems": MAX_PROFILE_POINTS, "items": point}
+            fields[key] = (outline if how == PROFILE else {"type": "array", "maxItems": MAX_LOOPS, "items": outline} if how == LOOPS
+                           else {"$ref": "#/$defs/node"} if how == NODE else {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/node"}} if how == NODES_LIST
                            else _vec_schema() if how == VEC else {"oneOf": [value, _vec_schema()]} if how == "num_or_vec3"
                            else {"enum": list(AXES)} if key == "axis" else {"enum": ["min", "max"]} if key == "side"
                            else {"type": "boolean"} if how is bool else {"type": "integer"} if how is int else value)
@@ -652,6 +830,37 @@ EXAMPLE_SPEC = {
     "expect": {"bbox": [60, 40, 5], "tolerance": 0.02},
 }
 
+EXAMPLES = {
+    "plate": EXAMPLE_SPEC,
+    "l_bracket": {
+        "name": "L bracket", "units": "mm",
+        "params": {"leg_x": {"value": 40, "min": 20, "max": 150, "description": "base length (X)"},
+                   "leg_z": {"value": 30, "min": 15, "max": 150, "description": "upright height (Z)"},
+                   "thickness": {"value": 4, "min": 2, "max": 12, "description": "wall thickness"},
+                   "width": {"value": 20, "min": 8, "max": 120, "description": "bracket width (Y)"},
+                   "hole_d": {"value": 4, "min": 2, "max": 10, "description": "base hole diameter"},
+                   "hole_spacing": {"value": 16, "min": 6, "max": 120, "description": "distance between the two base holes"}},
+        "root": {"type": "difference",
+                 "base": {"type": "extrude", "label": "L profile", "axis": "y", "height": "$width",
+                          "profile": [[0, 0], ["$leg_x", 0], ["$leg_x", "$thickness"], ["$thickness", "$thickness"], ["$thickness", "$leg_z"], [0, "$leg_z"]]},
+                 "cuts": [{"type": "linear_pattern", "label": "base holes", "count": 2, "step": ["$hole_spacing", 0, 0],
+                           "child": {"type": "hole", "diameter": "$hole_d", "axis": "z", "at": ["($thickness + $leg_x) / 2 - $hole_spacing / 2", 0, 0]}}]},
+        "expect": {"bbox": [40, 20, 30], "tolerance": 0.01},
+    },
+    "stepped_pulley": {
+        "name": "Stepped pulley", "units": "mm",
+        "params": {"r_flange": {"value": 20, "min": 8, "max": 100, "description": "flange radius"},
+                   "r_hub": {"value": 10, "min": 4, "max": 90, "description": "hub radius"},
+                   "h_flange": {"value": 5, "min": 1, "max": 40, "description": "flange height"},
+                   "h_hub": {"value": 15, "min": 2, "max": 120, "description": "hub height above the flange"},
+                   "bore_d": {"value": 6, "min": 2, "max": 60, "description": "bore diameter"}},
+        "root": {"type": "revolve", "label": "pulley profile", "segments": 96,
+                 "profile": [["$bore_d / 2", 0], ["$r_flange", 0], ["$r_flange", "$h_flange"], ["$r_hub", "$h_flange"],
+                             ["$r_hub", "$h_flange + $h_hub"], ["$bore_d / 2", "$h_flange + $h_hub"]]},
+        "expect": {"bbox": [40, 40, 20], "tolerance": 0.01},
+    },
+}
+
 REFERENCE = """Spec = {"name", "units": "mm", "params": {...}, "root": node, "origin": "bed"|"keep", "expect": {"bbox": [x, y, z], "volume_mm3": n, "tolerance": 0.02}}.
 All lengths are millimetres; Z is up; "bed" origin (default) centres the part in X/Y and rests it on Z=0.
 Any number may be an expression of the parameters: "$width/2 + 3" (+ - * / ** %, parentheses, min max abs sqrt sin cos tan radians pi).
@@ -663,7 +872,10 @@ Nodes (every node has "type"; unknown keys are errors; primitives are centred on
 - hole {diameter|radius, axis?: x|y|z (default z), at?: [x,y,z], through? (default true), depth?, side?: max|min, segments?}  -- ONLY inside the "cuts" of a difference; through holes span the whole base along the axis (they may sit under translate / rotate / patterns / union inside the cuts); "at" gives the other two coordinates; a blind hole with "depth" starts at the base's max (or min) face
 - translate {offset:[x,y,z], child}   rotate {angles:[rx,ry,rz] degrees, child, about?:[x,y,z]}   scale {factor: n|[x,y,z], child}
 - linear_pattern {count, step:[x,y,z], child}   polar_pattern {count, child, angle? (360), axis? (z), center?: [x,y,z]}
-Not supported: fillet, chamfer, shell, extrude, loft, sweep, revolve, text, threads."""
+- extrude {profile:[[u,v],...] closed sketch outline (3+ points, no crossings), height, holes?: [[[u,v],...], ...] inner loops, axis?: z (sketch in XY) | y (sketch in XZ) | x (sketch in YZ), center? (default true: centred along the axis)}
+- revolve {profile:[[r,h],...] closed profile, r = distance to the axis (>= 0, may touch it), h = position along it; angle? (360; less closes with flat caps), axis? (z), segments? (64)}
+Sketch points may be expressions too, so a sketch is dimensioned by named parameters ("$leg_x", "$thickness"). Give features a "label" so a request like "move the holes 5 mm apart" maps to the parameter that drives them.
+Not supported: fillet, chamfer, shell, loft, sweep, text, threads, STEP."""
 
 SYSTEM_PROMPT = (
     "You turn a plain-language description of a mechanical part into a parametric CAD spec. Answer with ONE JSON object and nothing else: no prose, no markdown.\n"
