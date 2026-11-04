@@ -30,6 +30,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
+multiview = ["torch==2.11.0", "peft==0.17.1", "transformers==4.57.3", "safetensors>=0.6", "tqdm>=4.66", "easydict>=1.13"]
 thumbs = ["fast-simplification>=0.2"]  # quadric decimation for thumbnails of huge meshes; a face subsample is used without it
 studio = [
   "flask>=3,<4", "python-multipart>=0.0.20", "filelock>=3.16",
@@ -58,6 +59,8 @@ license-files = ["LICENSE", "licenses/*", "vulcan/studio_native/*/LICENSE", "vul
 "vulcan.studio_native" = ["PROVENANCE.json"]
 "vulcan.studio_native.gepetto" = ["dist/**/*", "blender/*.py"]
 "vulcan.studio_native.daedalus" = ["client/**/*", "tools/*.py", "licenses/**/*", "THIRD_PARTY.md", "app-icon.png"]
+"vulcan.studio_native.daedalus.daedalus.geometry" = ["*.json"]
+"vulcan.studio_native.daedalus.daedalus.geometry.multiview_model" = ["LICENSE", "PROVENANCE.json", "weights.json", "configs/*.json", "models/vggt/LICENSE*"]
 "vulcan.studio_native.plato" = ["static/**/*", "templates/**/*", "schemas/**/*"]
 "vulcan.studio_native.heron" = ["ui/**/*", "app-icon.png"]
 "vulcan.studio_native.gulliver.gulliver_hoard" = ["static/**/*"]
