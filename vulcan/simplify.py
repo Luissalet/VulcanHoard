@@ -27,6 +27,7 @@ import base64
 import hashlib
 import io
 import json
+import math
 import os
 import re
 import shutil
@@ -320,6 +321,9 @@ def simplify_mesh(mesh, ratio: float | None = None, target_error: float | None =
     Returns {vertices, faces, engine, engine_error_mm, target_met, attempts, error (with target_error), borders}."""
     if mode not in MODES:
         raise ValueError(f"mode must be one of {', '.join(MODES)}.")
+    for label, value in (("ratio", ratio), ("target_error", target_error)):
+        if value is not None and not math.isfinite(value):
+            raise ValueError(f"{label} must be a finite number.")
     if ratio is None and not target_error:
         ratio = 0.5
     if ratio is not None and not 0 < ratio <= 1:
@@ -484,7 +488,9 @@ def simplify_model(services, model_id: int, ratio: float | None = None, target_e
     atomic.write_bytes_atomic(path, result_mesh.export(file_type="stl"))
     imported = import_file(services, str(path), model_ref(model_id))
     pct = result["ratio_achieved"] * 100 if result["ratio_achieved"] is not None else 0
-    name = f"{model['name']} · LOD {pct:.3g} %"
+    shown = f"{ratio * 100:.6g} %" if ratio is not None else f"{pct:.3g} %"  # the requested figure, so near-equal ratios never read alike
+    limit = f" · ≤ {target_error:g} mm" if target_error else ""
+    name = f"{model['name']} · LOD {shown}{limit} · {after} tri"
     target_text = ""
     if target_error:
         target_text = (f"; maximum deviation {target_error:g} mm met" if target_met else

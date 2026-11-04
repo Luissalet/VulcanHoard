@@ -388,3 +388,37 @@ def test_a_millimetre_web_glb_cache_is_rebuilt(sphere_model):
     assert result["cached"] is False and result["units"] == "m" and result["semantics"] == simplify.WEB_GLB_SEMANTICS
     assert result["extent_m"] == pytest.approx([0.04, 0.04, 0.04], abs=2e-3)
     assert call_tool(services, "model_export_web_glb", {"id": imported["id"]})["cached"] is True
+
+
+@pytest.mark.parametrize("bad", ["NaN", "Infinity", "-Infinity"])
+def test_a_non_finite_target_error_or_ratio_is_a_clear_client_error(client, tmp_path, bad):
+    folder = tmp_path / "nonfinite"
+    folder.mkdir()
+    model_id = import_file(client.services, str(dense_sphere(folder / "bola.stl", 3)))["id"]
+    for field in ("target_error", "ratio"):
+        response = client.post(f"/api/models/{model_id}/simplify", content=f'{{"{field}": {bad}}}',
+                               headers={"content-type": "application/json"})
+        assert response.status_code == 400, (field, bad, response.status_code, response.text)
+        body = response.json()
+        assert body["code"] == "invalid_arguments" and field in body["error"]
+    with pytest.raises(Exception) as caught:
+        call_tool(client.services, "model_simplify", {"id": model_id, "target_error": float(bad.lower().replace("infinity", "inf"))})
+    assert "target_error" in str(caught.value)
+
+
+def test_near_equal_ratios_get_distinguishable_variant_names(sphere_model):
+    services, imported, _path = sphere_model
+    names = []
+    for ratio in (0.5, 0.5001, 0.5004):
+        result = call_tool(services, "model_simplify", {"id": imported["id"], "ratio": ratio})
+        assert result["saved"] is True
+        names.append(result["name"])
+    assert len(set(names)) == 3, names
+    assert all("tri" in name for name in names), names
+
+def test_studio_refuses_non_finite_numbers_in_tool_arguments():
+    from vulcan.studio.app import non_finite_argument
+
+    assert non_finite_argument({"id": 1, "target_error": float("nan")}) == "arguments.target_error"
+    assert non_finite_argument({"views": [1.0, {"d": float("-inf")}]}) == "arguments.views[1].d"
+    assert non_finite_argument({"ratio": 0.5, "name": "x", "flags": [True, None, 3]}) is None
