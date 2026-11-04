@@ -10,6 +10,7 @@ import Fichas from "./pages/Fichas.jsx";
 import Organizar from "./pages/Organizar.jsx";
 import Estadisticas from "./pages/Estadisticas.jsx";
 import Espacial from "./pages/Espacial.jsx";
+import Disenar from "./pages/Disenar.jsx";
 import Ajustes from "./pages/Ajustes.jsx";
 import { installCopilotAdapter } from "./copilot.js";
 
@@ -20,6 +21,7 @@ const PAGES = [
   { path: "organizar", label: "Organizar", icon: "M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v2M3 13h10m0 0l-3-3m3 3l-3 3M3 19h6", component: Organizar },
   { path: "carpetas", label: "Carpetas", icon: "M4 20V10m5 10V6m5 14v-9m5 9V4M3 20h18", component: Carpetas },
   { path: "estadisticas", label: "Estadísticas", icon: "M4 20V10m5 10V4m5 16v-8m5 8V7", component: Estadisticas },
+  { path: "disenar", label: "Diseñar", icon: "M4 20h16M6 16l9-9 3 3-9 9H6zM14 8l3 3", component: Disenar },
   { path: "espacial", label: "Espacial", icon: "M12 21s-7-6.2-7-11a7 7 0 1114 0c0 4.8-7 11-7 11zM12 12a2.5 2.5 0 100-5 2.5 2.5 0 000 5z", component: Espacial },
   { path: "ajustes", label: "Ajustes", icon: "M12 15a3 3 0 100-6 3 3 0 000 6zM19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z", component: Ajustes },
 ];

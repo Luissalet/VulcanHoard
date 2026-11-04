@@ -567,6 +567,26 @@ TOOLS.append(Tool("cad_fit_parameters", "Fit a saved CAD recipe's dimensions to 
     "Sinónimos: ajustar receta CAD, recuperar dimensiones editables, adaptar una plantilla a un STL.",
     FitArgs, ann(True), fit_models, timeout_s=45))
 
+
+class CadIntentArgs(BaseModel):
+    id: int | None = Field(None, ge=1, description="A part made with cad_from_text (its stored recipe is read).")
+    spec: dict | str | None = Field(None, description="Or a spec not saved yet (same format as cad_from_text).")
+
+
+def run_cad_design_intent(services: Services, args: CadIntentArgs) -> dict:
+    from . import cad_service
+
+    return cad_service.get(services).intent(args.id, args.spec)
+
+
+TOOLS.append(Tool("cad_design_intent", "What each named dimension of a CAD recipe drives (read-only). Keywords: intención de diseño, qué parámetro.\n"
+    "For a saved part (id) or a draft spec: every parameter with its value, limits, the features and exact fields it changes "
+    "(sketch points, extrusion height, pattern step, hole diameter...), the derived parameters it defines and the features it reaches through them; "
+    "features with their labels and driving parameters; parameters nothing uses. Use it to turn a request such as 'move the holes 5 mm apart' "
+    "into the parameter to change with cad_regenerate, instead of rewriting the spec.\n"
+    "Sinónimos: intención de diseño, qué cota cambia esto, separa los agujeros, parámetro que controla, dónde se usa, cotas con nombre, boceto acotado.",
+    CadIntentArgs, ann(True), run_cad_design_intent))
+
 from .asset_agent_tools import ASSET_TOOLS  # noqa: E402 - destination profiles, asset inspection and preparation
 
 TOOLS += ASSET_TOOLS
