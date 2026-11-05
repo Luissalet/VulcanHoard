@@ -591,6 +591,10 @@ from .asset_agent_tools import ASSET_TOOLS  # noqa: E402 - destination profiles,
 
 TOOLS += ASSET_TOOLS
 
+from .asset_animation_tools import ANIM_TOOLS  # noqa: E402 - animated destination profiles, inspection and preparation
+
+TOOLS += ANIM_TOOLS
+
 from .spatial.tools import SPATIAL_TOOLS  # noqa: E402 - spatial analysis: coverage by network time, parcel screening
 
 TOOLS += SPATIAL_TOOLS

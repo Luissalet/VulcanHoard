@@ -96,4 +96,13 @@ export const api = {
   spatialCoverage: (scenario) => request("POST", "/api/spatial/coverage", { params: { lang: "es" }, body: { scenario } }),
   spatialScreening: (scenario) => request("POST", "/api/spatial/screening", { params: { lang: "es" }, body: { scenario } }),
   assetPreparationFileUrl: (id) => `/api/asset-preparations/${id}/file`,
+  // Animated assets: animated destination profiles, inspection (draft) and verified preparation.
+  animTargets: () => request("GET", "/api/anim/targets"),
+  saveAnimTarget: (body) => request("POST", "/api/anim/targets", { body }),
+  animInspect: (body) => request("POST", "/api/anim/inspect", { body }),
+  animExample: () => request("POST", "/api/anim/example"),
+  animSourceUrl: (path) => `/api/anim/source?path=${encodeURIComponent(path)}`,
+  animPrepare: (body) => request("POST", "/api/anim/preparations", { body }),
+  animPreparations: (modelId) => request("GET", "/api/anim/preparations", { params: { model_id: modelId } }),
+  animPreparationFileUrl: (id) => `/api/anim/preparations/${id}/file`,
 };
