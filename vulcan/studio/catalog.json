@@ -2645,6 +2645,373 @@
     "native_name": "asset_preparations"
   },
   {
+    "name": "anim_targets_list",
+    "description": "Animated destination profiles (web-animated, game-runtime) and their measurable rules. Keywords: perfiles animados.\nRules: bones, influences per vertex, normalised weights, named and required clips, loop continuity (deg/mm), non-uniform bone scale, empty channels, unused bones, target fps and resampling tolerance, triangles and textures.\nSinónimos: perfil animado, requisitos de animación, motor de juego, web animado.",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {},
+      "title": "Empty",
+      "type": "object"
+    },
+    "module": "library",
+    "native_name": "anim_targets_list"
+  },
+  {
+    "name": "anim_target_save",
+    "description": "Create, edit or clone an animated destination profile (write). Keywords: editar perfil animado.\nFields given replace the stored ones; rules merge with the current rules. clone_from copies another profile first.\nSinónimos: nuevo perfil animado, cambiar fps, huesos máximos, bucles.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "Profile id (lowercase, digits, hyphens). An existing id is edited.",
+          "maxLength": 48,
+          "title": "Id",
+          "type": "string"
+        },
+        "clone_from": {
+          "anyOf": [
+            {
+              "maxLength": 48,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Copy this profile and apply the given fields on top.",
+          "title": "Clone From"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "maxLength": 80,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "maxLength": 600,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "rules": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Any of max_bones, max_influences, require_normalized_weights, require_named_clips, required_clips, loop_clips, max_loop_error_deg, max_loop_error_mm, forbid_nonuniform_bone_scale, forbid_empty_channels, forbid_unused_bones, target_fps, max_resample_error_deg, max_resample_error_mm, max_triangles, max_textures, max_texture_px, accepted_formats.",
+          "title": "Rules"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "AnimTargetSaveArgs",
+      "type": "object"
+    },
+    "module": "library",
+    "native_name": "anim_target_save"
+  },
+  {
+    "name": "anim_inspect",
+    "description": "Draft report of a rigged GLB/glTF against an animated profile, measured. Keywords: inspeccionar animación.\nSkeleton (bones, influences, weight sums, unused and removable bones, non-uniform scale), clips (names, durations, key rate, first/last pose difference per bone, empty channels), materials and textures; one check per rule (pass, fail, not evaluated), automatic operations and manual steps. Measures integrity and continuity, not artistic quality. Writes nothing.\nSinónimos: revisar rig, comprobar clips, bucle de idle, huesos, pesos, animaciones.",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "target": {
+          "default": "web-animated",
+          "description": "Animated profile id from anim_targets_list: web-animated or game-runtime, or your own.",
+          "maxLength": 48,
+          "title": "Target",
+          "type": "string"
+        },
+        "id": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Library model id (a GLB or glTF).",
+          "title": "Id"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Or an absolute path to a GLB or glTF file.",
+          "title": "Path"
+        }
+      },
+      "title": "AnimSourceArgs",
+      "type": "object"
+    },
+    "module": "library",
+    "native_name": "anim_inspect"
+  },
+  {
+    "name": "anim_prepare",
+    "description": "Prepare a verified animated GLB for a profile; the original is untouched (write). Keywords: preparar animación.\nRenames or trims clips, drops empty channels and bones without influence, normalises or limits weights, resamples dense clips to the target fps with a measured error, writes a NEW GLB, re-inspects it and replays every clip in three.js (Node) to compare clip durations and the final pose with its own evaluation. Status unchanged, prepared, rejected or failed, with a receipt.\nSinónimos: recortar clip, renombrar animación, remuestrear, quitar huesos, limpiar canales.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "target": {
+          "default": "web-animated",
+          "description": "Animated profile id from anim_targets_list: web-animated or game-runtime, or your own.",
+          "maxLength": 48,
+          "title": "Target",
+          "type": "string"
+        },
+        "id": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Library model id (a GLB or glTF).",
+          "title": "Id"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Or an absolute path to a GLB or glTF file.",
+          "title": "Path"
+        },
+        "renames": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Clip renames {old name or index: new name}. Unnamed clips get clip_<n> automatically.",
+          "title": "Renames"
+        },
+        "trims": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Trim clips {name or index: [start_s, end_s]}; the kept part starts at 0.",
+          "title": "Trims"
+        },
+        "resample_fps": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "maximum": 240,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Resample clips keyed faster than this; default: the profile's target_fps when a clip exceeds it.",
+          "title": "Resample Fps"
+        },
+        "drop_empty_channels": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Remove channels that hold the rest value (default: when present).",
+          "title": "Drop Empty Channels"
+        },
+        "drop_unused_bones": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Remove joints without influence and without influential children (default: when a rule fails).",
+          "title": "Drop Unused Bones"
+        },
+        "normalize_weights": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Rescale skin weights to sum 1 (default: when a rule fails).",
+          "title": "Normalize Weights"
+        },
+        "limit_influences": {
+          "anyOf": [
+            {
+              "maximum": 8,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Keep the strongest N influences per vertex and renormalise (default: the profile's max when exceeded).",
+          "title": "Limit Influences"
+        }
+      },
+      "title": "AnimPrepareArgs",
+      "type": "object"
+    },
+    "x-timeout-s": 300.0,
+    "module": "library",
+    "native_name": "anim_prepare"
+  },
+  {
+    "name": "anim_preparations",
+    "description": "Past animated preparations and their receipts. Keywords: preparaciones animadas.\nWithout id: the latest ones (optionally of one model) with status, operations and output. With id: the full receipt (hashes, operations with errors, checks before and after, three.js reimport comparison).\nSinónimos: historial de animaciones, recibo, variante animada.",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "maxLength": 20,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "A preparation id to read in full.",
+          "title": "Id"
+        },
+        "model_id": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Only preparations of this library model.",
+          "title": "Model Id"
+        },
+        "limit": {
+          "default": 10,
+          "maximum": 50,
+          "minimum": 1,
+          "title": "Limit",
+          "type": "integer"
+        }
+      },
+      "title": "AnimPreparationsArgs",
+      "type": "object"
+    },
+    "module": "library",
+    "native_name": "anim_preparations"
+  },
+  {
     "name": "spatial_example",
     "description": "Worked spatial-analysis scenario with a known answer. Keywords: ejemplo análisis espacial.\nReturns an invented small area (demand points, candidate sites, roads, a river, parcels, restricted zone, elevation grid) with CRS, source and date on every layer, in the CRS you ask for, and the expected results. Start here to see the scenario format.\nSinónimos: ejemplo, escenario de prueba, mapa de demostración, plantilla de capas, cobertura, parcelas.",
     "annotations": {

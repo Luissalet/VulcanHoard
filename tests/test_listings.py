@@ -78,6 +78,7 @@ def test_agent_tools_catalog_and_calls(scanned):
                      "cad_spec_schema", "cad_from_text", "cad_regenerate", "copilot_context_get", "model_delete", "model_compare",
                      "model_simplify", "model_look", "model_render_photos", "model_scene_info", "model_export_web_glb", "slicers_list", "model_open_in_slicer",
                      "cad_fit_parameters", "cad_design_intent", "asset_targets_list", "asset_target_save", "asset_inspect", "asset_prepare", "asset_preparations",
+                     "anim_targets_list", "anim_target_save", "anim_inspect", "anim_prepare", "anim_preparations",
                      "spatial_example", "spatial_layers_check", "spatial_coverage", "spatial_screen", "spatial_scenarios", "spatial_scenario_save", "spatial_export"]
     for tool in TOOLS:
         assert "Sinónimos:" in tool.description and set(tool.annotations) == {"readOnlyHint", "destructiveHint", "idempotentHint", "openWorldHint"}
