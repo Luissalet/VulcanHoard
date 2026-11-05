@@ -11253,6 +11253,250 @@
     "native_name": "assembly_import"
   },
   {
+    "name": "heron_part_examples",
+    "description": "Constrained-sketch part examples, constraint types, semantic face references and the full part schema. Keywords: boceto, restricciones, pieza.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "module": "heron",
+    "native_name": "part_examples"
+  },
+  {
+    "name": "heron_part_solve_sketch",
+    "description": "Solve only the sketch of a part spec: status, degrees of freedom, free points, residuals, conflicts, redundant constraints. Nothing is stored. Keywords: boceto, grados de libertad.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "spec": {
+          "type": "object",
+          "description": "Part spec: parameters, sketch (points, lines, circles, profile, holes, constraints), extrude, features, checks. Read heron_part_examples for the schema."
+        }
+      },
+      "required": [
+        "spec"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "module": "heron",
+    "native_name": "part_solve_sketch"
+  },
+  {
+    "name": "heron_part_create",
+    "description": "Create a part from a constrained sketch: solve, extrude, apply face operations, measure, export and reimport STEP. Keywords: pieza, STEP, taladro, vaciado.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "request_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+        },
+        "spec": {
+          "type": "object",
+          "description": "Part spec: parameters, sketch (points, lines, circles, profile, holes, constraints), extrude, features, checks. Read heron_part_examples for the schema."
+        }
+      },
+      "required": [
+        "request_id",
+        "spec"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "module": "heron",
+    "native_name": "part_create"
+  },
+  {
+    "name": "heron_part_get",
+    "description": "Read a part revision: sketch solve, feature references, independent checks, STEP round trip and export links. Keywords: pieza, revisión.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "module": "heron",
+    "native_name": "part_get"
+  },
+  {
+    "name": "heron_part_list",
+    "description": "List constrained parts with latest revision, sketch status, DOF and check verdict. Keywords: piezas, bocetos.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "module": "heron",
+    "native_name": "part_list"
+  },
+  {
+    "name": "heron_part_set_parameters",
+    "description": "Change named dimensions or constraint values as a new revision that regenerates from the base solution and keeps every constraint. Keywords: cota, separar agujeros, regenerar.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+        },
+        "base_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "request_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+        },
+        "changes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 40,
+          "items": {
+            "type": "object",
+            "properties": {
+              "parameter": {
+                "type": "string"
+              },
+              "constraint": {
+                "type": "string"
+              },
+              "value": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "maxLength": 200
+                  }
+                ]
+              }
+            },
+            "required": [
+              "value"
+            ],
+            "additionalProperties": false
+          },
+          "description": "{parameter, value} or {constraint, value}; value may be an expression of the base values such as \"hole_spacing + 5\""
+        }
+      },
+      "required": [
+        "id",
+        "base_revision",
+        "request_id",
+        "changes"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "module": "heron",
+    "native_name": "part_set_parameters"
+  },
+  {
+    "name": "heron_part_revise",
+    "description": "Replace the spec of a part as a new revision; each face reference reports kept, moved or invalidated against the base. Keywords: revisión, referencias, caras.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+        },
+        "base_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "request_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+        },
+        "spec": {
+          "type": "object",
+          "description": "Part spec: parameters, sketch (points, lines, circles, profile, holes, constraints), extrude, features, checks. Read heron_part_examples for the schema."
+        }
+      },
+      "required": [
+        "id",
+        "base_revision",
+        "request_id",
+        "spec"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "module": "heron",
+    "native_name": "part_revise"
+  },
+  {
+    "name": "heron_part_from_recipe",
+    "description": "Import the sketch extrusion of a Vulcan library CAD recipe as a fully constrained part and export its STEP. Keywords: importar receta, STEP, biblioteca.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "request_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+        },
+        "recipe": {
+          "type": "object",
+          "description": "Library CAD recipe JSON (params and root with an extrude node)"
+        }
+      },
+      "required": [
+        "request_id",
+        "recipe"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "module": "heron",
+    "native_name": "part_from_recipe"
+  },
+  {
     "name": "gepetto_get_health",
     "description": "Health check.",
     "inputSchema": {

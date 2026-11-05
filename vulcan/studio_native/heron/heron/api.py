@@ -14,6 +14,8 @@ from .geometry import Recipe,templates
 from .store import Store
 from .assembly import service as assembly_service
 from .assembly.store import AssemblyStore
+from .design import service as design_service
+from .design.store import PartStore
 
 ROOT=Path(__file__).resolve().parent.parent
 
@@ -27,6 +29,8 @@ def create_app(data=None,port=5204):
     app.state.store=store
     assemblies=AssemblyStore(store.directory,store)
     app.state.assemblies=assemblies
+    parts=PartStore(store.directory)
+    app.state.parts=parts
     install_copilot(app,'heron',str(store.directory),app_name="Heron's Hoard")
     install_guard(app,port_getter=lambda:port,allowed_env='HERON_ALLOWED_HOSTS',strict_ports=True)
 
@@ -47,6 +51,7 @@ def create_app(data=None,port=5204):
         if name=='cad_get':return result(store.get(args['id']))
         if name=='cad_list':return {'builds':[result(row) for row in store.list()]}
         if name.startswith('assembly_'):return assembly_service.execute(assemblies,name,args)
+        if name.startswith('part_'):return design_service.execute(parts,name,args)
         raise LookupError('Unknown CAD tool')
 
     tools=[
@@ -54,13 +59,13 @@ def create_app(data=None,port=5204):
       {'name':'cad_build','description':'Build a measured CAD recipe, verify STEP/STL and retain artifacts. Keywords: sÃ³lido, booleanas, fabricaciÃ³n.','inputSchema':{'type':'object','properties':{'request_id':{'type':'string','pattern':'^[a-zA-Z0-9_-]{1,80}$'},'recipe':Recipe.model_json_schema()},'required':['request_id','recipe'],'additionalProperties':False},'annotations':{'readOnlyHint':False,'destructiveHint':False,'idempotentHint':True,'openWorldHint':False}},
       {'name':'cad_get','description':'Read a CAD receipt and verified export links. Keywords: STEP, STL, geometrÃ­a, informe.','inputSchema':{'type':'object','properties':{'id':{'type':'string'}},'required':['id'],'additionalProperties':False},'annotations':{'readOnlyHint':True}},
       {'name':'cad_list','description':'List retained CAD builds and original recipes. Keywords: proyectos, versiones, piezas.','inputSchema':{'type':'object','properties':{},'additionalProperties':False},'annotations':{'readOnlyHint':True}},
-    ]+assembly_service.tools()
+    ]+assembly_service.tools()+design_service.tools()
 
     @app.get('/api/health')
     def health():return {'status':'ok','service':'herons-hoard','version':'0.2.0'}
 
     @app.get('/api/agent/tools')
-    def catalogue():return {'ok':True,'service':'herons-hoard','tools':tools,'instructions':'Use mm, inspect the full recipe schema, preserve originals. Reuse request_id after uncertainty; a new recipe needs a new id. Finished means CAD and exports passed checks, not strength or printability certification. Assemblies: read assembly_families, relate semantic references (component.reference), never re-align revisions to hide interference; an ambiguous or incompatible result is reported, not chosen.'}
+    def catalogue():return {'ok':True,'service':'herons-hoard','tools':tools,'instructions':'Use mm, inspect the full recipe schema, preserve originals. Reuse request_id after uncertainty; a new recipe needs a new id. Finished means CAD and exports passed checks, not strength or printability certification. Assemblies: read assembly_families, relate semantic references (component.reference), never re-align revisions to hide interference; an ambiguous or incompatible result is reported, not chosen. Parts: read part_examples, dimension sketches with named parameters, name faces by meaning (top, bottom, side of a line, face containing a point); change a dimension with part_set_parameters instead of writing a new spec; an invalidated reference builds nothing.'}
 
     def run_tool(name,args):
         tool=next((t for t in tools if t['name']==name),None)
@@ -77,6 +82,7 @@ def create_app(data=None,port=5204):
         except (ValueError,LookupError,TypeError,KeyError) as exc:raise HTTPException(400,str(exc)) from exc
 
     assembly_service.install_routes(app,assemblies,run_tool)
+    design_service.install_routes(app,parts,run_tool)
 
     @app.get('/api/builds')
     def list_builds():return execute('cad_list',{})
@@ -117,6 +123,9 @@ def create_app(data=None,port=5204):
 
     @app.get('/assembly.js')
     def assembly_script():return FileResponse(ROOT/'ui/assembly.js',media_type='text/javascript')
+
+    @app.get('/design.js')
+    def design_script():return FileResponse(ROOT/'ui/design.js',media_type='text/javascript')
 
     @app.get('/copilot-context.js')
     def copilot_script():return FileResponse(ROOT/'ui/copilot-context.js',media_type='text/javascript')

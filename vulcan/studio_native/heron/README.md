@@ -24,7 +24,7 @@ Local document navigation unlocks the UI through an HttpOnly, SameSite Strict co
 
 Reuse an ID after communication uncertainty; changed recipes require a new ID. One build runs per instance, with a 120-second worker timeout. If a server is lost during a build, inspect the worker before resolving its retained `running` state; automatic retries are disabled. The Hub's `measured-cad` workflow identifies providers for CAD, catalogue and product stages without automatically running or publishing anything.
 
-Limits: 50 primitives; dimensions up to 2000 mm; translations ±10000 mm; rotations ±360°. No evaluated code, arbitrary paths or unknown fields. Sketch editing, editable STEP import and physical simulation are not implemented.
+Limits: 50 primitives; dimensions up to 2000 mm; translations ±10000 mm; rotations ±360°. No evaluated code, arbitrary paths or unknown fields. Constrained sketches with operations on named faces are described in the Vulcan README (Heron parts, `part_*` tools); editable STEP import and physical simulation are not implemented.
 
 ## Assemblies
 

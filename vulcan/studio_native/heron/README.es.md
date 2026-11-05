@@ -59,7 +59,7 @@ Con el lanzador compartido de Hoard Link instalado, la app muestra el panel de F
 
 ## Alcance y pruebas
 
-El formato admite hasta 50 primitivas, dimensiones de hasta 2000 mm, posiciones de ±10000 mm y rotaciones de ±360°. Rechaza código, expresiones, rutas arbitrarias, valores no finitos y campos desconocidos. No incorpora todavía un editor de croquis, importación editable de STEP ni simulación física.
+El formato admite hasta 50 primitivas, dimensiones de hasta 2000 mm, posiciones de ±10000 mm y rotaciones de ±360°. Rechaza código, expresiones, rutas arbitrarias, valores no finitos y campos desconocidos. Los bocetos con restricciones y las operaciones sobre caras con nombre (herramientas `part_*`) están descritos en el README de Vulcan; no incorpora todavía importación editable de STEP ni simulación física.
 
 ## Ensamblajes
 
