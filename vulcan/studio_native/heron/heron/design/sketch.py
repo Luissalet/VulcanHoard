@@ -39,7 +39,7 @@ class System:
     def __init__(self, sketch, values, start=None):
         self.sketch, self.values = sketch, values
         self.points = list(sketch.points)
-        self.circles = list(sketch.circles)
+        self.circles = list(sketch.circles) + list(sketch.arcs)  # arcs carry a radius unknown like circles
         self.pi = {p: 2 * i for i, p in enumerate(self.points)}
         self.ri = {c: 2 * len(self.points) + i for i, c in enumerate(self.circles)}
         self.n = 2 * len(self.points) + len(self.circles)
@@ -54,8 +54,24 @@ class System:
             x[self.ri[c]] = given if given is not None else value(circle.radius, values, f'circle {c}')
             if x[self.ri[c]] <= 0:
                 raise ValueError(f'circle {c}: the starting radius must be positive')
+        for a, arc in sketch.arcs.items():
+            given = (start.get('radii') or {}).get(a)
+            ends = [np.linalg.norm(x[self.pi[p]:self.pi[p] + 2] - x[self.pi[arc.center]:self.pi[arc.center] + 2]) for p in (arc.start, arc.end)]
+            x[self.ri[a]] = given if given is not None else float(np.mean(ends))
+            if x[self.ri[a]] <= 0:
+                raise ValueError(f'arc {a}: its start point sits on its centre')
         self.x0 = x
+        self.implicit = [self._arc_row(a) for a in sketch.arcs]  # always held: both arc ends at the arc radius
         self.rows = [self._compile(c) for c in sketch.constraints]
+
+    def _arc_row(self, a):
+        arc = self.sketch.arcs[a]
+
+        def f(x):
+            C, r = self.P(x, arc.center), self.R(x, a)
+            return [float(np.linalg.norm(self.P(x, arc.start) - C)) - r, float(np.linalg.norm(self.P(x, arc.end) - C)) - r], ['mm', 'mm']
+        deps = sorted({self.pi[p] + k for p in (arc.center, arc.start, arc.end) for k in (0, 1)} | {self.ri[a]})
+        return {'constraint': None, 'arc': a, 'f': f, 'deps': deps, 'units': ['mm', 'mm'], 'target': None}
 
     # -- geometry helpers ------------------------------------------------------------------------------
     def P(self, x, p):
@@ -65,8 +81,11 @@ class System:
     def R(self, x, c):
         return x[self.ri[c]]
 
+    def center_of(self, c):
+        return (self.sketch.circles.get(c) or self.sketch.arcs[c]).center
+
     def C(self, x, c):
-        return self.P(x, self.sketch.circles[c].center)
+        return self.P(x, self.center_of(c))
 
     def line(self, x, lid):
         a, b = self.sketch.lines[lid]
@@ -86,7 +105,7 @@ class System:
                 for p in self.sketch.lines[name]:
                     out += [self.pi[p], self.pi[p] + 1]
             else:
-                center = self.sketch.circles[name].center
+                center = self.center_of(name)
                 out += [self.pi[center], self.pi[center] + 1, self.ri[name]]
         return sorted(set(out))
 
@@ -208,7 +227,8 @@ class System:
         return True
 
     def solve(self, rows, x_start):
-        """Least squares from x_start, then minimum-norm Gauss-Newton polishing (redundancy is harmless)."""
+        """Least squares from x_start, then minimum-norm Gauss-Newton polishing (redundancy is harmless). Arc rows always hold."""
+        rows = self.implicit + list(rows)
         if not rows:
             return x_start.copy(), True
         from scipy.optimize import least_squares
@@ -274,10 +294,11 @@ def solve(sketch, values, start=None):
                           'conflicts_with': involved,
                           'note': 'Constraints are accepted in declaration order; this one cannot hold together with the accepted ones listed.'})
     # rank, redundancy and free motions at the solution
-    J = system.jacobian(x, accepted)
+    J = system.jacobian(x, system.implicit + accepted)
     rank = system.rank(J)
     dof = system.n - rank
-    redundant, stacked, current = [], np.zeros((0, system.n)), 0
+    stacked = system.jacobian(x, system.implicit) if system.implicit else np.zeros((0, system.n))
+    redundant, current = [], system.rank(stacked)
     for row in accepted:
         k = len(row['units'])
         stacked = np.vstack([stacked, system.jacobian(x, [row])])
@@ -303,7 +324,9 @@ def solve(sketch, values, start=None):
                 free.append(entry)
         for c in system.circles:
             if np.linalg.norm(null[system.ri[c], :]) > 1e-6:
-                free.append({'entity': c, 'kind': 'circle', 'freedom': 1, 'note': 'radius not dimensioned'})
+                arc = c in sketch.arcs
+                free.append({'entity': c, 'kind': 'arc' if arc else 'circle', 'freedom': 1,
+                             'note': 'arc radius not fixed by its end points or a dimension' if arc else 'radius not dimensioned'})
     failing_ids = {r['constraint'].id for r in failing}
     redundant_ids = {r['id'] for r in redundant}
     report = []
@@ -320,7 +343,7 @@ def solve(sketch, values, start=None):
     radii = {c: float(x[system.ri[c]]) for c in system.circles}
     geometry = check_profile(sketch, points, radii)
     status = 'incompatible' if failing else 'invalid_geometry' if geometry['errors'] else 'under_constrained' if dof else 'solved'
-    return {'status': status, 'dof': int(dof), 'unknowns': system.n, 'equations': int(sum(len(r['units']) for r in rows)),
+    return {'status': status, 'dof': int(dof), 'unknowns': system.n, 'equations': int(sum(len(r['units']) for r in system.implicit + rows)),
             'points': points, 'radii': radii, 'constraints': report, 'free': free, 'conflicts': conflicts,
             'redundant_but_consistent': redundant, 'geometry': geometry}
 
@@ -352,15 +375,64 @@ def _segment_distance(p, a, b):
     return float(np.linalg.norm(p - (a + t * d)))
 
 
+def arc_geometry(sketch, aid, points):
+    """Centre, radius (from the start point), start angle, signed sweep (counter-clockwise positive) and mid point of a solved arc."""
+    arc = sketch.arcs[aid]
+    c, s, e = (np.asarray(points[p], dtype=float) for p in (arc.center, arc.start, arc.end))
+    r = float(np.linalg.norm(s - c))
+    a0, a1 = math.atan2(s[1] - c[1], s[0] - c[0]), math.atan2(e[1] - c[1], e[0] - c[0])
+    sweep = -((a0 - a1) % (2 * math.pi)) if arc.clockwise else (a1 - a0) % (2 * math.pi)
+    mid = c + r * np.array([math.cos(a0 + sweep / 2), math.sin(a0 + sweep / 2)])
+    return {'center': c, 'radius': r, 'start_angle': a0, 'sweep': sweep, 'mid': [float(mid[0]), float(mid[1])]}
+
+
+def edge_mid(sketch, edge, points):
+    if edge in sketch.lines:
+        p, q = sketch.lines[edge]
+        return [(points[p][0] + points[q][0]) / 2, (points[p][1] + points[q][1]) / 2]
+    return arc_geometry(sketch, edge, points)['mid']
+
+
+def polygon(sketch, loop, points, per_turn=32):
+    """A closed loop as a polygon: line starts, plus intermediate points along every arc."""
+    out = []
+    for edge in loop:
+        if edge in sketch.lines:
+            out.append(list(points[sketch.lines[edge][0]]))
+            continue
+        g = arc_geometry(sketch, edge, points)
+        n = max(4, int(math.ceil(abs(g['sweep']) / (2 * math.pi) * per_turn)))
+        out += [[float(g['center'][0] + g['radius'] * math.cos(g['start_angle'] + g['sweep'] * k / n)),
+                 float(g['center'][1] + g['radius'] * math.sin(g['start_angle'] + g['sweep'] * k / n))] for k in range(n)]
+    return out
+
+
+def loop_area(sketch, loop, points):
+    """Exact signed area of a loop: the chord polygon plus the circular segment of every arc."""
+    starts = [points[p] for p in chain(sketch, loop)]
+    area = _area(starts)
+    for edge in loop:
+        if edge in sketch.arcs:
+            g = arc_geometry(sketch, edge, points)
+            area += 0.5 * g['radius'] ** 2 * (g['sweep'] - math.sin(g['sweep']))
+    return area
+
+
 def loops(sketch, points):
-    outer = [points[p] for p in chain(sketch, sketch.profile)]
-    inner = [[points[p] for p in chain(sketch, h)] for h in sketch.holes if isinstance(h, list)]
+    outer = polygon(sketch, sketch.profile, points)
+    inner = [polygon(sketch, h, points) for h in sketch.holes if isinstance(h, list)]
     return outer, inner
 
 
 def check_profile(sketch, points, radii):
     """The solved outline must be a simple closed polygon; inner loops and circles must lie inside it without crossing."""
     errors = []
+    for aid in sketch.arcs:
+        g = arc_geometry(sketch, aid, points)
+        if g['radius'] < 1e-6 or abs(g['sweep']) < 1e-9:
+            errors.append(f'arc {aid}: the solved arc has no radius or no sweep (its end points coincide)')
+    if errors:
+        return {'valid': False, 'errors': errors, 'area_mm2': 0.0, 'counter_clockwise': True}
     outer, inner = loops(sketch, points)
     rings = [('profile', outer)] + [(f'holes[{i}]', ring) for i, ring in enumerate(inner)]
     for name, ring in rings:
@@ -388,8 +460,10 @@ def check_profile(sketch, points, radii):
             r = radii[hole]
             if not _inside(center, outer) or min(_segment_distance(center, a, b) for a, b in edges) <= r + 1e-9:
                 errors.append(f'hole circle {hole}: it must lie inside the outline without touching it')
-    area = abs(_area(outer)) - sum(abs(_area(r)) for r in inner) - sum(math.pi * radii[h] ** 2 for h in sketch.holes if isinstance(h, str))
-    return {'valid': not errors, 'errors': errors, 'area_mm2': float(area), 'counter_clockwise': _area(outer) > 0}
+    signed = loop_area(sketch, sketch.profile, points)
+    area = abs(signed) - sum(abs(loop_area(sketch, h, points)) for h in sketch.holes if isinstance(h, list)) \
+        - sum(math.pi * radii[h] ** 2 for h in sketch.holes if isinstance(h, str))
+    return {'valid': not errors, 'errors': errors, 'area_mm2': float(area), 'counter_clockwise': signed > 0}
 
 
 def dry_run(spec):
@@ -400,3 +474,54 @@ def dry_run(spec):
     result = solve(part.sketch, values)
     result['parameters'] = values
     return result
+
+
+def drag(spec, point, to):
+    """Pull one sketch point towards `to` while every constraint keeps holding (the point stops where the constraints let it).
+
+    The constraints are solved with a weak extra pull on the dragged point, then polished with the constraints alone,
+    so a fully determined point does not move and a sliding point ends at the nearest position it can reach. The
+    returned spec has the new starting positions of the points that moved; nothing is stored."""
+    import copy
+    from scipy.optimize import least_squares
+    from .spec import Part, resolve
+    part = Part.model_validate(spec)
+    if point not in part.sketch.points:
+        raise ValueError(f'Unknown sketch point {point!r}')
+    target = np.array([float(to[0]), float(to[1])])
+    if not np.all(np.isfinite(target)) or np.max(np.abs(target)) > 1e6:
+        raise ValueError('to must be two finite coordinates in mm')
+    values = resolve(part.parameters)
+    before = solve(part.sketch, values)
+    if before['status'] == 'incompatible':
+        raise ValueError('The sketch is incompatible; fix the failing constraint before dragging')
+    system = System(part.sketch, values, {'points': before['points'], 'radii': before['radii']})
+    rows = system.implicit + system.rows
+    i = system.pi[point]
+    weight = 1e-3
+    x0 = system.x0.copy()
+    with np.errstate(all='ignore'):
+        fit = least_squares(lambda z: np.concatenate([system.residual(z, rows), weight * (z[i:i + 2] - target)]), x0, method='trf',
+                            xtol=1e-12, ftol=1e-12, gtol=1e-12, max_nfev=300)
+    x, ok = system.solve(system.rows, fit.x)
+    if not ok:
+        x = x0
+    points = {p: [float(x[system.pi[p]]), float(x[system.pi[p] + 1])] for p in system.points}
+    radii = {c: float(x[system.ri[c]]) for c in system.circles}
+    out = copy.deepcopy(spec)
+    moved = []
+    for p, xy in points.items():
+        if float(np.linalg.norm(np.array(xy) - np.array(before['points'][p]))) > 1e-9:
+            out['sketch']['points'][p] = [round(xy[0], 9), round(xy[1], 9)]
+            moved.append(p)
+    for c, circle in (out['sketch'].get('circles') or {}).items():
+        if abs(radii[c] - before['radii'][c]) > 1e-9:
+            circle['radius'] = round(radii[c], 9)
+    after = solve(Part.model_validate(out).sketch, values, {'points': points, 'radii': radii})
+    reached = float(np.linalg.norm(np.array(after['points'][point]) - target))
+    shift = float(np.linalg.norm(np.array(after['points'][point]) - np.array(before['points'][point])))
+    note = ('the point is fixed by its constraints and did not move' if shift < 1e-6 else
+            'the point reached the requested position' if reached < 1e-4 else
+            'the point moved as far as its constraints allow (nearest reachable position)')
+    return {'spec': out, 'point': point, 'requested': [float(target[0]), float(target[1])], 'position': after['points'][point],
+            'moved_mm': shift, 'distance_to_request_mm': reached, 'moved_points': moved, 'note': note, 'solve': after}

@@ -194,6 +194,6 @@ class PartStore:
         start = self._start(base)
         if start:  # keep the solved position of points and circles that still exist
             start = {'points': {k: v for k, v in start['points'].items() if k in spec['sketch']['points']},
-                     'radii': {k: v for k, v in start['radii'].items() if k in spec['sketch'].get('circles', {})}}
+                     'radii': {k: v for k, v in start['radii'].items() if k in spec['sketch'].get('circles', {}) or k in spec['sketch'].get('arcs', {})}}
         return self._evaluate(part_id, base['revision'] + 1, request_id, digest, 'revise', base['revision'], spec,
                               previous=base['result'], start=start)

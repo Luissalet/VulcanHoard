@@ -11641,7 +11641,7 @@
       "properties": {
         "spec": {
           "type": "object",
-          "description": "Part spec: parameters, sketch (points, lines, circles, profile, holes, constraints), extrude, features, checks. Read heron_part_examples for the schema."
+          "description": "Part spec: parameters, sketch (points, lines, arcs, circles, profile, holes, constraints), extrude or revolve, features (holes with patterns, fillets, chamfers, shells, pads and pockets sketched on faces), checks. Read heron_part_examples for the schema."
         }
       },
       "required": [
@@ -11667,7 +11667,7 @@
         },
         "spec": {
           "type": "object",
-          "description": "Part spec: parameters, sketch (points, lines, circles, profile, holes, constraints), extrude, features, checks. Read heron_part_examples for the schema."
+          "description": "Part spec: parameters, sketch (points, lines, arcs, circles, profile, holes, constraints), extrude or revolve, features (holes with patterns, fillets, chamfers, shells, pads and pockets sketched on faces), checks. Read heron_part_examples for the schema."
         }
       },
       "required": [
@@ -11813,7 +11813,7 @@
         },
         "spec": {
           "type": "object",
-          "description": "Part spec: parameters, sketch (points, lines, circles, profile, holes, constraints), extrude, features, checks. Read heron_part_examples for the schema."
+          "description": "Part spec: parameters, sketch (points, lines, arcs, circles, profile, holes, constraints), extrude or revolve, features (holes with patterns, fillets, chamfers, shells, pads and pockets sketched on faces), checks. Read heron_part_examples for the schema."
         }
       },
       "required": [
@@ -11862,6 +11862,43 @@
     },
     "module": "heron",
     "native_name": "part_from_recipe"
+  },
+  {
+    "name": "heron_part_drag_point",
+    "description": "Drag one sketch point towards a position while every constraint keeps holding: a fixed point stays, a sliding one stops at the nearest reachable spot. Returns the spec with the new starting positions and the new solve; nothing is stored. Keywords: arrastrar punto, mover boceto.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "spec": {
+          "type": "object",
+          "description": "Part spec: parameters, sketch (points, lines, arcs, circles, profile, holes, constraints), extrude or revolve, features (holes with patterns, fillets, chamfers, shells, pads and pockets sketched on faces), checks. Read heron_part_examples for the schema."
+        },
+        "point": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{0,40}$"
+        },
+        "to": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 2,
+          "maxItems": 2,
+          "description": "[x, y] in mm"
+        }
+      },
+      "required": [
+        "spec",
+        "point",
+        "to"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "readOnlyHint": true
+    },
+    "module": "heron",
+    "native_name": "part_drag_point"
   },
   {
     "name": "gepetto_get_health",

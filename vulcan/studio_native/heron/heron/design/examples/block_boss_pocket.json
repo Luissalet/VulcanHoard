@@ -1,0 +1,52 @@
+{
+  "title": "Block with boss and slot / bloque con resalte y ranura bocetados sobre caras",
+  "parameters": {"width": 40, "depth_y": 30, "height": 10, "boss_r": 6, "boss_h": 8, "slot_w": 20, "slot_h": 4, "slot_deep": 5, "bore": 4},
+  "sketch": {
+    "points": {"a": [0, 0], "b": [40, 0], "c": [40, 30], "d": [0, 30], "m": [20, 15]},
+    "lines": {"s": ["a", "b"], "e": ["b", "c"], "n": ["c", "d"], "w": ["d", "a"]},
+    "profile": ["s", "e", "n", "w"],
+    "constraints": [
+      {"id": "origin", "type": "fixed", "point": "a", "at": [0, 0]},
+      {"id": "front_flat", "type": "horizontal", "line": "s"},
+      {"id": "right_square", "type": "vertical", "line": "e"},
+      {"id": "back_parallel", "type": "parallel", "a": "s", "b": "n"},
+      {"id": "left_square", "type": "perpendicular", "a": "s", "b": "w"},
+      {"id": "wide", "type": "length", "line": "s", "value": "width"},
+      {"id": "deep", "type": "length", "line": "e", "value": "depth_y"},
+      {"id": "centre", "type": "fixed", "point": "m", "at": ["width / 2", "depth_y / 2"]}
+    ]
+  },
+  "extrude": {"depth": "height"},
+  "features": [
+    {"id": "boss", "type": "pad", "face": "top", "depth": "boss_h", "sketch": {
+      "points": {"k": [20, 15], "e1": [26, 15], "e2": [14, 15]},
+      "arcs": {"upper": {"center": "k", "start": "e1", "end": "e2"}, "lower": {"center": "k", "start": "e2", "end": "e1"}},
+      "profile": ["upper", "lower"],
+      "constraints": [
+        {"id": "boss_centre", "type": "fixed", "point": "k", "at": ["width / 2", "depth_y / 2"]},
+        {"id": "east_level", "type": "distance_y", "a": "k", "b": "e1", "value": 0},
+        {"id": "boss_radius", "type": "distance_x", "a": "k", "b": "e1", "value": "boss_r"},
+        {"id": "west_level", "type": "distance_y", "a": "k", "b": "e2", "value": 0}
+      ]}},
+    {"id": "slot", "type": "pocket", "face": {"side": "s"}, "depth": "slot_deep", "sketch": {
+      "points": {"u0": [10, 3], "u1": [30, 3], "u2": [30, 7], "u3": [10, 7]},
+      "lines": {"sb": ["u0", "u1"], "sr": ["u1", "u2"], "st": ["u2", "u3"], "sl": ["u3", "u0"]},
+      "profile": ["sb", "sr", "st", "sl"],
+      "constraints": [
+        {"id": "slot_corner", "type": "fixed", "point": "u0", "at": ["(width - slot_w) / 2", "(height - slot_h) / 2"]},
+        {"id": "slot_floor", "type": "horizontal", "line": "sb"},
+        {"id": "slot_end", "type": "vertical", "line": "sr"},
+        {"id": "slot_roof", "type": "horizontal", "line": "st"},
+        {"id": "slot_start", "type": "vertical", "line": "sl"},
+        {"id": "slot_long", "type": "length", "line": "sb", "value": "slot_w"},
+        {"id": "slot_tall", "type": "length", "line": "sr", "value": "slot_h"}
+      ]}},
+    {"id": "through_bore", "type": "hole", "face": "bottom", "at": ["m"], "diameter": "bore"}
+  ],
+  "checks": [
+    {"id": "total_height", "measure": "bbox_z", "value": "height + boss_h", "tolerance": 0.001},
+    {"id": "bore_size", "measure": "hole_diameter", "feature": "through_bore", "value": "bore", "tolerance": 0.001},
+    {"id": "material", "measure": "volume", "tolerance": 0.01,
+     "value": "width * depth_y * height + 3.141592653589793 * boss_r * boss_r * boss_h - slot_w * slot_h * slot_deep - 3.141592653589793 * bore * bore / 4 * (height + boss_h)"}
+  ]
+}
