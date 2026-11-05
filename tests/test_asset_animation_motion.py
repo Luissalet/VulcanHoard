@@ -6,6 +6,7 @@ import json
 import math
 import shutil
 import struct
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -210,12 +211,14 @@ def test_fbx_export_is_read_back_by_blender_and_an_fbx_feeds_inspection(services
     rig = anim_example.build(tmp_path / 'rig.glb', unnamed=False, morph=True, root_motion=True)
     before = sha(rig)
     exported = call_tool(services, 'anim_fbx_export', {'path': str(rig)})
-    # a clip that only drives morph targets has no take of its own in an FBX written by Blender: said, not hidden
-    assert exported['status'] == 'partial', exported.get('reason') or exported.get('roundtrip')
+    # a clip that only drives morph targets gets a take of its own (shape key curves mirrored on the mesh) and its weights are compared
+    assert exported['status'] == 'exported', exported.get('roundtrip')
     assert sha(rig) == before and exported['output']['path'].endswith('.fbx')
     roundtrip = exported['roundtrip']
-    assert roundtrip['clips_lost_by_fbx'] == ['blink'] and 'blink' in exported['reason']
-    assert {r['clip'] for r in roundtrip['clips'] if r['found']} == {'idle', 'walk', 'open', 'wave'}
+    assert roundtrip['clips_lost_by_fbx'] == [] and exported['morph_takes'] == ['blink']
+    blink = next(r for r in roundtrip['clips'] if r['clip'] == 'blink')
+    assert blink['found'] and blink['weights_match'] and blink['max_weight_error'] <= 1e-3 and blink['duration_matches']
+    assert {r['clip'] for r in roundtrip['clips'] if r['found']} == {'idle', 'walk', 'open', 'wave', 'blink'}
     assert all(r['duration_matches'] for r in roundtrip['clips'] if r['found'])
     plain = call_tool(services, 'anim_fbx_export', {'path': str(anim_example.build(tmp_path / 'plain.glb', unnamed=False))})
     assert plain['status'] == 'exported', plain.get('reason') or plain.get('roundtrip')
@@ -225,6 +228,15 @@ def test_fbx_export_is_read_back_by_blender_and_an_fbx_feeds_inspection(services
     imported = call_tool(services, 'anim_fbx_import', {'path': str(fbx)})
     assert imported['kind'] == 'fbx_import' and imported['original_unchanged'] and imported['output']['format'] == 'glb'
     assert {r['clip'].split('|')[-1] for r in imported['clips_vs_actions']} >= {'idle', 'walk'} and all(r['matches'] for r in imported['clips_vs_actions'])
+    # Blender starts actions at frame 1; the converted GLB must start every clip at 0 so three.js and the report agree on the duration
+    from vulcan.asset_animation import Doc
+    converted = Doc.load(Path(imported['output']['path']))
+    for anim in converted.gltf['animations']:
+        starts = [converted.gltf['accessors'][s['input']]['min'][0] for s in anim['samplers']]
+        ends = [converted.gltf['accessors'][s['input']]['max'][0] for s in anim['samplers']]
+        assert min(starts) == pytest.approx(0, abs=1e-6), anim['name']
+    by_name = {c['name'].split('|')[-1]: c for c in imported['glb']['clips']}
+    assert by_name['idle']['duration_s'] == pytest.approx(2.0, abs=1e-3)
     again = call_tool(services, 'anim_fbx_import', {'path': str(fbx)})
     assert again['cached'] and again['output']['sha256'] == imported['output']['sha256']
     report = call_tool(services, 'anim_inspect', {'target': 'web-animated', 'path': str(fbx)})

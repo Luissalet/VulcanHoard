@@ -8,7 +8,7 @@ The detached local joint geometry candidate exposes161 cold tools in total. A re
 
 Fisiones task928: CAS3 source candidate awaiting independent review. It has not been integrated into the installed app, published or approved for real data relocation.
 
-The studio owns the incorporated public sources of Gepetto, Daedalus, Plato, Heron and Gulliver. Existing Vulcan library functions remain available. All six modules and their automation start OFF; cold API/MCP discovery exposes160 tools without importing native engines, opening stores or spawning workers. Explicit activation preserves the complete native interfaces and formats under one owner. Shared projects retain native IDs, revisions, artifact hashes and library references.
+The studio owns the incorporated public sources of Gepetto, Daedalus, Plato, Heron and Gulliver. Existing Vulcan library functions remain available. All six modules and their automation start OFF; cold API/MCP discovery exposes 212 tools without importing native engines, opening stores or spawning workers. Explicit activation preserves the complete native interfaces and formats under one owner. Shared projects retain native IDs, revisions, artifact hashes and library references.
 
 ## Verified
 

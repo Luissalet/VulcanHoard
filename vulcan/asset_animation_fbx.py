@@ -26,6 +26,7 @@ from .hoard_link import atomic
 WORKER = Path(__file__).with_name('blender_anim_worker.py')
 TIMEOUT_S = 900
 POSITION_TOLERANCE_MM = 1.0
+CONVERTER_VERSION = '0002'  # 4 hex digits; raise it when blender_anim_worker.py changes what an FBX converts to (0002: clips start at 0)
 
 
 def status():
@@ -83,7 +84,7 @@ def import_fbx(services, model_id=None, path=None, force=False):
         raise ValueError(f'FBX import reads .fbx files; {source.suffix} is read directly')
     digest = sha256_of(source)
     folder = _folder(services, 'anim_imports')
-    key = digest[:20]
+    key = digest[:16] + CONVERTER_VERSION  # a converted GLB cached by an older converter is not reused
     receipt_path = folder / f'{key}.json'
     glb = folder / f'{re.sub(r"[^A-Za-z0-9_.-]+", "_", source.stem)[:60]}.{key}.glb'
     if not force and receipt_path.is_file() and glb.is_file():
@@ -131,10 +132,45 @@ def readable_source(services, model_id=None, path=None):
     return source, model, None
 
 
-def compare_roundtrip(source_doc, back_doc, fps=24.0):
-    """What survived GLB -> FBX -> (Blender) -> GLB: clips by name and duration, joints, morph target names, joint world positions."""
+MORPH_TOLERANCE = 1e-3
+
+
+def _morph_take(source_doc, index, name, morph_actions, fps):
+    """The take Blender read in the FBX for a clip that only drives morph targets: it must last as long as the clip and its
+    shape keys must reach the same lowest and highest weights. None when the FBX has no such take."""
+    from . import asset_animation as aa
+    take = next((a for a in morph_actions or [] if clip_key(a['name']) == clip_key(name)), None)
+    if not take:
+        return None
+    gltf = source_doc.gltf
+    expected = {}
+    for a, channel, mesh in aa._weight_channels(source_doc):
+        if a != index:
+            continue
+        names = (gltf['meshes'][mesh].get('extras') or {}).get('targetNames') or []
+        values = np.asarray(channel.values, dtype=float).reshape(len(channel.times), -1)
+        for k in range(values.shape[1]):
+            expected[names[k] if k < len(names) else f'target_{k}'] = (float(values[:, k].min()), float(values[:, k].max()))
+    error = 0.0
+    for block, (low, high) in expected.items():
+        got = take['blocks'].get(block, {'min': 0.0, 'max': 0.0})
+        error = max(error, abs(got['min'] - low), abs(got['max'] - high))
+    times = [t for a, channel, _ in aa._weight_channels(source_doc) if a == index for t in channel.times]
+    duration = (max(times) - min(times)) if times else 0.0
+    back = float(take['frame_end'] - take['frame_start']) / fps
+    error, duration = float(error), float(duration)
+    return {'found': True, 'carried_as': 'take of its own with shape key curves', 'back_name': take['name'], 'duration_s': duration,
+            'back_duration_s': back, 'duration_matches': bool(abs(back - duration) <= 1.0 / fps + 1e-6), 'max_weight_error': error,
+            'weights_match': bool(error <= MORPH_TOLERANCE)}
+
+
+def compare_roundtrip(source_doc, back_doc, fps=24.0, morph_actions=None):
+    """What survived GLB -> FBX -> (Blender) -> GLB: clips by name and duration, joints, morph target names, joint world positions.
+    morph_actions are the shape key actions Blender read in the FBX (a clip that only drives morph targets is checked there,
+    because Blender does not write such a take back to a GLB)."""
     from .asset_animation_rig import Rig
     a_rig, b_rig = Rig(source_doc), Rig(back_doc)
+    worst_morph = 0.0
     b_clips = {}  # Blender names takes 'Armature|Armature|idle' and the shape keys of the same take 'Key|Armature|idle': keep the fuller one
     for i, anim in enumerate(back_doc.gltf.get('animations', [])):
         key = clip_key(anim.get('name'))
@@ -146,6 +182,12 @@ def compare_roundtrip(source_doc, back_doc, fps=24.0):
         j = b_clips.get(clip_key(name))
         row = {'clip': name, 'found': j is not None}
         paths = {c.get('target', {}).get('path') for c in anim.get('channels', [])}
+        taken = _morph_take(source_doc, i, name, morph_actions, fps) if j is None and paths == {'weights'} else None
+        if taken:  # Blender's FBX importer reads a take of its own for this clip: its duration and shape key values are compared
+            row.update(taken)
+            worst_morph = max(worst_morph, taken['max_weight_error'])
+            rows.append(row)
+            continue
         if j is None and paths == {'weights'}:
             row['lost_by_fbx'] = ('a clip that only drives morph targets: Blender writes shape key animation only inside the take of an '
                                   'animated object, so it has no take of its own in the FBX')
@@ -171,8 +213,8 @@ def compare_roundtrip(source_doc, back_doc, fps=24.0):
     morph_missing = sorted(set(names(source_doc)) - set(names(back_doc)))
     out = {'clips': rows, 'joints': len(a_joints), 'joints_missing': [n for n in a_joints if n not in b_joints],
            'morph_targets_missing': morph_missing, 'max_joint_position_error_mm': worst, 'tolerance_mm': POSITION_TOLERANCE_MM,
-           'clips_lost_by_fbx': lost}
-    out['ok'] = (all(r['found'] and r['duration_matches'] for r in rows if 'lost_by_fbx' not in r) and not out['joints_missing']
+           'clips_lost_by_fbx': lost, 'max_morph_weight_error': worst_morph, 'morph_tolerance': MORPH_TOLERANCE}
+    out['ok'] = (all(r['found'] and r['duration_matches'] and r.get('weights_match', True) for r in rows if 'lost_by_fbx' not in r) and not out['joints_missing']
                  and not morph_missing and worst <= POSITION_TOLERANCE_MM)
     return out
 
@@ -203,11 +245,12 @@ def export_fbx(services, model_id=None, path=None, preparation_id=None):
         written = run_blender('glb2fbx', source, out)
         receipt.update(output={'path': str(out), 'format': 'fbx', 'bytes': out.stat().st_size, 'sha256': sha256_of(out)},
                        blender={'path': written['blender_path'], 'version': (written.get('read') or {}).get('blender')},
-                       read_by_blender=written.get('read'))
+                       read_by_blender=written.get('read'), morph_takes=written.get('morph_takes') or [])
         with tempfile.TemporaryDirectory(prefix='vulcan-fbx-back-') as tmp:
             back = Path(tmp) / 'back.glb'
             reread = run_blender('fbx2glb', out, back)
-            comparison = compare_roundtrip(Doc.load(source), Doc.load(back), fps=(reread.get('read') or {}).get('fps') or 24.0)
+            comparison = compare_roundtrip(Doc.load(source), Doc.load(back), fps=(reread.get('read') or {}).get('fps') or 24.0,
+                                           morph_actions=(reread.get('read') or {}).get('morph_actions'))
         receipt.update(roundtrip={'consumer': 'Blender FBX importer, re-exported to GLB and compared here', **comparison},
                        original_unchanged=sha256_of(source) == digest)
         if not (comparison['ok'] and receipt['original_unchanged']):
