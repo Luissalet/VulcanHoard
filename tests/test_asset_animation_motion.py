@@ -220,6 +220,8 @@ def test_fbx_export_is_read_back_by_blender_and_an_fbx_feeds_inspection(services
     assert blink['found'] and blink['weights_match'] and blink['max_weight_error'] <= 1e-3 and blink['duration_matches']
     assert {r['clip'] for r in roundtrip['clips'] if r['found']} == {'idle', 'walk', 'open', 'wave', 'blink'}
     assert all(r['duration_matches'] for r in roundtrip['clips'] if r['found'])
+    # a bone a clip does not key stays at its rest pose: 'wave' only moves the tip and must not inherit the pose another clip left
+    assert all(r['max_joint_position_error_mm'] < 0.05 for r in roundtrip['clips'] if 'max_joint_position_error_mm' in r), roundtrip['clips']
     plain = call_tool(services, 'anim_fbx_export', {'path': str(anim_example.build(tmp_path / 'plain.glb', unnamed=False))})
     assert plain['status'] == 'exported', plain.get('reason') or plain.get('roundtrip')
     assert roundtrip['max_joint_position_error_mm'] <= 1.0 and not roundtrip['joints_missing'] and not roundtrip['morph_targets_missing']
@@ -244,6 +246,13 @@ def test_fbx_export_is_read_back_by_blender_and_an_fbx_feeds_inspection(services
     assert {e['name'] for e in report['morph']['meshes'][0]['rows']} >= {'bulge'}
     listed = call_tool(services, 'anim_fbx_exports', {})
     assert listed['count'] == 2 and listed['blender']['available']
+
+
+def test_asking_for_suggested_motion_changes_on_a_rig_without_any_says_so(services, tmp_path):
+    plain = anim_example.build(tmp_path / 'plain.glb', unnamed=False)
+    receipt = call_tool(services, 'anim_prepare', {'path': str(plain), 'root_in_place': True})
+    assert not [op for op in receipt['operations'] if op['op'] == 'root_in_place']
+    assert any(n.startswith('root_in_place:') for n in receipt['notes']), receipt
 
 
 def test_tools_rest_and_cold_catalogue_for_the_new_animation_surface(client, tmp_path):

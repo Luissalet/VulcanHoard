@@ -100,6 +100,21 @@ def _proxy_shape_key_actions():
     return done
 
 
+def _rest_poses():
+    """The glTF importer leaves each armature in the pose of the first action. The FBX exporter bakes every take from that
+    pose, so a bone a clip does not key would inherit it; in glTF an unkeyed bone sits at its rest transform."""
+    for ob in bpy.data.objects:
+        if ob.type == 'ARMATURE':
+            if ob.animation_data:  # the active action would write its first pose back into the bones on every frame change
+                ob.animation_data.action = None
+            for pb in ob.pose.bones:
+                pb.location = (0.0, 0.0, 0.0)
+                pb.rotation_quaternion = (1.0, 0.0, 0.0, 0.0)
+                pb.rotation_euler = (0.0, 0.0, 0.0)
+                pb.scale = (1.0, 1.0, 1.0)
+    bpy.context.view_layer.update()
+
+
 def _summary():
     scene = bpy.context.scene
     fps = scene.render.fps / (scene.render.fps_base or 1.0)
@@ -145,6 +160,7 @@ def main():
             bpy.data.objects.remove(shape, do_unlink=True)
         result['removed_display_shapes'] = len(shapes)
         result['read'] = _summary()
+        _rest_poses()
         result['morph_takes'] = _proxy_shape_key_actions()
         bpy.ops.export_scene.fbx(**_kwargs(bpy.ops.export_scene.fbx, {
             'filepath': target, 'use_selection': False, 'add_leaf_bones': False, 'bake_anim': True, 'bake_anim_use_all_actions': True,
