@@ -12,16 +12,25 @@ from .spec import CONSTRAINTS, Part
 EXAMPLES = Path(__file__).resolve().parent / 'examples'
 RID = {'type': 'string', 'pattern': '^[a-zA-Z0-9_-]{1,80}$'}
 VALUE = {'anyOf': [{'type': 'number'}, {'type': 'string', 'maxLength': 200}]}
-SPEC = {'type': 'object', 'description': 'Part spec: parameters, sketch (points, lines, circles, profile, holes, constraints), extrude, features, checks. Read heron_part_examples for the schema.'}
+SPEC = {'type': 'object', 'description': 'Part spec: parameters, sketch (points, lines, arcs, circles, profile, holes, constraints), extrude or revolve, features (holes with patterns, fillets, chamfers, shells, pads and pockets sketched on faces), checks. Read heron_part_examples for the schema.'}
 CHANGE = {'type': 'object', 'properties': {'parameter': {'type': 'string'}, 'constraint': {'type': 'string'}, 'value': VALUE},
           'required': ['value'], 'additionalProperties': False}
 WRITE = {'readOnlyHint': False, 'destructiveHint': False, 'idempotentHint': True, 'openWorldHint': False}
 READ = {'readOnlyHint': True}
 EMPTY = {'type': 'object', 'properties': {}, 'additionalProperties': False}
-FACES = {'top': 'End face of the extrusion at z = depth (written "top").',
-         'bottom': 'Sketch-plane face at z = 0 (written "bottom").',
-         'side': 'The side face swept by a sketch line: {"side": "<line id>"}.',
-         'contains': 'The single face containing a sketch point lifted to a level: {"contains": "<point id>", "level": "top|bottom|mid"}.'}
+FACES = {'top': 'End face of the extrusion at z = depth, or of a partial revolution at the end of its sweep (written "top").',
+         'bottom': 'Sketch-plane face at z = 0, or the start face of a partial revolution (written "bottom").',
+         'side': 'The side face swept by a sketch line or arc (a plane, cylinder or cone): {"side": "<line or arc id>"}.',
+         'contains': 'The single face containing a sketch point lifted to a level (extrusion: z = depth, 0, depth / 2; revolution: end, start, '
+                     'middle of the sweep): {"contains": "<point id>", "level": "top|bottom|mid"}.'}
+FRAMES = {'side': 'Extrusion side of a line: origin at the line start on the sketch plane, x along the line, y = normal x x (up for a counter-clockwise outline).',
+          'cap': 'Extrusion top/bottom: origin on the z axis at that face, x = world X; y = world Y on top, mirrored on the bottom.',
+          'other': 'Any other planar face: origin = the world origin projected onto the face plane, x = world X (else Y, else Z) projected, y = normal x x.'}
+BASES = {'extrude': '{"extrude": {"depth": mm}}: the outline swept along +z.',
+         'revolve': '{"revolve": {"axis": "<line id>", "angle": deg}}: the outline turned about a sketch line (right-hand rule from its start to its end), '
+                    'kept on one side of the axis; the axis line may be an outline edge.',
+         'arcs': 'sketch.arcs {id: {center, start, end, clockwise}} are outline edges (profile or inner loops) and can be dimensioned like circles '
+                 '(radius, diameter, tangent, equal, concentric, point_on_circle).'}
 
 
 def examples():
@@ -50,6 +59,10 @@ def tools():
         {'name': 'part_revise', 'description': 'Replace the spec of a part as a new revision; each face reference reports kept, moved or invalidated against the base. Keywords: revisión, referencias, caras.',
          'inputSchema': {'type': 'object', 'properties': {'id': RID, 'base_revision': {'type': 'integer', 'minimum': 1}, 'request_id': RID, 'spec': SPEC},
                          'required': ['id', 'base_revision', 'request_id', 'spec'], 'additionalProperties': False}, 'annotations': WRITE},
+        {'name': 'part_drag_point', 'description': 'Drag one sketch point towards a position while every constraint keeps holding: a fixed point stays, a sliding one stops at the nearest reachable spot. Returns the spec with the new starting positions and the new solve; nothing is stored. Keywords: arrastrar punto, mover boceto.',
+         'inputSchema': {'type': 'object', 'properties': {'spec': SPEC, 'point': {'type': 'string', 'pattern': '^[a-z][a-z0-9_]{0,40}$'},
+                                                          'to': {'type': 'array', 'items': {'type': 'number'}, 'minItems': 2, 'maxItems': 2, 'description': '[x, y] in mm'}},
+                         'required': ['spec', 'point', 'to'], 'additionalProperties': False}, 'annotations': READ},
         {'name': 'part_from_recipe', 'description': 'Import the sketch extrusion of a Vulcan library CAD recipe as a fully constrained part and export its STEP. Keywords: importar receta, STEP, biblioteca.',
          'inputSchema': {'type': 'object', 'properties': {'request_id': RID, 'recipe': {'type': 'object', 'description': 'Library CAD recipe JSON (params and root with an extrude node)'}},
                          'required': ['request_id', 'recipe'], 'additionalProperties': False}, 'annotations': WRITE},
@@ -66,8 +79,14 @@ def with_links(row):
 def execute(store, name, args):
     if name == 'part_examples':
         return {'examples': examples(), 'constraint_types': {k: v[2] for k, v in CONSTRAINTS.items()}, 'face_references': FACES,
-                'feature_types': {'hole': 'Holes at sketch points on a face, through or to depth.', 'fillet': 'Round the edges of a face.',
-                                  'chamfer': 'Chamfer the edges of a face.', 'shell': 'Remove a face and hollow the solid inwards to a wall thickness.'},
+                'feature_types': {'hole': 'Holes at sketch points on a planar face, through or to depth; pattern repeats each centre in a row '
+                                          '({type: linear, count, spacing, direction: line id or [x, y(, z)]}) or a ring about the face normal '
+                                          '({type: circular, count, center: point id, angle}).',
+                                  'fillet': 'Round the edges of a face.', 'chamfer': 'Chamfer the edges of a face.',
+                                  'shell': 'Remove a face and hollow the solid inwards to a wall thickness.',
+                                  'pad': 'A constrained sketch drawn on a planar face, extruded out of it by depth (material added).',
+                                  'pocket': 'A constrained sketch drawn on a planar face, cut into it by depth (omitted = through all).'},
+                'face_frames': FRAMES, 'base_shapes': BASES,
                 'statuses': {'solved': 'every constraint holds and no degree of freedom is left', 'under_constrained': 'built from the current geometry; free points listed',
                              'incompatible': 'a constraint cannot hold with the accepted ones; nothing built', 'invalid_geometry': 'the solved outline crosses itself or a hole leaves it',
                              'invalid_reference': 'a face reference no longer names exactly one face; nothing built', 'feature_failed': 'the kernel refused an operation'},
@@ -75,6 +94,9 @@ def execute(store, name, args):
     if name == 'part_solve_sketch':
         from .sketch import dry_run
         return dry_run(args['spec'])
+    if name == 'part_drag_point':
+        from .sketch import drag
+        return drag(args['spec'], args['point'], args['to'])
     if name == 'part_create':
         return with_links(store.create(args['request_id'], args['spec']))
     if name == 'part_get':
@@ -110,6 +132,10 @@ def install_routes(app, store, call):
     @app.post('/api/part/solve')
     def part_solve(body: dict):
         return guarded('part_solve_sketch', {'spec': body.get('spec')})
+
+    @app.post('/api/part/drag')
+    def part_drag(body: dict):
+        return guarded('part_drag_point', {'spec': body.get('spec'), 'point': body.get('point'), 'to': body.get('to')})
 
     @app.get('/api/parts')
     def part_list():

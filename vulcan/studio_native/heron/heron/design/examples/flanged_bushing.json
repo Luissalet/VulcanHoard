@@ -1,0 +1,39 @@
+{
+  "title": "Flanged bushing / casquillo con brida revolucionado y corona de taladros",
+  "parameters": {"bore_r": 6, "tube_r": 10, "flange_r": 24, "flange_t": 4, "height": 20, "bolt_r": 17, "bolt_d": 4},
+  "sketch": {
+    "points": {"q0": [0, 0], "q1": [0, 20], "p6": [6, 0], "p1": [24, 0], "p2": [24, 4], "p3": [10, 4], "p4": [10, 20], "p5": [6, 20], "m": [17, 4]},
+    "lines": {"axis": ["q0", "q1"], "l1": ["p6", "p1"], "l2": ["p1", "p2"], "l3": ["p2", "p3"], "l4": ["p3", "p4"], "l5": ["p4", "p5"], "l6": ["p5", "p6"]},
+    "profile": ["l1", "l2", "l3", "l4", "l5", "l6"],
+    "constraints": [
+      {"id": "axis_start", "type": "fixed", "point": "q0", "at": [0, 0]},
+      {"id": "axis_end", "type": "fixed", "point": "q1", "at": [0, "height"]},
+      {"id": "bore_corner", "type": "fixed", "point": "p6", "at": ["bore_r", 0]},
+      {"id": "base_flat", "type": "horizontal", "line": "l1"},
+      {"id": "flange_width", "type": "distance_x", "a": "p6", "b": "p1", "value": "flange_r - bore_r"},
+      {"id": "flange_rim", "type": "vertical", "line": "l2"},
+      {"id": "flange_thick", "type": "length", "line": "l2", "value": "flange_t"},
+      {"id": "flange_top", "type": "horizontal", "line": "l3"},
+      {"id": "tube_radius", "type": "distance_x", "a": "q0", "b": "p3", "value": "tube_r"},
+      {"id": "tube_wall", "type": "vertical", "line": "l4"},
+      {"id": "tube_height", "type": "distance_y", "a": "q0", "b": "p4", "value": "height"},
+      {"id": "top_flat", "type": "horizontal", "line": "l5"},
+      {"id": "bore_wall", "type": "vertical", "line": "l6"},
+      {"id": "bolt_on_flange", "type": "point_on_line", "point": "m", "line": "l3"},
+      {"id": "bolt_circle", "type": "distance_x", "a": "q0", "b": "m", "value": "bolt_r"}
+    ]
+  },
+  "revolve": {"axis": "axis", "angle": 360},
+  "features": [
+    {"id": "bolts", "type": "hole", "face": {"side": "l3"}, "at": ["m"], "diameter": "bolt_d",
+     "pattern": {"type": "circular", "count": 6, "center": "q1", "angle": 360}},
+    {"id": "lead_in", "type": "chamfer", "face": {"side": "l5"}, "distance": 0.5, "edges": "all"}
+  ],
+  "checks": [
+    {"id": "bolts_found", "measure": "hole_count", "feature": "bolts", "value": 6},
+    {"id": "bolt_pitch", "measure": "hole_distance", "feature": "bolts", "value": "bolt_r", "tolerance": 0.001},
+    {"id": "bolt_size", "measure": "hole_diameter", "feature": "bolts", "value": "bolt_d", "tolerance": 0.001},
+    {"id": "overall_height", "measure": "bbox_y", "value": "height", "tolerance": 0.001},
+    {"id": "flange_diameter", "measure": "bbox_x", "value": "2 * flange_r", "tolerance": 0.001}
+  ]
+}

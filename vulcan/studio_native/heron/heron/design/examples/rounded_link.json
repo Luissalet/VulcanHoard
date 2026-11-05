@@ -1,0 +1,33 @@
+{
+  "title": "Rounded link / eslabón con extremos en arco y fila de taladros",
+  "parameters": {"length": 60, "radius": 10, "thickness": 5, "hole": 6, "pitch": "length / 2"},
+  "sketch": {
+    "points": {"a": [0, 0], "b": [60, 0], "cr": [60, 10], "c": [60, 20], "d": [0, 20], "cl": [0, 10]},
+    "lines": {"s": ["a", "b"], "n": ["c", "d"]},
+    "arcs": {"right": {"center": "cr", "start": "b", "end": "c"}, "left": {"center": "cl", "start": "d", "end": "a"}},
+    "profile": ["s", "right", "n", "left"],
+    "constraints": [
+      {"id": "origin", "type": "fixed", "point": "a", "at": [0, 0]},
+      {"id": "base_flat", "type": "horizontal", "line": "s"},
+      {"id": "span", "type": "length", "line": "s", "value": "length"},
+      {"id": "right_x", "type": "distance_x", "a": "b", "b": "cr", "value": 0},
+      {"id": "right_y", "type": "distance_y", "a": "b", "b": "cr", "value": "radius"},
+      {"id": "right_top", "type": "distance_x", "a": "cr", "b": "c", "value": 0},
+      {"id": "left_x", "type": "distance_x", "a": "a", "b": "cl", "value": 0},
+      {"id": "left_y", "type": "distance_y", "a": "a", "b": "cl", "value": "radius"},
+      {"id": "left_top", "type": "distance_x", "a": "cl", "b": "d", "value": 0}
+    ]
+  },
+  "extrude": {"depth": "thickness"},
+  "features": [
+    {"id": "row", "type": "hole", "face": "top", "at": ["cl"], "diameter": "hole",
+     "pattern": {"type": "linear", "count": 3, "spacing": "pitch", "direction": "s"}},
+    {"id": "soft_top", "type": "fillet", "face": "top", "radius": 1}
+  ],
+  "checks": [
+    {"id": "holes_found", "measure": "hole_count", "feature": "row", "value": 3},
+    {"id": "pitch_measured", "measure": "hole_distance", "feature": "row", "value": "pitch", "tolerance": 0.001},
+    {"id": "overall_length", "measure": "bbox_x", "value": "length + 2 * radius", "tolerance": 0.001},
+    {"id": "thickness_measured", "measure": "bbox_z", "value": "thickness", "tolerance": 0.001}
+  ]
+}

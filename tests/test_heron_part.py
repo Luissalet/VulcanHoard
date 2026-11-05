@@ -197,7 +197,8 @@ def test_rest_surface_page_and_cold_catalogue(heron):
     client, call, data = heron
     solved = client.post('/api/part/solve', json={'spec': PLATE}).json()
     assert solved['status'] == 'solved' and solved['dof'] == 0 and client.get('/api/parts').json() == {'parts': []}
-    assert set(client.get('/api/part/examples').json()['examples']) == {'plate_two_holes', 'shelled_box', 'trapezoid_tangent_hole'}
+    assert set(client.get('/api/part/examples').json()['examples']) == {'plate_two_holes', 'shelled_box', 'trapezoid_tangent_hole', 'rounded_link',
+                                                                         'flanged_bushing', 'block_boss_pocket'}
     page = client.get('/')
     assert 'id="design"' in page.text and '/design.js' in page.text and client.get('/design.js').status_code == 200
     rows = {row['native_name']: row for row in native_catalog() if row['module'] == 'heron'}
@@ -259,3 +260,136 @@ def test_a_side_face_is_not_ambiguous_because_another_side_is_coplanar(heron):
     feature = row['result']['features'][0]
     assert feature['state'] == 'resolved', feature
     assert feature['resolved']['center_mm'][0] == pytest.approx(5, abs=1e-6)  # the face under l1, not the one under l5
+
+
+# -- arcs, revolutions, hole patterns, sketches on faces, dragging (#2307) ---------------------------------
+LINK = examples()['rounded_link']
+BUSHING = examples()['flanged_bushing']
+BLOCK = examples()['block_boss_pocket']
+
+
+def test_arcs_in_the_outline_solve_exactly_and_report_their_free_radius():
+    result = sk.dry_run(LINK)
+    assert result['status'] == 'solved' and result['dof'] == 0 and not result['redundant_but_consistent']
+    assert result['radii']['right'] == pytest.approx(10, abs=1e-9) and result['radii']['left'] == pytest.approx(10, abs=1e-9)
+    assert result['points']['c'] == pytest.approx([60, 20], abs=1e-9) and result['points']['d'] == pytest.approx([0, 20], abs=1e-9)
+    assert result['geometry']['area_mm2'] == pytest.approx(2 * 10 * 60 + math.pi * 100, rel=1e-12)  # exact, not the polygon
+    loose = sk.dry_run(constraints_without(LINK, 'right_y'))
+    assert loose['status'] == 'under_constrained' and loose['dof'] == 1
+    assert {f['entity'] for f in loose['free']} >= {'cr'}
+    bad = copy.deepcopy(LINK)
+    bad['sketch']['arcs']['right']['end'] = 'b'
+    with pytest.raises(ValueError, match='three different known points'):
+        sk.dry_run(bad)
+
+
+def test_dragging_moves_only_what_the_constraints_leave_free():
+    loose = constraints_without(PLATE, 'width')  # b (and c) slide along x
+    out = sk.drag(loose, 'b', [100, 7])
+    assert out['position'] == pytest.approx([100, 0], abs=1e-6) and out['solve']['status'] == 'under_constrained'
+    assert 'nearest reachable' in out['note'] and out['distance_to_request_mm'] == pytest.approx(7, abs=1e-6)
+    assert out['spec']['sketch']['points']['b'] == pytest.approx([100, 0], abs=1e-6) and 'c' in out['moved_points']
+    assert all(c['state'] == 'satisfied' for c in out['solve']['constraints'])
+    again = sk.dry_run(out['spec'])  # the returned spec starts where the drag left it
+    assert again['points']['b'] == pytest.approx([100, 0], abs=1e-6)
+    fixed = sk.drag(PLATE, 'a', [30, 30])
+    assert fixed['moved_mm'] < 1e-6 and 'did not move' in fixed['note'] and fixed['spec'] == PLATE
+    free = sk.drag(constraints_without(PLATE, 'spacing', 'holes_centred'), 'h1', [10, 25])
+    assert free['position'] == pytest.approx([10, 25], abs=1e-6) and 'reached' in free['note']
+    with pytest.raises(ValueError, match='Unknown sketch point'):
+        sk.drag(PLATE, 'zz', [0, 0])
+
+
+def test_arc_outline_extrudes_with_a_linear_hole_pattern_and_a_cylindrical_side(heron):
+    _, call, _ = heron
+    row = call('part_create', {'request_id': 'link', 'spec': LINK})
+    assert_verified(row)
+    result = row['result']
+    assert result['volume_mm3'] < (2 * 10 * 60 + math.pi * 100) * 5  # holes and the top fillet removed material
+    holes = result['features'][0]['holes']
+    assert [h['at'] for h in holes] == ['cl', 'cl#2', 'cl#3']
+    assert [h['center_mm'][0] for h in holes] == pytest.approx([0, 30, 60], abs=1e-9)
+    side = copy.deepcopy(LINK)
+    side['features'] = [{'id': 'pin', 'type': 'hole', 'face': {'side': 'right'}, 'at': ['cr'], 'diameter': 2}]
+    side['checks'] = []
+    curved = call('part_create', {'request_id': 'link-side', 'spec': side})['result']
+    assert curved['status'] == 'feature_failed' and 'planar faces' in curved['features'][0]['reason']
+    assert 'is cylinder' in curved['features'][0]['reason']  # the arc side was found as the cylinder it sweeps
+
+
+def test_revolved_part_with_a_circular_bolt_pattern_round_trips(heron):
+    _, call, _ = heron
+    row = call('part_create', {'request_id': 'bush', 'spec': BUSHING})
+    assert_verified(row)
+    result = row['result']
+    assert result['base'] == 'revolve' and result['revolution']['angle_deg'] == pytest.approx(360)
+    ring = math.pi * ((24 ** 2 - 6 ** 2) * 4 + (10 ** 2 - 6 ** 2) * 16)
+    assert result['volume_mm3'] < ring - 6 * math.pi * 4 * 4 + 1e-6
+    bolts = result['features'][0]
+    assert bolts['pattern']['type'] == 'circular' and len(bolts['holes']) == 6
+    radii = [math.hypot(h['center_mm'][0], h['center_mm'][2]) for h in bolts['holes']]
+    assert radii == pytest.approx([17] * 6, abs=1e-6)
+    crossing = copy.deepcopy(BUSHING)
+    crossing['parameters']['bore_r'] = -3
+    bad = call('part_create', {'request_id': 'bush-cross', 'spec': crossing})['result']
+    assert bad['status'] == 'invalid_geometry' and 'crosses the revolution axis' in bad['sketch']['geometry']['errors'][-1]
+    capped = copy.deepcopy(BUSHING)
+    capped['features'] = [{'id': 'top_hole', 'type': 'hole', 'face': 'top', 'at': ['m'], 'diameter': 2}]
+    capped['checks'] = []
+    assert 'no end faces' in call('part_create', {'request_id': 'bush-cap', 'spec': capped})['result']['features'][0]['reason']
+
+
+def test_partial_revolution_names_its_end_face_at_the_end_of_the_sweep(heron):
+    _, call, _ = heron
+    spec = _box(18, 4, 1, [{'id': 'end_hole', 'type': 'hole', 'face': 'top', 'at': ['m'], 'diameter': 1}])
+    del spec['extrude']
+    pts = spec['sketch']['points']
+    for name in pts:
+        pts[name] = [pts[name][0] + 6, pts[name][1]]
+    pts['m'], pts['q0'], pts['q1'] = [15, 2], [0, 0], [0, 10]
+    spec['sketch']['lines']['ax'] = ['q0', 'q1']
+    spec['sketch']['constraints'][0]['at'] = [6, 0]
+    spec['sketch']['constraints'] += [{'id': 'mx', 'type': 'fixed', 'point': 'm', 'at': [15, 2]}, {'id': 'a0', 'type': 'fixed', 'point': 'q0', 'at': [0, 0]},
+                                      {'id': 'a1', 'type': 'fixed', 'point': 'q1', 'at': [0, 10]}]
+    spec['revolve'] = {'axis': 'ax', 'angle': 90}
+    row = call('part_create', {'request_id': 'quarter', 'spec': spec})
+    result = row['result']
+    assert result['status'] == 'solved' and result['roundtrip']['ok'], result.get('features')
+    hole = result['features'][0]['holes'][0]
+    assert hole['center_mm'] == pytest.approx([0, 2, -15], abs=1e-6)  # right-hand rule about +y carries +x to -z
+    quarter = math.pi / 4 * (24 ** 2 - 6 ** 2) * 4
+    assert quarter - math.pi * 0.25 * 20 < result['volume_mm3'] < quarter - math.pi * 0.25 * 18  # the bore leaves through the outer wall
+
+
+def test_pad_and_pocket_are_sketched_on_named_faces(heron):
+    _, call, _ = heron
+    row = call('part_create', {'request_id': 'block', 'spec': BLOCK})
+    assert_verified(row)
+    feats = {f['id']: f for f in row['result']['features']}
+    assert feats['boss']['sketch']['status'] == 'solved' and feats['boss']['volume_change_mm3'] == pytest.approx(math.pi * 36 * 8, rel=1e-6)
+    assert feats['boss']['frame']['origin_mm'] == pytest.approx([0, 0, 10]) and feats['boss']['frame']['normal'] == pytest.approx([0, 0, 1])
+    assert feats['slot']['frame']['x'] == pytest.approx([1, 0, 0]) and feats['slot']['frame']['y'] == pytest.approx([0, 0, 1])
+    assert feats['slot']['volume_change_mm3'] == pytest.approx(-20 * 4 * 5, rel=1e-9)
+    wider = call('part_set_parameters', {'id': 'block', 'base_revision': 1, 'request_id': 'block-wide', 'changes': [{'parameter': 'slot_w', 'value': 'slot_w + 10'}]})
+    assert_verified(wider)
+    assert {f['id']: f for f in wider['result']['features']}['slot']['volume_change_mm3'] == pytest.approx(-30 * 4 * 5, rel=1e-9)
+    outside = copy.deepcopy(BLOCK)
+    outside['features'][1]['sketch']['constraints'][0]['at'] = [100, 100]
+    gone = call('part_create', {'request_id': 'block-out', 'spec': outside})['result']
+    assert gone['status'] == 'feature_failed' and 'changed no material' in {f['id']: f for f in gone['features']}['slot']['reason']
+
+
+def test_pattern_copies_that_leave_the_face_fail_and_drag_is_on_every_surface(heron):
+    client, call, _ = heron
+    long = copy.deepcopy(LINK)
+    long['features'][0]['pattern']['count'] = 4
+    row = call('part_create', {'request_id': 'link-long', 'spec': long})['result']
+    assert row['status'] == 'feature_failed' and 'pattern copy 4' in row['features'][0]['reason']
+    loose = constraints_without(PLATE, 'width')
+    rest = client.post('/api/part/drag', json={'spec': loose, 'point': 'b', 'to': [90, 0]})
+    assert rest.status_code == 200 and rest.json()['position'] == pytest.approx([90, 0], abs=1e-6)
+    mcp = call('part_drag_point', {'spec': loose, 'point': 'b', 'to': [95, 0]})
+    assert mcp['position'] == pytest.approx([95, 0], abs=1e-6)
+    assert client.post('/api/part/drag', json={'spec': loose, 'point': 'nope', 'to': [0, 0]}).status_code == 400
+    page = client.get('/design.js').text
+    assert 'part-editor' in page and '/api/part/drag' in page and 'pointerdown' in page

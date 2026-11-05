@@ -8,7 +8,7 @@ Run `python -m vulcan` and open the displayed URL (default5186). The shell contr
 | gepetto | /gepetto/ | Figure/UV/texture relief, semantic proposals, editable Blender/.gepettos/portable projects, reference pose and native maps |
 | daedalus | /daedalus/ | Image-to-3D generation, refinement, repair, optimization and game-ready results |
 | plato | /plato/ | Full silhouette editor and legacy view, composition/fitting/frame, native .silhouettes packages and SVG/PNG/STL exports |
-| heron | /heron/ | Measured CadQuery recipes, validated solids and STEP/STL; assemblies with relations and interference; constrained sketches with operations on named faces |
+| heron | /heron/ | Measured CadQuery recipes, validated solids and STEP/STL; assemblies with relations and interference; constrained sketches (lines, arcs, circles; drag editing) extruded or revolved, with holes, patterns, fillets, chamfers, shells, pads and pockets on named faces |
 | gulliver | /gulliver/ | Printable geographic terrain/cities and STL/3MF results |
 
 The original library HTTP paths listed in the older README sections are relative to `/library`; host control, shared projects and MCP catalogue/calls remain under `/api`. Existing library tool names are unchanged. Native module tool names have namespaces and preserve native_name and inputSchema in the static catalogue. Multipart uploads remain available in the full native UI/API, as before; the historical generic MCP bridge did not expose multipart operations.
