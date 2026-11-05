@@ -4,7 +4,7 @@ Run `python -m vulcan` and open the displayed URL (default5186). The shell contr
 
 | Module | Native editor/API prefix | Preserved capabilities |
 | --- | --- | --- |
-| library | /library/ | Existing STL/3MF/OBJ library, measurements, CPU thumbnails, collections, listings, parametric STL CAD and family contracts |
+| library | /library/ | Existing STL/3MF/OBJ/GLB/glTF/FBX library, animated assets (inspection, preparation, FBX, retargeting), measurements, CPU thumbnails, collections, listings, parametric STL CAD and family contracts |
 | gepetto | /gepetto/ | Figure/UV/texture relief, semantic proposals, editable Blender/.gepettos/portable projects, reference pose and native maps |
 | daedalus | /daedalus/ | Image-to-3D generation, refinement, repair, optimization and game-ready results |
 | plato | /plato/ | Full silhouette editor and legacy view, composition/fitting/frame, native .silhouettes packages and SVG/PNG/STL exports |

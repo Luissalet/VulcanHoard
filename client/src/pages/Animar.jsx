@@ -25,15 +25,15 @@ export default function Animar() {
     const r = await act(() => api.animExample(), "Ejemplo inventado escrito en la carpeta de datos.");
     if (r) open(r.path);
   };
-  const glb = path.toLowerCase().endsWith(".glb");
+  const glb = /\.(glb|fbx)$/i.test(path); // an FBX previews through its Blender conversion
   const shown = preview || (glb ? api.animSourceUrl(path) : null);
   const pseudo = { id: `anim:${path}:${preview || ""}`, format: "glb", sha256: "" };
   return (
     <div className="mx-auto max-w-[1200px]" data-page-animar>
       <h1 className="text-[22px] font-semibold">Animaciones</h1>
-      <p className="help mt-1">Personajes y objetos con esqueleto y clips (GLB o glTF; un FBX se exporta antes a GLB desde Blender). Mira cada clip en el visor con su barra de tiempo, comprueba el esqueleto y los bucles frente a un perfil de destino y prepara una variante verificada. El archivo original no se toca.</p>
+      <p className="help mt-1">Personajes y objetos con esqueleto, clips y morph targets (GLB, glTF o FBX; un FBX se convierte con Blender en segundo plano y la conversión se guarda). Mira cada clip en el visor con su barra de tiempo, comprueba el esqueleto, los bucles y la raíz frente a un perfil de destino, prepara una variante verificada, expórtala a FBX o pasa sus animaciones a otro esqueleto. El archivo original no se toca.</p>
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <input className="field" style={{ flex: "1 1 420px" }} placeholder="Ruta absoluta del GLB o glTF" value={text} onChange={(e) => setText(e.target.value)}
+        <input className="field" style={{ flex: "1 1 420px" }} placeholder="Ruta absoluta del GLB, glTF o FBX" value={text} onChange={(e) => setText(e.target.value)}
                onKeyDown={(e) => e.key === "Enter" && open(text)} aria-label="Ruta del archivo animado" data-anim-path />
         <button type="button" className="btn btn-sm btn-primary" disabled={!text.trim()} onClick={() => open(text)} data-anim-open>Abrir</button>
         <button type="button" className="btn btn-sm" onClick={example} data-anim-example>Usar un ejemplo inventado</button>
@@ -45,7 +45,7 @@ export default function Animar() {
               <Suspense fallback={<div className="viewer"><div className="hud">Cargando visor…</div></div>}>
                 <Viewer model={pseudo} glbUrl={shown} onCloseGlb={() => setPreview(null)} glbNote={preview ? "Variante preparada (GLB en metros, mostrado en mm)" : "Archivo original (GLB en metros, mostrado en mm)"} />
               </Suspense>
-            ) : <p className="help">La vista previa lee archivos .glb; un .gltf se puede inspeccionar y preparar, y la variante preparada (GLB) sí se ve aquí.</p>}
+            ) : <p className="help">La vista previa lee archivos .glb y .fbx; un .gltf se puede inspeccionar y preparar, y la variante preparada (GLB) sí se ve aquí.</p>}
             {preview && <p className="help mt-1 text-[12px]" data-anim-showing-prepared>Viendo la variante preparada · <button type="button" className="btn-link" onClick={() => setPreview(null)}>volver al original</button></p>}
           </div>
           <div className="min-w-0">

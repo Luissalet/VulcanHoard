@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .db import Database
-from .geometry import DEFAULT_INCLUDE, MeshInfo
+from .geometry import DEFAULT_INCLUDE, LEGACY_INCLUDE, MeshInfo
 from .hoard_link import paths
 
 DEFAULT_EXCLUDE = ["**/node_modules/**", "**/.git/**", "**/__MACOSX/**", "**/.*", "**/~$*"]
@@ -45,7 +45,10 @@ THUMB_MODES = ("all", "top-level", "none")
 
 
 def _root(row) -> Root:
-    return Root(row["id"], row["name"], row["path"], json.loads(row["include"] or "[]"), json.loads(row["exclude"] or "[]"),
+    include = json.loads(row["include"] or "[]")
+    if include == LEGACY_INCLUDE:  # a root that kept the old default now also lists GLB, glTF and FBX
+        include = list(DEFAULT_INCLUDE)
+    return Root(row["id"], row["name"], row["path"], include, json.loads(row["exclude"] or "[]"),
                 bool(row["enabled"]), bool(row["watch"]), row["created_at"], row["last_scanned_at"],
                 row["thumbnails"] or "all", row["skip_small_bytes"] or 0, bool(row["imported"]))
 

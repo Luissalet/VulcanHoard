@@ -40,7 +40,7 @@ def test_roots_crud_and_validation(client, library):
     assert client.post("/api/roots", json={"path": "/no/such/folder"}).status_code == 400
     assert client.post("/api/roots", json={}).status_code == 400
     root = scan(client, library)
-    assert root["name"] == "Pruebas" and root["include"] == ["**/*.stl", "**/*.3mf", "**/*.obj"]
+    assert root["name"] == "Pruebas" and root["include"] == ["**/*.stl", "**/*.3mf", "**/*.obj", "**/*.glb", "**/*.gltf", "**/*.fbx"]
     again = client.post("/api/roots", json={"path": str(library)})
     assert again.status_code == 201 and again.json()["id"] == root["id"]  # idempotent by path
     listed = client.get("/api/roots").json()["roots"]

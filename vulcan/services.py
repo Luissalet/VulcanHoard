@@ -34,6 +34,7 @@ class Services:
         self.started_at = time.time()
         config.data_dir.mkdir(parents=True, exist_ok=True)
         config.thumbs_dir.mkdir(parents=True, exist_ok=True)
+        os.environ["VULCAN_FBX_CACHE"] = str(config.data_dir / "fbx_cache")  # FBX library files converted once, shared by scan workers
         self.token = read_or_create_token(config.token_path)  # stable across restarts: a second instance must not rotate it
         self.db = Database(config.db_path)
         self.roots = RootStore(self.db)

@@ -11,6 +11,8 @@ import ModelComparison from '../components/ModelComparison.jsx';
 import { LookPanel, PhotosPanel, SimplifyPanel, WebGlbPanel } from "../components/MeshTools.jsx";
 import SlicerButton from "../components/SlicerButton.jsx";
 import AssetInspectionPanel from "../components/AssetInspection.jsx";
+import { ModelAnimation } from "../components/AnimationPanel.jsx";
+import { SCENE_FORMATS } from "../format.js";
 
 const Viewer = lazy(() => import("../components/Viewer.jsx")); // three.js loads only on the model page
 
@@ -199,6 +201,7 @@ export default function Modelo({ param }) {
           <CadParameters key={id} id={id} onRegenerated={() => load({ preserve: true })} />
           {model.status === "ok" && <SimplifyPanel model={model} />}
           {model.status === "ok" && <AssetInspectionPanel model={model} onPreview={setGlbUrl} onOverlay={(o) => { setGlbUrl(null); setOverlay(o); }} />}
+          {model.status === "ok" && SCENE_FORMATS.includes(model.format) && <ModelAnimation key={id} model={model} onPreview={setGlbUrl} />}
 
           <section className="panel-white mt-4">
             <h2 className="text-[16px] font-semibold">Ficha para la tienda</h2>

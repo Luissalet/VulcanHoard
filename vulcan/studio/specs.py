@@ -1,7 +1,7 @@
 """Static capabilities; no imports of any engine or native store."""
 SPECS = [
     {'id': 'library', 'name': 'Biblioteca 3D', 'origin': 'Vulcan',
-     'description': 'Modelos STL, 3MF y OBJ, medidas, miniaturas, colecciones y fichas de tienda.',
+     'description': 'Modelos STL, 3MF, OBJ, GLB, glTF y FBX, medidas, miniaturas, colecciones, animaciones y fichas de tienda.',
      'automation': 'Vigilar carpetas y reescanear las bibliotecas al activar.'},
     {'id': 'gepetto', 'name': 'Figuras y relieves', 'origin': 'Gepetto',
      'description': 'Texturas, UV, regiones semánticas, relieve editable y proyectos Blender.', 'automation': None},

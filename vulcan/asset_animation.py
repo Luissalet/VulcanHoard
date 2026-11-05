@@ -64,6 +64,10 @@ class AnimRules(BaseModel):
     max_triangles: int | None = Field(None, ge=1)
     max_textures: int | None = Field(None, ge=0)
     max_texture_px: int | None = Field(None, ge=1)
+    max_morph_targets: int | None = Field(None, ge=0, le=256, description='Morph targets (blend shapes) of the mesh with the most.')
+    forbid_empty_morph_targets: bool = Field(False, description='No morph target that moves no vertex (under 0.001 mm).')
+    max_root_drift_mm: float | None = Field(None, gt=0, description='Largest horizontal displacement of the root over a looping clip '
+                                                                     '(in-place clips for runtimes that drive root motion themselves).')
 
 
 class AnimProfile(BaseModel):
@@ -88,7 +92,7 @@ BUILTINS = {
                                'required_clips': ['idle'], 'loop_clips': ['idle', 'walk', 'run'], 'max_loop_error_deg': 0.1,
                                'max_loop_error_mm': 0.1, 'forbid_nonuniform_bone_scale': True, 'forbid_empty_channels': True,
                                'forbid_unused_bones': True, 'target_fps': 30, 'max_resample_error_deg': 0.25, 'max_resample_error_mm': 0.25,
-                               'max_triangles': 100_000, 'max_textures': 8, 'max_texture_px': 4096}},
+                               'max_triangles': 100_000, 'max_textures': 8, 'max_texture_px': 4096, 'forbid_empty_morph_targets': True}},
 }
 
 
@@ -167,18 +171,33 @@ class Doc:
         acc = self.gltf['accessors'][index]
         if '_data' in acc:
             return acc['_data'], acc
-        if acc.get('sparse'):
-            raise ValueError('sparse accessors are not supported')
         dtype = np.dtype(DTYPES[acc['componentType']])
         width = COMPONENTS[acc['type']] * dtype.itemsize
+        if acc.get('sparse'):  # the dense base (or zeros) with the sparse values written in; repacking writes it dense
+            base = self.raw_dense(acc, width) if 'bufferView' in acc else bytes(acc['count'] * width)
+            array = np.frombuffer(base, dtype=dtype).reshape(acc['count'], -1).copy()
+            sparse = acc['sparse']
+            n = int(sparse['count'])
+            iview = self.gltf['bufferViews'][sparse['indices']['bufferView']]
+            istart = iview.get('byteOffset', 0) + sparse['indices'].get('byteOffset', 0)
+            itype = np.dtype(DTYPES[sparse['indices']['componentType']])
+            indices = np.frombuffer(self.bin[istart:istart + n * itype.itemsize], dtype=itype).astype(np.int64)
+            vview = self.gltf['bufferViews'][sparse['values']['bufferView']]
+            vstart = vview.get('byteOffset', 0) + sparse['values'].get('byteOffset', 0)
+            array[indices] = np.frombuffer(self.bin[vstart:vstart + n * width], dtype=dtype).reshape(n, -1)
+            return array.tobytes(), acc
         if 'bufferView' not in acc:
             return bytes(acc['count'] * width), acc
+        return self.raw_dense(acc, width), acc
+
+    def raw_dense(self, acc, width):
+        """The bytes of a buffer-view-backed accessor, packed tightly."""
         view = self.gltf['bufferViews'][acc['bufferView']]
         start = view.get('byteOffset', 0) + acc.get('byteOffset', 0)
         stride = view.get('byteStride') or width
         if stride == width:
-            return self.bin[start:start + width * acc['count']], acc
-        return b''.join(self.bin[start + i * stride: start + i * stride + width] for i in range(acc['count'])), acc
+            return self.bin[start:start + width * acc['count']]
+        return b''.join(self.bin[start + i * stride: start + i * stride + width] for i in range(acc['count']))
 
     def read(self, index):
         """An accessor as float64 rows (normalised integers scaled to [0, 1] / [-1, 1])."""
@@ -449,12 +468,12 @@ def skeleton_facts(doc):
         out['skins'].append({'index': s, 'name': skin.get('name'), 'bones': len(joints), 'influential_bones': len(used[s]),
                              'unused': [_node_name(gltf, n) for n in unused]})
         out['unused_bones'] += [{'node': n, 'name': _node_name(gltf, n), 'skin': s} for n in unused]
-    unused_nodes = {b['node'] for b in out['unused_bones']}
-    influential = joint_nodes - unused_nodes
+    influential = {skin.get('joints', [])[j] for s, skin in enumerate(skins) for j in used[s] if j < len(skin.get('joints', []))}
+    unused_nodes = {b['node'] for b in out['unused_bones']} - influential  # unused in one skin but weighted in another: not removable
     for bone in out['unused_bones']:
         tree = _subtree(gltf, bone['node'])
         clean = all(i not in influential and 'mesh' not in gltf['nodes'][i] and 'camera' not in gltf['nodes'][i] for i in tree)
-        if clean and all(i in unused_nodes or i not in joint_nodes for i in tree):
+        if clean and all(i in unused_nodes or i not in joint_nodes for i in tree) and bone['node'] not in {b['node'] for b in out['removable_bones']}:
             out['removable_bones'].append({**bone, 'subtree': [_node_name(gltf, i) for i in tree]})
     animated_scale = {}
     for a, anim in enumerate(gltf.get('animations', [])):
@@ -507,6 +526,96 @@ def clip_facts(doc, rules=None):
                       'loop_expected': loops_expected(rules or {}, name), 'loop_error_deg': round(loop['deg'], 6),
                       'loop_error_mm': round(loop['mm'], 6), 'loop_worst_bone': loop['worst_bone'], 'channel_rows': rows})
     return clips
+
+
+def _weight_channels(doc):
+    """(clip index, Channel, mesh index) of every morph weight channel."""
+    gltf = doc.gltf
+    node_mesh = {i: n['mesh'] for i, n in enumerate(gltf.get('nodes', [])) if 'mesh' in n}
+    for a, anim in enumerate(gltf.get('animations', [])):
+        for c, channel in enumerate(anim.get('channels', [])):
+            target = channel.get('target', {})
+            if target.get('path') == 'weights' and target.get('node') in node_mesh:
+                yield a, Channel(doc, a, c), node_mesh[target['node']]
+
+
+def morph_facts(doc):
+    """Morph targets per mesh: name, largest vertex displacement (mm), default weight, clips that drive it, empty or not."""
+    gltf = doc.gltf
+    animated = {}
+    for a, ch, mesh in _weight_channels(doc):
+        values = np.asarray(ch.values).reshape(len(ch.times), -1)
+        for k in range(values.shape[1]):
+            if np.abs(values[:, k]).max(initial=0) > 1e-6:
+                animated.setdefault((mesh, k), set()).add(gltf['animations'][a].get('name') or f'clip_{a}')
+    meshes = []
+    for m, mesh in enumerate(gltf.get('meshes', [])):
+        prims = mesh.get('primitives', [])
+        count = max((len(p.get('targets', [])) for p in prims), default=0)
+        if not count:
+            continue
+        names = (mesh.get('extras') or {}).get('targetNames') or []
+        weights = mesh.get('weights') or []
+        rows = []
+        for k in range(count):
+            moved, readable = 0.0, True
+            for prim in prims:
+                targets = prim.get('targets', [])
+                if k < len(targets) and 'POSITION' in targets[k]:
+                    try:
+                        delta = doc.read(targets[k]['POSITION']).reshape(-1, 3)
+                        moved = max(moved, float(np.linalg.norm(delta, axis=1).max(initial=0)))
+                    except (ValueError, KeyError):
+                        readable = False
+            rows.append({'mesh': m, 'mesh_name': mesh.get('name'), 'index': k, 'name': names[k] if k < len(names) else f'target_{k}',
+                         'max_displacement_mm': round(moved * 1000, 6), 'default_weight': float(weights[k]) if k < len(weights) else 0.0,
+                         'animated_in': sorted(animated.get((m, k), [])), 'empty': readable and moved * 1000 < 1e-3})
+        meshes.append({'mesh': m, 'name': mesh.get('name'), 'targets': count, 'rows': rows})
+    return {'meshes': meshes, 'max_targets': max((x['targets'] for x in meshes), default=0),
+            'empty': [{k: r[k] for k in ('mesh', 'mesh_name', 'index', 'name')} for x in meshes for r in x['rows'] if r['empty']]}
+
+
+def _depth(rig, node):
+    d = 0
+    while node in rig.parent:
+        node, d = rig.parent[node], d + 1
+    return d
+
+
+def root_motion_facts(doc):
+    """Per clip: the top-most translated joint (or joint ancestor) and how far it travels, in the world's horizontal plane
+    (glTF is Y-up) and vertically, measured through its parent's rest transform."""
+    from .asset_animation_rig import Rig
+    rig = Rig(doc)
+    joints = set(rig.joints())
+    holders = set(joints)
+    for j in joints:  # ancestors of joints (an armature node can carry the motion)
+        while j in rig.parent:
+            j = rig.parent[j]
+            holders.add(j)
+    rest_world = rig.world()
+    out = []
+    for a, anim in enumerate(doc.gltf.get('animations', [])):
+        chans = rig.channels(a)
+        moving = [n for (n, p) in chans if p == 'translation' and (n in holders or not joints)]
+        row = {'clip': a, 'name': anim.get('name'), 'node': None}
+        if moving:
+            root = min(moving, key=lambda n: (_depth(rig, n), n))
+            ch = chans[(root, 'translation')]
+            parent = rig.parent.get(root)
+            frame = rest_world[parent] if parent is not None else np.eye(4)
+            t0, t1 = rig.span(a)
+            grid = np.unique(np.concatenate([ch.times, np.linspace(t0, t1, 61)]))
+            world = np.array([(frame @ np.append(ch.at(t), 1.0))[:3] for t in grid])
+            delta = world[-1] - world[0]
+            horizontal = np.array([delta[0], 0.0, delta[2]])
+            span = max(t1 - t0, 1e-9)
+            row.update(node=root, bone=rig.names[root], horizontal_mm=float(np.linalg.norm(horizontal)) * 1000, vertical_mm=float(delta[1]) * 1000,
+                       path_mm=float(np.linalg.norm(np.diff(world, axis=0), axis=1).sum()) * 1000,
+                       speed_mps=float(np.linalg.norm(horizontal)) / span, direction=[round(float(v), 6) for v in
+                                                                                       (horizontal / max(np.linalg.norm(horizontal), 1e-12))])
+        out.append(row)
+    return out
 
 
 # ---------- report ----------
@@ -570,22 +679,56 @@ def inspect_doc(doc, profile, file_info):
         sizes = [max(s) for s in facts['image_sizes'] if s]
         check('max_texture_px', rules['max_texture_px'], max(sizes, default=0),
               None if any(s is None for s in facts['image_sizes']) else max(sizes, default=0) <= rules['max_texture_px'])
-    plan = plan_for(rules, skeleton, clips, checks, compressed)
+    morph = morph_facts(doc) if not compressed else None
+    if rules.get('max_morph_targets') is not None:
+        check('max_morph_targets', rules['max_morph_targets'], morph and morph['max_targets'], None if morph is None else morph['max_targets'] <= rules['max_morph_targets'], note_c)
+    if rules.get('forbid_empty_morph_targets'):
+        check('forbid_empty_morph_targets', 0, morph and [e['name'] for e in morph['empty']], None if morph is None else not morph['empty'], note_c)
+    root = root_motion_facts(doc)
+    by_clip = {r['clip']: r for r in root}
+    for c in clips:
+        c['root_motion'] = by_clip.get(c['index'])
+    if rules.get('max_root_drift_mm') is not None:
+        drift = {c['name'] or f"#{c['index']}": round(c['root_motion']['horizontal_mm'], 3) for c in looping if (c.get('root_motion') or {}).get('node') is not None}
+        check('max_root_drift_mm', rules['max_root_drift_mm'], drift, all(v <= rules['max_root_drift_mm'] for v in drift.values()))
+    plan = plan_for(rules, skeleton, clips, checks, compressed, morph)
     statuses = [c['status'] for c in checks]
     return {'kind': 'draft', 'profile': {k: profile[k] for k in ('id', 'name', 'rules')}, 'file': file_info,
             'summary': {'pass': statuses.count('pass'), 'fail': statuses.count('fail'), 'not_evaluated': statuses.count('not_evaluated'),
                         'compliant': 'fail' not in statuses},
-            'checks': checks, 'skeleton': skeleton, 'clips': clips,
+            'checks': checks, 'skeleton': skeleton, 'clips': clips, 'morph': morph, 'root_motion': root,
             'materials': {'materials': facts['materials'], 'textures': facts['images'], 'texture_sizes': facts['image_sizes'], 'triangles': facts['triangles']},
             **plan, 'limits': 'Measures integrity and continuity (bones, weights, names, loops, keys), not artistic quality.'}
 
 
-def plan_for(rules, skeleton, clips, checks, compressed):
+def suggestions_for(rules, clips, checks):
+    """Operations that change the motion itself, offered but applied only when asked (close_loops, root_in_place)."""
+    out = []
+    bad = [c for c in checks if c['rule'] == 'loop_continuity' and c['status'] == 'fail']
+    if bad:
+        out.append({'op': 'close_loops', 'why': 'loop_continuity', 'clips': [c['limit']['clip'] for c in bad],
+                    'max_correction_deg': max(c['observed']['deg'] for c in bad), 'max_correction_mm': max(c['observed']['mm'] for c in bad),
+                    'note': 'spreads each channel\'s last-minus-first difference linearly over the clip so the last pose equals the first'})
+    drifting = [c for c in clips if c['loop_expected'] and (c.get('root_motion') or {}).get('node') is not None and c['root_motion']['horizontal_mm'] > 1.0]
+    limit = rules.get('max_root_drift_mm')
+    if drifting:
+        out.append({'op': 'root_in_place', 'why': 'max_root_drift_mm' if limit is not None else 'root_motion',
+                    'clips': [c['name'] or c['index'] for c in drifting if limit is None or c['root_motion']['horizontal_mm'] > limit] or
+                    [c['name'] or c['index'] for c in drifting],
+                    'note': 'removes the steady horizontal travel of the root (kept as root_motion in the clip extras); sway stays'})
+    return out
+
+
+def plan_for(rules, skeleton, clips, checks, compressed, morph=None):
     failed = {c['rule'] for c in checks if c['status'] == 'fail'}
     operations, manual = [], []
     if compressed:
         manual.append(f"decompress {', '.join(compressed)} before preparing (gltf-transform or Blender); this app does not rewrite compressed data")
-        return {'operations': [], 'manual': manual}
+        return {'operations': [], 'manual': manual, 'suggested': []}
+    if morph and morph['empty'] and 'forbid_empty_morph_targets' in failed:
+        operations.append({'op': 'drop_empty_morph_targets', 'why': 'forbid_empty_morph_targets', 'targets': [e['name'] for e in morph['empty']]})
+    if 'max_morph_targets' in failed:
+        manual.append('reduce the morph targets (blend shapes) in the modelling tool; only targets that move nothing are removed here')
     if any(not c['name'] for c in clips) or 'require_named_clips' in failed:
         operations.append({'op': 'rename_clips', 'why': 'require_named_clips', 'renames': {str(c['index']): c['name'] or f"clip_{c['index']}" for c in clips if not c['name']}})
     if any(c['empty_channels'] for c in clips):
@@ -603,7 +746,10 @@ def plan_for(rules, skeleton, clips, checks, compressed):
     if 'loop_continuity' in failed:
         bad = [c for c in checks if c['rule'] == 'loop_continuity' and c['status'] == 'fail']
         manual.append('close the loop of ' + ', '.join(f"{c['limit']['clip']} (worst bone {c['observed']['worst_bone']}, {c['observed']['deg']:.3f} deg, "
-                                                       f"{c['observed']['mm']:.3f} mm)" for c in bad) + ' in the animation tool, or trim the clip to a matching pose')
+                                                       f"{c['observed']['mm']:.3f} mm)" for c in bad) + ' in the animation tool, or trim the clip to a matching pose, '
+                      'or close it here with close_loops (spreads the difference over the clip)')
+    if 'max_root_drift_mm' in failed:
+        manual.append('the root travels in a looping clip: make it in place here with root_in_place, or in the animation tool')
     if 'forbid_nonuniform_bone_scale' in failed:
         manual.append('apply or remove the non-uniform scale of the listed bones in the rig (runtimes skin it badly)')
     if 'required_clips' in failed:
@@ -613,14 +759,15 @@ def plan_for(rules, skeleton, clips, checks, compressed):
     for rule in ('max_triangles', 'max_textures', 'max_texture_px'):
         if rule in failed:
             manual.append(f'{rule}: reduce it in the animation tool; the geometry preparation (asset_prepare) rebuilds meshes without skins or clips')
-    return {'operations': operations, 'manual': manual}
+    return {'operations': operations, 'manual': manual, 'suggested': suggestions_for(rules, clips, checks)}
 
 
 # ---------- operations (each edits a Doc in memory and returns what it did) ----------
 def _set_channel(doc, anim, channel_index, times, values, interpolation):
     """Give a channel its own new sampler with these keys (old samplers are compacted later)."""
     size = values.shape[1] if values.ndim > 1 else 1
-    kind = {1: 'SCALAR', 3: 'VEC3', 4: 'VEC4'}.get(size, 'SCALAR')
+    weights = anim['channels'][channel_index].get('target', {}).get('path') == 'weights'  # morph weights are always SCALAR
+    kind = 'SCALAR' if weights else {1: 'SCALAR', 3: 'VEC3', 4: 'VEC4'}.get(size, 'SCALAR')
     out = values if kind != 'SCALAR' or size == 1 else values.reshape(-1)
     sampler = {'input': doc.add(np.asarray(times, dtype=np.float32), 'SCALAR', minmax=True),
                'output': doc.add(out, kind), 'interpolation': interpolation}
@@ -784,24 +931,66 @@ def op_drop_bones(doc, names):
         remove.update(_subtree(gltf, removable[name]['node']))
     keep = [i for i in range(len(gltf['nodes'])) if i not in remove]
     new_index = {old: new for new, old in enumerate(keep)}
-    for s, skin in enumerate(gltf.get('skins', [])):  # joint list, inverse bind matrices and vertex joint indices
+    # Per skin: which joint slots survive and the old-slot -> new-slot map (-1 = removed). Nothing is written yet.
+    remaps, kept_slots = {}, {}
+    for s, skin in enumerate(gltf.get('skins', [])):
         old_joints = skin['joints']
         kept = [j for j, node in enumerate(old_joints) if node not in remove]
-        if len(kept) == len(old_joints):
-            continue
-        local = np.zeros(len(old_joints), dtype=np.int64)
+        local = np.full(len(old_joints), -1, dtype=np.int64)
         local[kept] = np.arange(len(kept))
+        remaps[s], kept_slots[s] = local, kept
+    # A mesh can be shared by nodes with different skins, and JOINTS index into each node's own skin: every (mesh, remap)
+    # pair is applied once. When the skins sharing a mesh need different remaps, the mesh is copied for all but the first.
+    by_mesh = {}
+    for n, node in enumerate(gltf['nodes']):
+        if 'mesh' in node and 'skin' in node:
+            by_mesh.setdefault(node['mesh'], []).append(n)
+    split = []
+    for m, users in sorted(by_mesh.items()):
+        found_sets = [skinned_sets(doc, prim) for prim in gltf['meshes'][m].get('primitives', [])]
+        reach = max((int(f[0].max(initial=-1)) + 1 for f in found_sets if f), default=0)  # slots the mesh's JOINTS can name
+        groups = []  # [(remap over the reachable slots, [node indices])]
+        for n in users:
+            local = remaps[gltf['nodes'][n]['skin']]
+            if reach > len(local):
+                raise ValueError(f'Mesh {m} has joint indices beyond the skin of node {_node_name(gltf, n)}; nothing was changed')
+            local = local[:reach]
+            same = next((g for g in groups if np.array_equal(g[0], local)), None)
+            if same:
+                same[1].append(n)
+            else:
+                groups.append((local, [n]))
+        targets = []
+        for g, (local, nodes) in enumerate(groups):  # copies first, from the untouched mesh
+            target = m
+            if g > 0:  # a copy of the mesh whose JOINTS get this skin's remap; POSITION and the rest stay shared accessors
+                gltf['meshes'].append(copy.deepcopy(gltf['meshes'][m]))
+                target = len(gltf['meshes']) - 1
+                gltf['meshes'][target]['name'] = f"{gltf['meshes'][m].get('name') or f'mesh_{m}'} (skin {gltf['nodes'][nodes[0]]['skin']})"
+                for n in nodes:
+                    gltf['nodes'][n]['mesh'] = target
+                split.append({'mesh': m, 'copy': target, 'nodes': [_node_name(gltf, n) for n in nodes]})
+            targets.append((target, local))
+        for target, local in targets:
+            if np.array_equal(local, np.arange(len(local))):
+                continue  # this skin loses no joint: indices unchanged
+            for prim in gltf['meshes'][target].get('primitives', []):
+                found = skinned_sets(doc, prim)
+                if not found:
+                    continue
+                joints, weights, _ = found
+                if (joints >= len(local)).any():
+                    raise ValueError(f'Mesh {m} has joint indices beyond its skin; nothing was changed')
+                if (weights[local[joints] < 0] > 1e-6).any():
+                    raise ValueError('A removed bone still has influence; nothing was changed')
+                _write_sets(doc, prim, np.where(local[joints] < 0, 0, local[joints]), weights)
+    for s, skin in enumerate(gltf.get('skins', [])):  # joint list and inverse bind matrices
+        kept = kept_slots[s]
+        if len(kept) == len(skin['joints']):
+            continue
         if 'inverseBindMatrices' in skin:
             skin['inverseBindMatrices'] = doc.add(doc.read(skin['inverseBindMatrices']).reshape(-1, 16)[kept], 'MAT4')
-        skin['joints'] = [old_joints[j] for j in kept]
-        done = set()
-        for skin_index, prim in list(_skinned_primitives(doc)):
-            if skin_index == s and id(prim) not in done:
-                done.add(id(prim))
-                joints, weights, _ = skinned_sets(doc, prim)
-                if (weights[np.isin(joints, [j for j in range(len(old_joints)) if j not in kept])] > 1e-6).any():
-                    raise ValueError('A removed bone still has influence; nothing was changed')
-                _write_sets(doc, prim, local[joints], weights)
+        skin['joints'] = [skin['joints'][j] for j in kept]
     for node in gltf['nodes']:
         node['children'] = [new_index[c] for c in node.get('children', []) if c not in remove]
         if not node['children']:
@@ -823,7 +1012,146 @@ def op_drop_bones(doc, names):
         _compact_samplers(anim)
     gltf['nodes'] = [gltf['nodes'][i] for i in keep]
     return {'removed': [{'bone': n, 'subtree': removable[n]['subtree']} for n in names],
-            'bones_left': max((len(s['joints']) for s in gltf.get('skins', [])), default=0)}
+            'bones_left': max((len(s['joints']) for s in gltf.get('skins', [])), default=0), 'meshes_split': split}
+
+
+def _dense_keys(ch, t0, t1):
+    """Keys (times, values, interpolation) of a channel with exact samples at t0 and t1; cubic splines become linear at >= 60 fps."""
+    if ch.interpolation == 'CUBICSPLINE':
+        times = np.unique(np.concatenate([np.linspace(t0, t1, max(2, int((t1 - t0) * 60) + 1)), ch.times[(ch.times > t0) & (ch.times < t1)]]))
+        interpolation = 'LINEAR'
+    else:
+        times = np.unique(np.concatenate([[t0], ch.times[(ch.times > t0 + 1e-9) & (ch.times < t1 - 1e-9)], [t1]]))
+        interpolation = ch.interpolation
+    return times, np.array([ch.at(t) for t in times]), interpolation
+
+
+def op_close_loop(doc, clip):
+    """Make the last pose equal the first: each channel's end-minus-start difference is spread linearly over the clip
+    (rotations by a growing slerp of the correcting rotation). Returns the largest correction and the loop error after."""
+    from .asset_animation_rig import qinv, qmul, slerp
+    i = _clip_index(doc, clip)
+    anim = doc.gltf['animations'][i]
+    channels = [Channel(doc, i, c) for c in range(len(anim['channels']))]
+    t0 = min(float(ch.times[0]) for ch in channels)
+    t1 = max(float(ch.times[-1]) for ch in channels)
+    if t1 - t0 <= 0:
+        raise ValueError(f'Clip {anim.get("name") or i} has no duration to close')
+    worst = {'deg': 0.0, 'mm': 0.0, 'weight': 0.0}
+    changed = 0
+    for ch in channels:
+        first, last = ch.at(t0), ch.at(t1)
+        if ch.path in PATH_SIZE and same_value(ch, first, last) or ch.path == 'weights' and np.abs(first - last).max(initial=0) < 1e-7:
+            continue
+        times, values, interpolation = _dense_keys(ch, t0, t1)
+        u = (times - t0) / (t1 - t0)
+        if ch.path == 'rotation':
+            fix = qmul(first, qinv(last))
+            new = np.array([qmul(slerp([0, 0, 0, 1], fix, w), v) for w, v in zip(u, values)])
+            worst['deg'] = max(worst['deg'], quat_angle_deg(first, last))
+        else:
+            new = values + np.outer(u, first - last)
+            if ch.path == 'translation':
+                worst['mm'] = max(worst['mm'], float(np.linalg.norm(first - last)) * 1000)
+            elif ch.path == 'weights':
+                worst['weight'] = max(worst['weight'], float(np.abs(first - last).max()))
+        _set_channel(doc, anim, ch.index, times, new, interpolation)
+        changed += 1
+    _compact_samplers(anim)
+    after = next(c for c in clip_facts(doc, {'loop_clips': ['*']}) if c['index'] == i)
+    return {'clip': anim.get('name') or i, 'channels_changed': changed, 'max_correction_deg': worst['deg'], 'max_correction_mm': worst['mm'],
+            'max_correction_weight': worst['weight'], 'loop_error_deg_after': after['loop_error_deg'], 'loop_error_mm_after': after['loop_error_mm']}
+
+
+def op_root_in_place(doc, clip):
+    """Remove the steady horizontal travel of the clip's root (start-to-end, spread linearly) so it plays in place; the
+    removed velocity is kept in the clip extras as root_motion for runtimes that drive the character themselves."""
+    i = _clip_index(doc, clip)
+    facts = root_motion_facts(doc)[i]
+    if facts.get('node') is None:
+        raise ValueError(f'Clip {doc.gltf["animations"][i].get("name") or i} moves no root (no translated joint)')
+    from .asset_animation_rig import Rig
+    rig = Rig(doc)
+    anim = doc.gltf['animations'][i]
+    root = facts['node']
+    ch = next(Channel(doc, i, c) for c in range(len(anim['channels']))
+              if anim['channels'][c].get('target', {}).get('node') == root and anim['channels'][c]['target'].get('path') == 'translation')
+    parent = rig.parent.get(root)
+    frame = rig.world()[parent] if parent is not None else np.eye(4)
+    t0, t1 = rig.span(i)
+    times, values, interpolation = _dense_keys(ch, t0, t1)
+    world = np.array([(frame @ np.append(v, 1.0))[:3] for v in values])
+    start, end = (frame @ np.append(ch.at(t0), 1.0))[:3], (frame @ np.append(ch.at(t1), 1.0))[:3]
+    travel = np.array([end[0] - start[0], 0.0, end[2] - start[2]])
+    u = ((times - t0) / (t1 - t0))[:, None]
+    inverse = np.linalg.inv(frame)
+    local = np.array([(inverse @ np.append(p, 1.0))[:3] for p in world - u * travel[None, :]])
+    _set_channel(doc, anim, ch.index, times, local, interpolation)
+    _compact_samplers(anim)
+    velocity = travel / (t1 - t0)
+    anim.setdefault('extras', {})['root_motion'] = {'bone': rig.names[root], 'velocity_mps': [round(float(v), 9) for v in velocity],
+                                                    'distance_m': round(float(np.linalg.norm(travel)), 9), 'duration_s': t1 - t0}
+    after = root_motion_facts(doc)[i]
+    return {'clip': anim.get('name') or i, 'bone': rig.names[root], 'removed_horizontal_mm': float(np.linalg.norm(travel)) * 1000,
+            'velocity_mps': [float(v) for v in velocity], 'horizontal_mm_after': after['horizontal_mm']}
+
+
+def op_drop_morph_targets(doc, names=None):
+    """Remove morph targets (default: those that move no vertex) from meshes, mesh/node weights and weight channels."""
+    facts = morph_facts(doc)
+    wanted = {(e['mesh'], e['index']) for e in facts['empty']} if not names else \
+        {(r['mesh'], r['index']) for m in facts['meshes'] for r in m['rows'] if r['name'] in names}
+    if names:
+        known = {r['name'] for m in facts['meshes'] for r in m['rows']}
+        unknown = [n for n in names if n not in known]
+        if unknown:
+            raise ValueError(f"Unknown morph targets: {', '.join(unknown)}")
+    gltf, removed = doc.gltf, []
+    for m in sorted({m for m, _ in wanted}):
+        mesh = gltf['meshes'][m]
+        count = max(len(p.get('targets', [])) for p in mesh['primitives'])
+        keep = [k for k in range(count) if (m, k) not in wanted]
+        names_of = (mesh.get('extras') or {}).get('targetNames') or []
+        removed += [{'mesh': m, 'name': names_of[k] if k < len(names_of) else f'target_{k}'} for k in range(count) if (m, k) in wanted]
+        for prim in mesh['primitives']:
+            targets = prim.get('targets', [])
+            prim['targets'] = [targets[k] for k in keep if k < len(targets)]
+            if not prim['targets']:
+                del prim['targets']
+        if 'weights' in mesh:
+            mesh['weights'] = [mesh['weights'][k] for k in keep if k < len(mesh['weights'])] or None
+            if mesh['weights'] is None:
+                del mesh['weights']
+        if names_of:
+            mesh['extras']['targetNames'] = [names_of[k] for k in keep if k < len(names_of)]
+        nodes = {n for n, node in enumerate(gltf.get('nodes', [])) if node.get('mesh') == m}
+        for n in nodes:
+            if 'weights' in gltf['nodes'][n]:
+                gltf['nodes'][n]['weights'] = [gltf['nodes'][n]['weights'][k] for k in keep] or None
+                if gltf['nodes'][n]['weights'] is None:
+                    del gltf['nodes'][n]['weights']
+        for a, anim in enumerate(gltf.get('animations', [])):
+            drop = []
+            for c, channel in enumerate(anim['channels']):
+                if channel.get('target', {}).get('path') == 'weights' and channel['target'].get('node') in nodes:
+                    if not keep:
+                        drop.append(c)
+                        continue
+                    sampler = anim['samplers'][channel['sampler']]
+                    rows = np.asarray(doc.read(sampler['output']), dtype=np.float64).reshape(-1, count)[:, keep]
+                    sampler_new = {'input': sampler['input'], 'output': doc.add(rows.reshape(-1), 'SCALAR'), 'interpolation': sampler.get('interpolation', 'LINEAR')}
+                    anim['samplers'].append(sampler_new)
+                    channel['sampler'] = len(anim['samplers']) - 1
+            if drop:
+                anim['channels'] = [ch for c, ch in enumerate(anim['channels']) if c not in drop]
+                if not anim['channels']:
+                    raise ValueError(f'Clip {anim.get("name") or a} would lose every channel; it only drove the removed morph targets')
+            _compact_samplers(anim)
+    return {'removed': removed, 'left': op_count_targets(doc)}
+
+
+def op_count_targets(doc):
+    return max((len(p.get('targets', [])) for m in doc.gltf.get('meshes', []) for p in m.get('primitives', [])), default=0)
 
 
 # ---------- inspect / prepare entry points ----------
@@ -832,18 +1160,53 @@ def _file_info(path):
     path = Path(path)
     kind = format_of(path)
     if kind not in ('glb', 'gltf'):
-        raise ValueError(f'Animated assets are read from GLB or glTF; {path.suffix} is not supported here (export FBX to GLB first)')
+        raise ValueError(f'Animated assets are read from GLB or glTF (an FBX is converted with Blender first); {path.suffix} is not supported here')
     return {'path': str(path), 'format': kind, 'bytes': path.stat().st_size, 'sha256': sha256_of(path)}
 
 
-def inspect_asset(services, target='web-animated', model_id=None, path=None):
+def _source(services, model_id, path):
+    """(GLB/glTF to read, library model or None, FBX conversion or None)."""
+    if path and str(path).strip().strip('"').lower().endswith('.fbx') or model_id and _model_format(services, model_id) == 'fbx':
+        from .asset_animation_fbx import readable_source
+        try:
+            return readable_source(services, model_id, path)
+        except (RuntimeError, subprocess.TimeoutExpired) as exc:  # Blender missing or refused the file: a clear 400, not a crash
+            raise ValueError(f'The FBX could not be converted with Blender: {exc}') from exc
     from .asset_inspection import resolve_source
     source, model = resolve_source(services, model_id, path)
+    return source, model, None
+
+
+def _model_format(services, model_id):
+    model = services.models.get(int(model_id))
+    return (model or {}).get('format')
+
+
+def inspect_asset(services, target='web-animated', model_id=None, path=None):
+    source, model, converted = _source(services, model_id, path)
     profile = get_profile(services.config.data_dir, target)
     info = _file_info(source)
     report = inspect_doc(Doc.load(source), profile, info)
     report['model'] = {'id': model['id'], 'name': model.get('name')} if model else None
+    report['converted_from'] = converted
     return report
+
+
+def animation_summary(services, model_id):
+    """{animated, clips [{name, duration_s}], bones, morph_targets} of a library GLB/glTF/FBX model; other formats are not animated."""
+    model = services.models.get(int(model_id))
+    if model is None:
+        raise LookupError(f'No model {model_id}')
+    if model.get('format') not in ('glb', 'gltf', 'fbx'):
+        return {'id': model['id'], 'format': model.get('format'), 'animated': False, 'clips': [], 'bones': 0, 'morph_targets': 0}
+    source, _, converted = _source(services, model_id, None)
+    doc = Doc.load(source)
+    clips = clip_facts(doc)
+    bones = max((len(s.get('joints', [])) for s in doc.gltf.get('skins', [])), default=0)
+    morph = 0 if doc.compressed() else morph_facts(doc)['max_targets']
+    return {'id': model['id'], 'format': model.get('format'), 'animated': bool(clips or bones or morph),
+            'clips': [{'name': c['name'], 'duration_s': c['duration_s']} for c in clips], 'bones': bones, 'morph_targets': morph,
+            'converted_from': converted}
 
 
 def end_pose(doc):
@@ -854,8 +1217,8 @@ def end_pose(doc):
         end = max(float(ch.times[-1]) for ch in channels)
         pose = {}
         for ch in channels:
-            if ch.path in PATH_SIZE:
-                pose.setdefault(str(ch.node), {})[ch.path] = [float(v) for v in ch.at(end)]
+            if ch.path in PATH_SIZE or ch.path == 'weights':
+                pose.setdefault(str(ch.node), {})[ch.path] = [float(v) for v in np.atleast_1d(ch.at(end))]
         out[anim.get('name') or f'clip_{i}'] = {'duration_s': end, 'pose': pose, 'moves': any(not _constant(ch) for ch in channels)}
     return out
 
@@ -876,7 +1239,7 @@ def reimport(path):
 def compare_reimport(doc, three):
     """Clip names/durations and the final pose of every animated bone: this module vs three.js."""
     ours = end_pose(doc)
-    rows, worst = [], {'deg': 0.0, 'mm': 0.0, 'scale': 0.0}
+    rows, worst = [], {'deg': 0.0, 'mm': 0.0, 'scale': 0.0, 'weights': 0.0}
     theirs = {c['name']: c for c in three.get('clips', [])}
     for name, clip in ours.items():
         other = theirs.get(name)
@@ -884,26 +1247,30 @@ def compare_reimport(doc, three):
         if other:
             row['three_duration_s'] = other['duration']
             row['plays'] = bool(other.get('plays')) or not clip['moves']  # a clip that holds one pose plays without moving
-            err = {'deg': 0.0, 'mm': 0.0, 'scale': 0.0}
+            err = {'deg': 0.0, 'mm': 0.0, 'scale': 0.0, 'weights': 0.0}
             for node, paths in clip['pose'].items():
                 got = (other.get('final') or {}).get(node) or {}
                 for path, value in paths.items():
-                    if path not in got:  # three did not animate this channel at all
-                        err['deg'] = err['mm'] = err['scale'] = 1e9
+                    if path not in got or got[path] is None:  # three did not animate this channel at all
+                        err['deg'] = err['mm'] = err['scale'] = err['weights'] = 1e9
                         continue
                     if path == 'rotation':
                         err['deg'] = max(err['deg'], quat_angle_deg(value, got[path]))
+                    elif path == 'weights':
+                        theirs_w = list(got[path])[:len(value)] + [0.0] * max(0, len(value) - len(got[path]))
+                        err['weights'] = max(err['weights'], float(np.max(np.abs(np.subtract(value, theirs_w)))))
                     elif path == 'translation':
                         err['mm'] = max(err['mm'], float(np.linalg.norm(np.subtract(value, got[path]))) * 1000)
                     else:
                         err['scale'] = max(err['scale'], float(np.max(np.abs(np.subtract(value, got[path])))))
             row.update(final_pose_error_deg=err['deg'], final_pose_error_mm=err['mm'], final_pose_error_scale=err['scale'],
-                       duration_matches=abs(other['duration'] - clip['duration_s']) < 1e-4)
+                       final_pose_error_weights=err['weights'], duration_matches=abs(other['duration'] - clip['duration_s']) < 1e-4)
             worst = {k: max(worst[k], err[k]) for k in worst}
         rows.append(row)
     ok = (all(r['found'] and r['duration_matches'] and r['plays'] for r in rows) and len(theirs) == len(ours)
-          and worst['deg'] < 0.01 and worst['mm'] < 0.01 and worst['scale'] < 1e-5)
-    return {'ok': ok, 'clips': rows, 'max_final_pose_error_deg': worst['deg'], 'max_final_pose_error_mm': worst['mm']}
+          and worst['deg'] < 0.01 and worst['mm'] < 0.01 and worst['scale'] < 1e-5 and worst['weights'] < 1e-4)
+    return {'ok': ok, 'clips': rows, 'max_final_pose_error_deg': worst['deg'], 'max_final_pose_error_mm': worst['mm'],
+            'max_final_pose_error_weights': worst['weights']}
 
 
 def _prepared_dir(services):
@@ -924,23 +1291,39 @@ def _trim_windows(animations, original_names, trims):
     return out
 
 
+def _clip_index_after_rename(doc, key, original_names):
+    """A clip by index, current name or the name it had before a rename in the same preparation."""
+    animations = doc.gltf.get('animations', [])
+    hits = [i for i, anim in enumerate(animations) if str(i) == str(key) or anim.get('name') == key or original_names[i] == key]
+    if len(hits) != 1:
+        raise LookupError(f'No clip {key!r}' if not hits else f'Clip key {key!r} names several clips; use the index')
+    return hits[0]
+
+
 def prepare(services, target='web-animated', model_id=None, path=None, renames=None, trims=None, resample_fps=None,
-            drop_empty_channels=None, drop_unused_bones=None, normalize_weights=None, limit_influences=None):
-    """Write a verified animated variant; the original is never modified. Returns the stored receipt."""
-    from .asset_inspection import resolve_source, sha256_of
-    source, model = resolve_source(services, model_id, path)
+            drop_empty_channels=None, drop_unused_bones=None, normalize_weights=None, limit_influences=None,
+            close_loops=None, root_in_place=None, drop_empty_morph_targets=None):
+    """Write a verified animated variant; the original is never modified. Returns the stored receipt.
+
+    close_loops / root_in_place change the motion itself, so they apply only when asked: True (the clips the report suggests)
+    or a list of clip names. An FBX source is converted with Blender first and the conversion is named in the receipt."""
+    from .asset_inspection import sha256_of
+    source, model, converted = _source(services, model_id, path)
     profile = get_profile(services.config.data_dir, target)
     rules = profile['rules']
     info = _file_info(source)
     before = inspect_doc(Doc.load(source), profile, info)
     prep_id = time.strftime('%Y%m%d%H%M%S') + uuid.uuid4().hex[:6]
     receipt = {'id': prep_id, 'kind': 'animated_preparation', 'created': time.time(), 'profile': profile['id'],
-               'model': {'id': model['id'], 'name': model.get('name')} if model else None, 'source': info,
+               'model': {'id': model['id'], 'name': model.get('name')} if model else None, 'source': info, 'converted_from': converted,
                'options': {'renames': renames, 'trims': trims, 'resample_fps': resample_fps, 'drop_empty_channels': drop_empty_channels,
-                           'drop_unused_bones': drop_unused_bones, 'normalize_weights': normalize_weights, 'limit_influences': limit_influences},
+                           'drop_unused_bones': drop_unused_bones, 'normalize_weights': normalize_weights, 'limit_influences': limit_influences,
+                           'close_loops': close_loops, 'root_in_place': root_in_place, 'drop_empty_morph_targets': drop_empty_morph_targets},
                'before': {'summary': before['summary'], 'checks': before['checks']}, 'operations': []}
     planned = {op['op']: op for op in before['operations']}
-    if before['manual'] and not before['operations'] and not (renames or trims or resample_fps):
+    suggested = {op['op']: op for op in before.get('suggested', [])}
+    asked = bool(renames or trims or resample_fps or close_loops or root_in_place or drop_empty_morph_targets)
+    if before['manual'] and not before['operations'] and not asked:
         receipt['manual'] = before['manual']
     try:
         if Doc.load(source).compressed():
@@ -954,6 +1337,9 @@ def prepare(services, target='web-animated', model_id=None, path=None, renames=N
         keep = limit_influences or (rules['max_influences'] if limit_influences is None and 'limit_influences' in planned else None)
         if keep or normalize_weights or (normalize_weights is None and 'normalize_weights' in planned):
             log.append({'op': 'limit_influences' if keep else 'normalize_weights', **op_weights(doc, keep)})
+        if drop_empty_morph_targets or (drop_empty_morph_targets is None and 'drop_empty_morph_targets' in planned):
+            if morph_facts(doc)['empty']:
+                log.append({'op': 'drop_empty_morph_targets', **op_drop_morph_targets(doc)})
         if drop_empty_channels or (drop_empty_channels is None and 'drop_empty_channels' in planned):
             dropped = op_drop_empty_channels(doc)
             if dropped:
@@ -974,6 +1360,17 @@ def prepare(services, target='web-animated', model_id=None, path=None, renames=N
                 done = op_retime(doc, clip['index'], start, end, fps if dense else None)
                 done['within_tolerance'] = done['error_deg'] <= rules['max_resample_error_deg'] + 1e-9 and done['error_mm'] <= rules['max_resample_error_mm'] + 1e-9
                 log.append({'op': ('trim+' if window else '') + ('resample' if dense else 'trim'), **done})
+
+        def chosen(option, op):
+            if not option:
+                return []
+            if option is True:
+                return list((suggested.get(op) or {}).get('clips') or [])
+            return list(option)
+        for clip in chosen(root_in_place, 'root_in_place'):  # before closing: the steady travel is not a loop error to spread
+            log.append({'op': 'root_in_place', **op_root_in_place(doc, _clip_index_after_rename(doc, clip, original_names))})
+        for clip in chosen(close_loops, 'close_loops'):
+            log.append({'op': 'close_loop', **op_close_loop(doc, _clip_index_after_rename(doc, clip, original_names))})
         if not log:
             receipt.update(status='unchanged', note='Nothing to do: the asset already meets the automatic rules (see manual steps, if any).',
                            manual=before['manual'])
@@ -991,7 +1388,8 @@ def prepare(services, target='web-animated', model_id=None, path=None, renames=N
         three = reimport(output)
         comparison = compare_reimport(written, three) if three.get('ok') else {'ok': False, 'reason': three.get('reason')}
         unchanged = sha256_of(Path(info['path'])) == info['sha256']
-        receipt.update(output=out_info, after={'summary': after['summary'], 'checks': after['checks'], 'clips': after['clips'], 'skeleton': after['skeleton']},
+        receipt.update(output=out_info, after={'summary': after['summary'], 'checks': after['checks'], 'clips': after['clips'], 'skeleton': after['skeleton'],
+                                               'morph': after['morph'], 'root_motion': after['root_motion']},
                        reimport={'consumer': 'three.js GLTFLoader + AnimationMixer (Node)', **{k: v for k, v in three.items() if k != 'final'},
                                  'comparison': comparison}, original_unchanged=unchanged, manual=after['manual'])
         receipt['status'] = 'prepared' if unchanged and (comparison['ok'] or not three.get('available', True)) else 'failed'

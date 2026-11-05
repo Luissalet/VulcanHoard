@@ -264,6 +264,15 @@ def _wall_records(welded, to_mm: float, open_edges: int, nonmanifold: int) -> tu
 def _inspect_file(path: Path, max_mb: int | None, with_walls: bool = False) -> dict:
     if not path.is_file():
         raise LookupError(_("e.file_missing", path=path))
+    if path.suffix.lower() == ".fbx":  # measured on the GLB Blender makes from it (cached by content), and said so
+        from .geometry import fbx_as_glb
+        try:
+            converted = fbx_as_glb(path)
+        except RuntimeError as error:
+            raise ValueError(f"The FBX could not be converted with Blender: {error}") from error
+        result = _inspect_file(converted, max_mb, with_walls)
+        result["converted_from"] = {"path": str(path), "via": "Blender FBX importer", "glb": str(converted)}
+        return result
     kind = format_of(path)
     size = path.stat().st_size
     if max_mb and size > max_mb * 1024 * 1024:
@@ -633,7 +642,8 @@ def resolve_source(services, model_id: int | None = None, path: str | None = Non
     file = Path(text).expanduser()
     if not file.is_absolute():
         raise ValueError(_("e.relative"))
-    format_of(file)
+    if file.suffix.lower() != ".fbx":  # an FBX is read through its Blender conversion by the callers that accept it
+        format_of(file)
     if not file.is_file():
         raise LookupError(_("e.file_missing", path=file))
     return file.resolve(), services.models.by_path(str(file.resolve()))

@@ -44,7 +44,13 @@ scene.traverse((o) => rest.push([o, o.position.clone(), o.quaternion.clone(), o.
 const restore = () => rest.forEach(([o, p, q, s]) => { o.position.copy(p); o.quaternion.copy(q); o.scale.copy(s); });
 let skinnedMeshes = 0, bones = 0;
 scene.traverse((o) => { if (o.isSkinnedMesh) skinnedMeshes += 1; if (o.isBone) bones += 1; });
-const pose = (o) => ({ translation: o.position.toArray(), rotation: o.quaternion.toArray(), scale: o.scale.toArray() });
+const morphOf = (o) => (o.morphTargetInfluences ? o : (o.children || []).find((c) => c.morphTargetInfluences)); // multi-primitive meshes are groups
+const pose = (o) => {
+  const out = { translation: o.position.toArray(), rotation: o.quaternion.toArray(), scale: o.scale.toArray() };
+  const m = morphOf(o);
+  if (m) out.weights = Array.from(m.morphTargetInfluences);
+  return out;
+};
 const clips = [];
 for (const clip of gltf.animations) {
   restore();
@@ -59,7 +65,7 @@ for (const clip of gltf.animations) {
     const object = scene.getObjectByName(name);
     if (object) targets.add(object);
   }
-  const moved = (a, b) => a.some((p, i) => ["translation", "rotation", "scale"].some((k) => p[k].some((v, j) => Math.abs(v - b[i][k][j]) > 1e-7)));
+  const moved = (a, b) => a.some((p, i) => ["translation", "rotation", "scale", "weights"].some((k) => (p[k] || []).some((v, j) => Math.abs(v - b[i][k][j]) > 1e-7)));
   mixer.setTime(0);
   const start = [...targets].map((o) => pose(o));
   let plays = false;
@@ -69,7 +75,14 @@ for (const clip of gltf.animations) {
   }
   mixer.setTime(clip.duration + 1e-6); // LoopOnce + clampWhenFinished: the last frame
   const final = {};
-  for (const o of targets) if (indexOf.has(o)) final[String(indexOf.get(o))] = pose(o);
+  for (const o of targets) {
+    if (indexOf.has(o)) final[String(indexOf.get(o))] = pose(o);
+    else if (o.morphTargetInfluences && o.parent && indexOf.has(o.parent)) { // a primitive of a multi-primitive mesh node
+      const key = String(indexOf.get(o.parent));
+      final[key] = final[key] || pose(o.parent);
+      final[key].weights = Array.from(o.morphTargetInfluences);
+    }
+  }
   if (moved(start, [...targets].map((o) => pose(o)))) plays = true;
   clips.push({ name: clip.name, duration: clip.duration, tracks: clip.tracks.length, plays, final });
   mixer.stopAllAction();

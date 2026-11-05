@@ -15,7 +15,7 @@ Globs = list[str]
 class RootIn(BaseModel):
     path: str = Field(..., min_length=1, max_length=2000, description="Absolute folder path.")
     name: str = Field("", max_length=200)
-    include: Globs | None = Field(None, max_length=50, description="Omit for **/*.stl, **/*.3mf, **/*.obj.")
+    include: Globs | None = Field(None, max_length=50, description="Omit for **/*.stl, **/*.3mf, **/*.obj, **/*.glb, **/*.gltf, **/*.fbx (FBX only where Blender is installed).")
     exclude: Globs | None = Field(None, max_length=50, description="Omit for the default exclusions.")
     watch: bool = False
     thumbnails: str = Field("all", pattern="^(all|top-level|none)$", description="Which files get a thumbnail: all, top-level (root folder and its immediate subfolders) or none.")
