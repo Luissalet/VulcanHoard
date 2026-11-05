@@ -89,3 +89,22 @@ def test_fbx_files_are_indexed_through_blender(client, tmp_path):
     assert client.get(f"/api/models/{model['id']}/glb").content[:4] == b'glTF'
     summary = client.get(f"/api/anim/models/{model['id']}/summary").json()
     assert summary['animated'] and summary['converted_from']['import_id']
+
+
+def test_rescans_do_not_duplicate_models_and_a_static_glb_reports_no_animation(client, tmp_path):
+    import trimesh
+    folder = tmp_path / 'mezcla'
+    folder.mkdir()
+    anim_example.build(folder / 'personaje.glb', unnamed=False)
+    trimesh.creation.box(extents=[0.05, 0.02, 0.01]).export(str(folder / 'caja.glb'))
+    root = scan(client, folder)
+    for _ in range(2):
+        assert client.post(f"/api/roots/{root['id']}/rescan").status_code in (200, 202)
+        assert client.services.worker.wait_idle(240)
+    models = client.get('/api/models', params={'limit': 50}).json()['models']
+    assert sorted(m['name'] for m in models) == sorted({m['name'] for m in models}) and len(models) == 2, [m['name'] for m in models]
+    static = next(m for m in models if 'caja' in str(m).lower())
+    assert static['status'] == 'ok' and static['bbox'] == pytest.approx([50, 10, 20], abs=1e-3)  # glTF Y up becomes Z up
+    summary = client.get(f"/api/anim/models/{static['id']}/summary")
+    assert summary.status_code == 200 and not summary.json()['animated'] and not summary.json().get('clips')
+    assert client.get(f"/api/models/{static['id']}/glb").content[:4] == b'glTF'

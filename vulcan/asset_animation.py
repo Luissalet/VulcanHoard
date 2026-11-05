@@ -1367,6 +1367,10 @@ def prepare(services, target='web-animated', model_id=None, path=None, renames=N
             if option is True:
                 return list((suggested.get(op) or {}).get('clips') or [])
             return list(option)
+        for option, op, nothing in ((root_in_place, 'root_in_place', 'no clip has a steady horizontal root travel to remove'),
+                                    (close_loops, 'close_loops', 'no looping clip has a loop error to close')):
+            if option is True and not chosen(option, op):  # asked for "the suggested clips" and there are none: said, not silent
+                receipt.setdefault('notes', []).append(f'{op}: {nothing}')
         for clip in chosen(root_in_place, 'root_in_place'):  # before closing: the steady travel is not a loop error to spread
             log.append({'op': 'root_in_place', **op_root_in_place(doc, _clip_index_after_rename(doc, clip, original_names))})
         for clip in chosen(close_loops, 'close_loops'):
