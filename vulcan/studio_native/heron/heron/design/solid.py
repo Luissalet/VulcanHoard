@@ -73,6 +73,11 @@ def resolve_face(solid, ref, ctx):
             raise ReferenceError_(f'sketch line {ref.side!r} has zero length')
         normal = np.cross(d / np.linalg.norm(d), [0, 0, 1.0])
         hits = [f for f, c, n in _planar(solid) if abs(abs(float(np.dot(n, normal))) - 1) < 1e-6 and abs(float(np.dot(c - A, n))) < TOL]
+        if len(hits) > 1:  # coplanar sides elsewhere in the outline: keep the one that holds this line's own mid point
+            mid = cq.Vertex.makeVertex(*((A + B) / 2)[:2], depth / 2)
+            own = [f for f in hits if f.distance(mid) < TOL]
+            if own:
+                hits = own
         if not hits:
             raise ReferenceError_(f'no face is swept by sketch line {ref.side!r} any more')
         if len(hits) > 1:
@@ -173,11 +178,14 @@ def apply_feature(solid, feature, ctx, values):
         t = value(feature.thickness, values, f'{feature.id}.thickness')
         if not 0 < t <= 200:
             raise ValueError(f'{feature.id}: thickness must be in (0, 200] mm')
+        before = solid.Volume()
         try:
             shaped = solid.hollow([face], -t)
         except Exception as exc:
             raise ValueError(f'{feature.id}: the kernel could not shell the solid at {t:g} mm ({type(exc).__name__})') from exc
         solid = _one_solid(shaped, feature.id)
+        if solid.Volume() > before * (1 - 1e-6):  # the kernel can hand back the unchanged solid for an impossible wall
+            raise ValueError(f'{feature.id}: a {t:g} mm wall removed no material (thicker than the solid allows); nothing was hollowed')
         facts['wall_mm'] = t
     return solid, facts
 
