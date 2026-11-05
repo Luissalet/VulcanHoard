@@ -139,3 +139,24 @@ def test_profiles_tools_and_rest(client, tmp_path):
     for row in tool_catalog():
         if row['name'].startswith('anim_'):
             assert {k: v for k, v in cold[row['name']].items() if k not in ('module', 'native_name')} == row
+
+
+
+def test_a_trim_follows_the_clip_through_a_rename_and_an_unknown_trim_key_is_refused(services, tmp_path):
+    rig = anim_rig.build(tmp_path / 'rig.glb', unnamed=False)
+    receipt = call_tool(services, 'anim_prepare', {'target': 'web-animated', 'path': str(rig), 'renames': {'walk': 'walk_cycle'}, 'trims': {'walk': [0, 0.5]}})
+    assert receipt['status'] == 'prepared', receipt.get('reason')
+    clips = {c['name']: c for c in receipt['after']['clips']}
+    assert clips['walk_cycle']['duration_s'] == pytest.approx(0.5)  # the trim keyed by the old name was applied, not dropped
+    refused = call_tool(services, 'anim_prepare', {'target': 'web-animated', 'path': str(rig), 'trims': {'jog': [0, 0.5]}})
+    assert refused['status'] == 'rejected' and "'jog'" in refused['reason'] and 'output' not in refused
+
+
+def test_a_mirrored_bone_is_not_reported_as_a_non_uniform_stretch(services, tmp_path):
+    rig = anim_rig.build(tmp_path / 'rig.glb')
+    doc = aa.Doc.load(rig)
+    doc.gltf['nodes'][1]['scale'] = [-1, 1, 1]  # root mirrored on x
+    mirrored = tmp_path / 'mirrored.glb'
+    mirrored.write_bytes(doc.to_glb())
+    bad = call_tool(services, 'anim_inspect', {'target': 'web-animated', 'path': str(mirrored)})['skeleton']['nonuniform_scale_bones']
+    assert [b['name'] for b in bad] == ['tip']  # only the genuinely stretched bone

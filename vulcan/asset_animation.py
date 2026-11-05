@@ -461,12 +461,12 @@ def skeleton_facts(doc):
         for c, channel in enumerate(anim.get('channels', [])):
             target = channel.get('target', {})
             if target.get('path') == 'scale' and target.get('node') in joint_nodes:
-                values = Channel(doc, a, c).values
+                values = np.abs(Channel(doc, a, c).values)
                 ratio = float((values.max(axis=1) / np.maximum(values.min(axis=1), 1e-12)).max()) if len(values) else 1.0
                 animated_scale[target['node']] = max(animated_scale.get(target['node'], 1.0), ratio)
     for n in sorted(joint_nodes):
         scale = gltf['nodes'][n].get('scale')
-        ratio = max(scale) / max(min(scale), 1e-12) if scale else 1.0
+        ratio = max(abs(s) for s in scale) / max(min(abs(s) for s in scale), 1e-12) if scale else 1.0  # a mirror (-1) is not a stretch
         ratio = max(ratio, animated_scale.get(n, 1.0))
         if ratio > 1 + 1e-4:
             out['nonuniform_scale_bones'].append({'node': n, 'name': _node_name(gltf, n), 'max_ratio': round(ratio, 6)})
@@ -912,6 +912,18 @@ def _prepared_dir(services):
     return folder
 
 
+def _trim_windows(animations, original_names, trims):
+    """{clip index: [start, end]} for trims keyed by index, current name or the name the clip had before any rename; unknown keys are refused."""
+    out = {}
+    for key, window in (trims or {}).items():
+        hits = [i for i, anim in enumerate(animations) if str(i) == str(key) or anim.get('name') == key or original_names[i] == key]
+        if len(hits) != 1:
+            raise LookupError(f'No clip {key!r} to trim' if not hits else f'Trim key {key!r} names several clips; use the index')
+        if window:
+            out[hits[0]] = window
+    return out
+
+
 def prepare(services, target='web-animated', model_id=None, path=None, renames=None, trims=None, resample_fps=None,
             drop_empty_channels=None, drop_unused_bones=None, normalize_weights=None, limit_influences=None):
     """Write a verified animated variant; the original is never modified. Returns the stored receipt."""
@@ -946,6 +958,8 @@ def prepare(services, target='web-animated', model_id=None, path=None, renames=N
             dropped = op_drop_empty_channels(doc)
             if dropped:
                 log.append({'op': 'drop_empty_channels', 'dropped': dropped})
+        original_names = [a.get('name') for a in doc.gltf.get('animations', [])]
+        windows = _trim_windows(doc.gltf.get('animations', []), original_names, trims)  # clip index -> window, by old or new name
         auto_names = (planned.get('rename_clips') or {}).get('renames') or {}
         names_map = {**auto_names, **(renames or {})}
         if names_map:
@@ -953,8 +967,7 @@ def prepare(services, target='web-animated', model_id=None, path=None, renames=N
         fps = resample_fps or (rules['target_fps'] if 'resample' in planned else None)
         clips = clip_facts(doc, rules)
         for clip in clips:
-            key = clip['name'] or str(clip['index'])
-            window = (trims or {}).get(key) or (trims or {}).get(str(clip['index']))
+            window = windows.get(clip['index'])
             dense = fps and clip['key_rate_fps'] > fps * 1.001
             if window or dense:
                 start, end = (window or [None, None])[:2]

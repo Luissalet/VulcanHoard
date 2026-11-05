@@ -225,3 +225,37 @@ def test_studio_owner_dispatches_part_tools_with_scoped_links(tmp_path):
         assert link.startswith('/heron/api/parts/owner-plate/revisions/1/files/')
         assert client.get(link).text.startswith('<svg')
         assert client.post('/api/modules/stop-all').status_code == 200
+
+
+# -- independent review regressions ----------------------------------------------------------------------
+def _box(width, height, depth, features):
+    pts = {'a': [0, 0], 'b': [width, 0], 'c': [width, height], 'd': [0, height]}
+    return {'sketch': {'points': pts, 'lines': {'s': ['a', 'b'], 'e': ['b', 'c'], 'n': ['c', 'd'], 'w': ['d', 'a']}, 'profile': ['s', 'e', 'n', 'w'],
+                       'constraints': [{'id': 'o', 'type': 'fixed', 'point': 'a', 'at': [0, 0]}, {'id': 'hz', 'type': 'horizontal', 'line': 's'},
+                                       {'id': 'vt', 'type': 'vertical', 'line': 'e'}, {'id': 'pn', 'type': 'parallel', 'a': 's', 'b': 'n'},
+                                       {'id': 'pw', 'type': 'perpendicular', 'a': 's', 'b': 'w'}, {'id': 'cw', 'type': 'length', 'line': 's', 'value': width},
+                                       {'id': 'ch', 'type': 'length', 'line': 'e', 'value': height}]},
+            'extrude': {'depth': depth}, 'features': features}
+
+
+def test_a_shell_thicker_than_the_solid_allows_fails_instead_of_reporting_an_unchanged_solid(heron):
+    _, call, _ = heron
+    thick = call('part_create', {'request_id': 'shell-thick', 'spec': _box(40, 20, 20, [{'id': 'sh', 'type': 'shell', 'face': 'top', 'thickness': 15}])})
+    assert thick['result']['status'] == 'feature_failed', thick['result'].get('status')
+    assert 'no material' in thick['result']['features'][0]['reason']
+    fine = call('part_create', {'request_id': 'shell-fine', 'spec': _box(40, 20, 20, [{'id': 'sh', 'type': 'shell', 'face': 'top', 'thickness': 2}])})
+    assert fine['result']['status'] == 'solved' and fine['result']['volume_mm3'] < 40 * 20 * 20
+
+
+def test_a_side_face_is_not_ambiguous_because_another_side_is_coplanar(heron):
+    _, call, _ = heron
+    pts = {'p1': [0, 0], 'p2': [10, 0], 'p3': [10, 20], 'p4': [20, 20], 'p5': [20, 0], 'p6': [30, 0], 'p7': [30, 30], 'p8': [0, 30], 'h': [5, 0]}
+    names = ['l1', 'l2', 'l3', 'l4', 'l5', 'l6', 'l7', 'l8']
+    ids = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8']
+    lines = {n: [ids[i], ids[(i + 1) % 8]] for i, n in enumerate(names)}
+    spec = {'sketch': {'points': pts, 'lines': lines, 'profile': names, 'constraints': [{'id': 'o', 'type': 'fixed', 'point': 'p1', 'at': [0, 0]}]},
+            'extrude': {'depth': 10}, 'features': [{'id': 'bore', 'type': 'hole', 'face': {'side': 'l1'}, 'at': ['h'], 'diameter': 3, 'z': 5}]}
+    row = call('part_create', {'request_id': 'u-side', 'spec': spec})
+    feature = row['result']['features'][0]
+    assert feature['state'] == 'resolved', feature
+    assert feature['resolved']['center_mm'][0] == pytest.approx(5, abs=1e-6)  # the face under l1, not the one under l5
