@@ -298,6 +298,10 @@ def _hole_centres(face, feature, ctx, values):
                 raise ValueError(f'{feature.id}: pattern angle must be in (0, 360] degrees')
             pitch = math.radians(total) / (pattern.count if abs(total - 360) < 1e-9 else pattern.count - 1)
             pivot = lift(pattern.center)
+            for pid, point in centres:
+                off = point - pivot
+                if float(np.linalg.norm(off - np.dot(off, n) * n)) < 1e-9:
+                    raise ValueError(f'{feature.id}: hole centre {pid!r} is the pattern centre, so every copy would sit on the same spot')
             step = lambda point, k: rotate(point, pivot, n, pitch * k)  # noqa: E731
             facts = {'type': 'circular', 'count': pattern.count, 'pitch_deg': math.degrees(pitch), 'center_mm': [round(float(v), 6) for v in pivot]}
         for pid, point in centres:
@@ -447,7 +451,8 @@ def measure_holes(solid, facts):
             out.append({'at': hole['at'], 'found': False})
             continue
         c = min(near, key=lambda c: abs(c['radius'] * 2 - hole['diameter_mm']))
-        out.append({'at': hole['at'], 'found': True, 'diameter_mm': 2 * c['radius'], 'axis_point': c['point'], 'axis': c['dir']})
+        out.append({'at': hole['at'], 'found': True, 'diameter_mm': 2 * c['radius'], 'axis_point': c['point'], 'axis': c['dir'],
+                    'cylinder': next(i for i, f in enumerate(found) if f is c)})
     return out
 
 
@@ -465,7 +470,7 @@ def run_checks(part, values, solid, feature_facts):
         else:
             holes = measured_holes.get(check.feature) or []
             if check.measure == 'hole_count':
-                got = float(sum(h['found'] for h in holes))
+                got = float(len({h['cylinder'] for h in holes if h['found']}))  # distinct cylinders: coincident copies are one hole
             elif not holes or not all(h['found'] for h in holes):
                 note = 'the hole was not found as a cylinder of the finished solid'
             elif check.measure == 'hole_diameter':

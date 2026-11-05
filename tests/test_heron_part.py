@@ -393,3 +393,17 @@ def test_pattern_copies_that_leave_the_face_fail_and_drag_is_on_every_surface(he
     assert client.post('/api/part/drag', json={'spec': loose, 'point': 'nope', 'to': [0, 0]}).status_code == 400
     page = client.get('/design.js').text
     assert 'part-editor' in page and '/api/part/drag' in page and 'pointerdown' in page
+
+
+def test_a_ring_pattern_centred_on_its_own_hole_fails_and_hole_count_counts_distinct_cylinders(heron):
+    _, call, _ = heron
+    degenerate = copy.deepcopy(BUSHING)
+    degenerate['features'][0]['pattern']['center'] = 'm'
+    row = call('part_create', {'request_id': 'bush-zero-ring', 'spec': degenerate})['result']
+    assert row['status'] == 'feature_failed' and 'pattern centre' in row['features'][0]['reason']
+    twice = copy.deepcopy(BUSHING)
+    twice['features'] = [{'id': 'dup', 'type': 'hole', 'face': {'side': 'l3'}, 'at': ['m', 'm'], 'diameter': 4}]
+    twice['checks'] = [{'id': 'one_hole', 'measure': 'hole_count', 'feature': 'dup', 'value': 1}]
+    result = call('part_create', {'request_id': 'bush-dup', 'spec': twice})['result']
+    counts = [c for c in result.get('checks', []) if c['id'] == 'one_hole']
+    assert result['status'] != 'feature_failed' and counts and counts[0]['measured'] == 1 and counts[0]['passed']
