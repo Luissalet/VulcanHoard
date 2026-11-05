@@ -1,0 +1,35 @@
+{
+  "title": "Placa con dos taladros / Plate with two holes",
+  "parameters": {"width": 80, "height": 50, "thickness": 6, "hole_spacing": 40, "hole_d": 6, "edge_r": 2},
+  "sketch": {
+    "points": {"a": [0, 0], "b": [80, 0], "c": [80, 50], "d": [0, 50], "m1": [40, 0], "m2": [40, 50], "h1": [20, 25], "h2": [60, 25]},
+    "lines": {"south": ["a", "b"], "east": ["b", "c"], "north": ["c", "d"], "west": ["d", "a"], "axis": ["m1", "m2"]},
+    "profile": ["south", "east", "north", "west"],
+    "constraints": [
+      {"id": "origin", "type": "fixed", "point": "a", "at": [0, 0]},
+      {"id": "base_level", "type": "horizontal", "line": "south"},
+      {"id": "east_upright", "type": "vertical", "line": "east"},
+      {"id": "north_parallel", "type": "parallel", "a": "south", "b": "north"},
+      {"id": "west_square", "type": "perpendicular", "a": "south", "b": "west"},
+      {"id": "width", "type": "length", "line": "south", "value": "width"},
+      {"id": "height", "type": "length", "line": "east", "value": "height"},
+      {"id": "axis_south", "type": "midpoint", "point": "m1", "line": "south"},
+      {"id": "axis_north", "type": "midpoint", "point": "m2", "line": "north"},
+      {"id": "holes_mirror", "type": "symmetric", "a": "h1", "b": "h2", "axis": "axis"},
+      {"id": "spacing", "type": "distance", "a": "h1", "b": "h2", "value": "hole_spacing"},
+      {"id": "holes_centred", "type": "distance", "a": "h1", "b": "south", "value": "height / 2"}
+    ]
+  },
+  "extrude": {"depth": "thickness"},
+  "features": [
+    {"id": "holes", "type": "hole", "face": "top", "at": ["h1", "h2"], "diameter": "hole_d"},
+    {"id": "rounded_top", "type": "fillet", "face": "top", "radius": "edge_r"}
+  ],
+  "checks": [
+    {"id": "spacing_measured", "measure": "hole_distance", "feature": "holes", "value": "hole_spacing"},
+    {"id": "hole_measured", "measure": "hole_diameter", "feature": "holes", "value": "hole_d"},
+    {"id": "width_measured", "measure": "bbox_x", "value": "width"},
+    {"id": "height_measured", "measure": "bbox_y", "value": "height"},
+    {"id": "thickness_measured", "measure": "bbox_z", "value": "thickness"}
+  ]
+}

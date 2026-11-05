@@ -1,0 +1,38 @@
+{
+  "title": "Escuadra trapecial con taladro tangente / Trapezoid gusset with a tangent hole",
+  "parameters": {"base": 90, "rise": 40, "side_angle": 120, "margin": 6, "hole_r": 7, "thickness": 8, "edge": 1},
+  "sketch": {
+    "points": {"a": [0, 0], "b": [90, 0], "c": [67, 40], "d": [23, 40], "m1": [45, 0], "m2": [45, 40], "g1": [3, 6], "g2": [87, 6], "k": [45, 13]},
+    "lines": {"base": ["a", "b"], "right": ["b", "c"], "top": ["c", "d"], "left": ["d", "a"], "axis": ["m1", "m2"], "guide": ["g1", "g2"]},
+    "circles": {"bore": {"center": "k", "radius": 7}},
+    "profile": ["base", "right", "top", "left"],
+    "holes": ["bore"],
+    "constraints": [
+      {"id": "origin", "type": "fixed", "point": "a"},
+      {"id": "base_level", "type": "horizontal", "line": "base"},
+      {"id": "base_length", "type": "length", "line": "base", "value": "base"},
+      {"id": "slope", "type": "angle", "a": "base", "b": "right", "value": "side_angle"},
+      {"id": "same_sides", "type": "equal", "a": "right", "b": "left"},
+      {"id": "top_parallel", "type": "parallel", "a": "base", "b": "top"},
+      {"id": "rise", "type": "distance", "a": "c", "b": "base", "value": "rise"},
+      {"id": "axis_base", "type": "midpoint", "point": "m1", "line": "base"},
+      {"id": "axis_top", "type": "midpoint", "point": "m2", "line": "top"},
+      {"id": "guide_left", "type": "point_on_line", "point": "g1", "line": "left"},
+      {"id": "guide_right", "type": "point_on_line", "point": "g2", "line": "right"},
+      {"id": "guide_level", "type": "parallel", "a": "base", "b": "guide"},
+      {"id": "guide_margin", "type": "distance", "a": "g1", "b": "base", "value": "margin"},
+      {"id": "bore_on_axis", "type": "point_on_line", "point": "k", "line": "axis"},
+      {"id": "bore_tangent", "type": "tangent", "a": "guide", "b": "bore"},
+      {"id": "bore_radius", "type": "radius", "circle": "bore", "value": "hole_r"}
+    ]
+  },
+  "extrude": {"depth": "thickness"},
+  "features": [
+    {"id": "soft_top", "type": "chamfer", "face": "top", "distance": "edge"}
+  ],
+  "checks": [
+    {"id": "base_measured", "measure": "bbox_x", "value": "base"},
+    {"id": "rise_measured", "measure": "bbox_y", "value": "rise"},
+    {"id": "thickness_measured", "measure": "bbox_z", "value": "thickness"}
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "title": "Caja vaciada con pasacables / Shelled box with a cable hole",
+  "parameters": {"length": 60, "width": 40, "height": 25, "wall": 2, "cable_d": 8, "foot": 1},
+  "sketch": {
+    "points": {"a": [0, 0], "b": [60, 0], "c": [60, 40], "d": [0, 40], "e_mid": [60, 20]},
+    "lines": {"south": ["a", "b"], "east": ["b", "c"], "north": ["c", "d"], "west": ["d", "a"]},
+    "profile": ["south", "east", "north", "west"],
+    "constraints": [
+      {"id": "origin", "type": "fixed", "point": "a"},
+      {"id": "south_level", "type": "horizontal", "line": "south"},
+      {"id": "north_level", "type": "horizontal", "line": "north"},
+      {"id": "east_upright", "type": "vertical", "line": "east"},
+      {"id": "west_upright", "type": "vertical", "line": "west"},
+      {"id": "length", "type": "distance_x", "a": "a", "b": "b", "value": "length"},
+      {"id": "width", "type": "distance_y", "a": "b", "b": "c", "value": "width"},
+      {"id": "cable_centre", "type": "midpoint", "point": "e_mid", "line": "east"}
+    ]
+  },
+  "extrude": {"depth": "height"},
+  "features": [
+    {"id": "foot_chamfer", "type": "chamfer", "face": "bottom", "distance": "foot"},
+    {"id": "open_top", "type": "shell", "face": "top", "thickness": "wall"},
+    {"id": "cable", "type": "hole", "face": {"side": "east"}, "at": ["e_mid"], "diameter": "cable_d", "depth": "wall + 1"}
+  ],
+  "checks": [
+    {"id": "cable_measured", "measure": "hole_diameter", "feature": "cable", "value": "cable_d"},
+    {"id": "length_measured", "measure": "bbox_x", "value": "length"},
+    {"id": "width_measured", "measure": "bbox_y", "value": "width"},
+    {"id": "height_measured", "measure": "bbox_z", "value": "height"}
+  ]
+}
