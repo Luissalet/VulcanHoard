@@ -15,13 +15,13 @@ from ..model_comparison import CompareArgs, Units, compare_models, read_model
 
 router = APIRouter(prefix="/api")
 
-MEDIA = {"stl": "model/stl", "obj": "model/obj", "3mf": "model/3mf"}
+MEDIA = {"stl": "model/stl", "obj": "model/obj", "3mf": "model/3mf", "glb": "model/gltf-binary", "gltf": "model/gltf+json"}
 
 
 class ListQuery(BaseModel):
     q: str = Field("", max_length=300)
     root: int | None = Field(None, ge=1)
-    format: str | None = Field(None, max_length=40, description="stl, obj, 3mf or a comma-separated list.")
+    format: str | None = Field(None, max_length=40, description="stl, obj, 3mf, glb, gltf, fbx or a comma-separated list.")
     tag: str | None = Field(None, max_length=300, description="One tag or a comma-separated list (all must match).")
     collection: str | None = Field(None, max_length=300)
     album: int | None = Field(None, ge=1)
@@ -155,6 +155,32 @@ def file(request: Request, model_id: int):
         raise HTTPException(404, "The file is no longer on disk.")
     return FileResponse(path, media_type=MEDIA.get(model["format"], "application/octet-stream"), filename=path.name,
                         content_disposition_type="inline", headers={"Accept-Ranges": "bytes"})
+
+
+@router.get("/models/{model_id}/glb")
+def glb(request: Request, model_id: int):
+    """A library GLB, glTF (external buffers and textures packed) or FBX (converted with Blender, cached) as one GLB for the viewer."""
+    model = _model_or_404(services(request), model_id)
+    path = Path(model["path"])
+    if not path.is_file():
+        raise HTTPException(404, "The file is no longer on disk.")
+    headers = {"Cache-Control": "no-cache"}
+    if model["format"] == "glb":
+        return FileResponse(path, media_type="model/gltf-binary", filename=path.name, content_disposition_type="inline", headers=headers)
+    if model["format"] == "gltf":
+        from ..asset_animation import Doc
+        try:
+            return Response(Doc.load(path).to_glb(), media_type="model/gltf-binary", headers=headers)
+        except (ValueError, KeyError, OSError) as error:
+            raise HTTPException(400, f"The glTF could not be packed: {error}") from error
+    if model["format"] == "fbx":
+        from ..geometry import fbx_as_glb
+        try:
+            converted = fbx_as_glb(path)
+        except RuntimeError as error:
+            raise HTTPException(503, str(error)) from error
+        return FileResponse(converted, media_type="model/gltf-binary", filename=f"{path.stem}.glb", content_disposition_type="inline", headers=headers)
+    raise HTTPException(400, "Only GLB, glTF and FBX models have a GLB view.")
 
 
 @router.get("/models/{model_id}/listing")

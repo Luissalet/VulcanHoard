@@ -2646,7 +2646,7 @@
   },
   {
     "name": "anim_targets_list",
-    "description": "Animated destination profiles (web-animated, game-runtime) and their measurable rules. Keywords: perfiles animados.\nRules: bones, influences per vertex, normalised weights, named and required clips, loop continuity (deg/mm), non-uniform bone scale, empty channels, unused bones, target fps and resampling tolerance, triangles and textures.\nSinónimos: perfil animado, requisitos de animación, motor de juego, web animado.",
+    "description": "Animated destination profiles (web-animated, game-runtime) and their measurable rules. Keywords: perfiles animados.\nRules: bones, influences per vertex, normalised weights, named and required clips, loop continuity (deg/mm), non-uniform bone scale, empty channels, unused bones, target fps and resampling tolerance, triangles and textures, morph target count and empty morph targets, root drift of looping clips.\nSinónimos: perfil animado, requisitos de animación, motor de juego, web animado.",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -2731,7 +2731,7 @@
             }
           ],
           "default": null,
-          "description": "Any of max_bones, max_influences, require_normalized_weights, require_named_clips, required_clips, loop_clips, max_loop_error_deg, max_loop_error_mm, forbid_nonuniform_bone_scale, forbid_empty_channels, forbid_unused_bones, target_fps, max_resample_error_deg, max_resample_error_mm, max_triangles, max_textures, max_texture_px, accepted_formats.",
+          "description": "Any of max_bones, max_influences, require_normalized_weights, require_named_clips, required_clips, loop_clips, max_loop_error_deg, max_loop_error_mm, forbid_nonuniform_bone_scale, forbid_empty_channels, forbid_unused_bones, target_fps, max_resample_error_deg, max_resample_error_mm, max_triangles, max_textures, max_texture_px, accepted_formats, max_morph_targets, forbid_empty_morph_targets, max_root_drift_mm.",
           "title": "Rules"
         }
       },
@@ -2746,7 +2746,7 @@
   },
   {
     "name": "anim_inspect",
-    "description": "Draft report of a rigged GLB/glTF against an animated profile, measured. Keywords: inspeccionar animación.\nSkeleton (bones, influences, weight sums, unused and removable bones, non-uniform scale), clips (names, durations, key rate, first/last pose difference per bone, empty channels), materials and textures; one check per rule (pass, fail, not evaluated), automatic operations and manual steps. Measures integrity and continuity, not artistic quality. Writes nothing.\nSinónimos: revisar rig, comprobar clips, bucle de idle, huesos, pesos, animaciones.",
+    "description": "Draft report of a rigged GLB/glTF against an animated profile, measured. Keywords: inspeccionar animación.\nSkeleton (bones, influences, weight sums, unused and removable bones, non-uniform scale), clips (names, durations, key rate, first/last pose difference per bone, empty channels, root travel), morph targets (displacement, clips that drive them, empty ones), materials and textures; one check per rule (pass, fail, not evaluated), automatic operations, suggested motion changes (close loops, in place) and manual steps. Measures integrity and continuity, not artistic quality. Writes nothing (an .fbx is converted first).\nSinónimos: revisar rig, comprobar clips, bucle de idle, huesos, pesos, animaciones.",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -2788,7 +2788,7 @@
             }
           ],
           "default": null,
-          "description": "Or an absolute path to a GLB or glTF file.",
+          "description": "Or an absolute path to a GLB or glTF file (an .fbx is converted with Blender first).",
           "title": "Path"
         }
       },
@@ -2800,7 +2800,7 @@
   },
   {
     "name": "anim_prepare",
-    "description": "Prepare a verified animated GLB for a profile; the original is untouched (write). Keywords: preparar animación.\nRenames or trims clips, drops empty channels and bones without influence, normalises or limits weights, resamples dense clips to the target fps with a measured error, writes a NEW GLB, re-inspects it and replays every clip in three.js (Node) to compare clip durations and the final pose with its own evaluation. Status unchanged, prepared, rejected or failed, with a receipt.\nSinónimos: recortar clip, renombrar animación, remuestrear, quitar huesos, limpiar canales.",
+    "description": "Prepare a verified animated GLB for a profile; the original is untouched (write). Keywords: preparar animación.\nRenames or trims clips, drops empty channels and bones without influence, normalises or limits weights, resamples dense clips to the target fps with a measured error, writes a NEW GLB, re-inspects it and replays every clip in three.js (Node) to compare clip durations and the final pose with its own evaluation. Status unchanged, prepared, rejected or failed, with a receipt. On request it also closes loops (last pose = first), makes clips play in place (root travel kept as root_motion) and drops morph targets that move nothing; an FBX source is converted with Blender first.\nSinónimos: recortar clip, renombrar animación, remuestrear, quitar huesos, limpiar canales, cerrar bucle, en el sitio, root motion.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -2842,7 +2842,7 @@
             }
           ],
           "default": null,
-          "description": "Or an absolute path to a GLB or glTF file.",
+          "description": "Or an absolute path to a GLB or glTF file (an .fbx is converted with Blender first).",
           "title": "Path"
         },
         "renames": {
@@ -2948,6 +2948,57 @@
           "default": null,
           "description": "Keep the strongest N influences per vertex and renormalise (default: the profile's max when exceeded).",
           "title": "Limit Influences"
+        },
+        "close_loops": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Make the last pose of these clips equal the first by spreading the difference over the clip (true = the clips the report suggests). Changes the motion: applied only when asked.",
+          "title": "Close Loops"
+        },
+        "root_in_place": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Remove the steady horizontal travel of the root in these clips (true = suggested clips); the velocity is kept in the clip extras as root_motion. Applied only when asked.",
+          "title": "Root In Place"
+        },
+        "drop_empty_morph_targets": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Remove morph targets that move no vertex (default: when the profile forbids them).",
+          "title": "Drop Empty Morph Targets"
         }
       },
       "title": "AnimPrepareArgs",
@@ -3010,6 +3061,293 @@
     },
     "module": "library",
     "native_name": "anim_preparations"
+  },
+  {
+    "name": "anim_fbx_import",
+    "description": "Convert an FBX to GLB with Blender (headless) so it can be inspected and prepared; the FBX is untouched. Keywords: importar FBX.\nCached by the FBX content. The receipt lists what Blender read (actions with frame ranges, armatures and bones, shape keys) next to what the GLB holds (clips, durations, bones, morph targets) and whether each clip matches its action. anim_inspect and anim_prepare also accept an .fbx path and convert it the same way.\nSinónimos: abrir FBX, leer FBX, Mixamo, convertir FBX a GLB.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Library model id of an FBX.",
+          "title": "Id"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Or an absolute path to an .fbx file.",
+          "title": "Path"
+        },
+        "force": {
+          "default": false,
+          "description": "Convert again even when a conversion of the same content is cached.",
+          "title": "Force",
+          "type": "boolean"
+        }
+      },
+      "title": "AnimFbxImportArgs",
+      "type": "object"
+    },
+    "module": "library",
+    "native_name": "anim_fbx_import",
+    "x-timeout-s": 900.0
+  },
+  {
+    "name": "anim_fbx_export",
+    "description": "Write a GLB/glTF (model, path or prepared variant) as FBX with Blender and verify it by reading it back (write). Keywords: exportar FBX.\nBlender re-imports the written FBX and its clips, joints, morph target names and the world position of every joint at the start and end of each clip are compared with the source (tolerance 1 mm). Status exported, partial (a clip that only drives morph targets has no take of its own in an FBX written by Blender; listed), mismatch or failed, with a receipt.\nSinónimos: guardar FBX, pasar a FBX, Unity, Unreal.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Library model id of a GLB or glTF.",
+          "title": "Id"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Or an absolute path to a GLB or glTF.",
+          "title": "Path"
+        },
+        "preparation_id": {
+          "anyOf": [
+            {
+              "maxLength": 20,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Or a prepared or retargeted variant (anim_preparations).",
+          "title": "Preparation Id"
+        }
+      },
+      "title": "AnimFbxExportArgs",
+      "type": "object"
+    },
+    "module": "library",
+    "native_name": "anim_fbx_export",
+    "x-timeout-s": 1800.0
+  },
+  {
+    "name": "anim_fbx_exports",
+    "description": "Past FBX exports and their receipts, and whether Blender is available. Keywords: exportaciones FBX.\nWithout id: the latest exports with status and round-trip verdict. With id: the full receipt.\nSinónimos: historial FBX.",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "maxLength": 20,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "An export id to read in full.",
+          "title": "Id"
+        },
+        "limit": {
+          "default": 10,
+          "maximum": 50,
+          "minimum": 1,
+          "title": "Limit",
+          "type": "integer"
+        }
+      },
+      "title": "AnimFbxExportsArgs",
+      "type": "object"
+    },
+    "module": "library",
+    "native_name": "anim_fbx_exports"
+  },
+  {
+    "name": "anim_retarget",
+    "description": "Retarget clips from one rig onto another with other bone names, lengths or rest orientations (write). Keywords: redirigir animación.\nBones pair by an explicit map or normalised names; each paired bone gets the source world rotation change from rest, and the top-most paired bone the root travel scaled by the skeleton sizes. Writes the target rig plus the new clips as a NEW GLB, measures from the written file how far each target rotation change is from its source (degrees, keys and midpoints), lists unpaired bones and rest-direction differences per pair, and replays every clip in three.js.\nSinónimos: retarget, retargeting, pasar animaciones a otro esqueleto, Mixamo a mi personaje.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "source_id": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Library model with the clips (GLB, glTF or FBX).",
+          "title": "Source Id"
+        },
+        "source_path": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Or an absolute path to it.",
+          "title": "Source Path"
+        },
+        "target_id": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Library model with the rig that receives the clips.",
+          "title": "Target Id"
+        },
+        "target_path": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Or an absolute path to it.",
+          "title": "Target Path"
+        },
+        "map": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Bone pairs {source bone: target bone}; the rest pair by normalised name (prefixes like mixamorig: dropped, case, separators and Left/Right/L/R unified).",
+          "title": "Map"
+        },
+        "clips": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Source clip names (default: every clip that moves a paired bone).",
+          "title": "Clips"
+        },
+        "translation_scale": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "maximum": 1000,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Scale of the root travel (default: target / source skeleton size).",
+          "title": "Translation Scale"
+        },
+        "max_error_deg": {
+          "default": 1.0,
+          "description": "Largest accepted difference between source and target world rotation changes.",
+          "exclusiveMinimum": 0,
+          "maximum": 45,
+          "title": "Max Error Deg",
+          "type": "number"
+        }
+      },
+      "title": "AnimRetargetArgs",
+      "type": "object"
+    },
+    "module": "library",
+    "native_name": "anim_retarget",
+    "x-timeout-s": 900.0
   },
   {
     "name": "spatial_example",

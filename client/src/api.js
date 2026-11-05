@@ -105,4 +105,12 @@ export const api = {
   animPrepare: (body) => request("POST", "/api/anim/preparations", { body }),
   animPreparations: (modelId) => request("GET", "/api/anim/preparations", { params: { model_id: modelId } }),
   animPreparationFileUrl: (id) => `/api/anim/preparations/${id}/file`,
+  animSummary: (modelId) => request("GET", `/api/anim/models/${modelId}/summary`),
+  animFbxStatus: () => request("GET", "/api/anim/fbx/status"),
+  animFbxImport: (body) => request("POST", "/api/anim/fbx/import", { body }),
+  animFbxExport: (body) => request("POST", "/api/anim/fbx/export", { body }),
+  animFbxExports: () => request("GET", "/api/anim/fbx/exports"),
+  animFbxExportFileUrl: (id) => `/api/anim/fbx/exports/${id}/file`,
+  animRetarget: (body) => request("POST", "/api/anim/retarget", { body }),
+  modelGlbUrl: (model) => `/api/models/${model.id}/glb?v=${encodeURIComponent(model.sha256 || "")}`,
 };

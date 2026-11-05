@@ -1,4 +1,5 @@
-export const FORMAT_LABEL = { stl: "STL", obj: "OBJ", "3mf": "3MF" };
+export const FORMAT_LABEL = { stl: "STL", obj: "OBJ", "3mf": "3MF", glb: "GLB", gltf: "glTF", fbx: "FBX" };
+export const SCENE_FORMATS = ["glb", "gltf", "fbx"]; // glTF scenes (metres, Y up); an FBX is shown through its Blender conversion
 
 export const PHASE_LABEL = {
   queued: "En cola",

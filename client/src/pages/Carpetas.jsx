@@ -45,7 +45,7 @@ export default function Carpetas() {
 
   return (
     <div>
-      <PageHeader title="Carpetas" description="Cada carpeta raíz se recorre buscando STL, 3MF y OBJ. Vulcan mide cada archivo, comprueba si es estanco, genera la miniatura y solo vuelve a leer lo que cambia." />
+      <PageHeader title="Carpetas" description="Cada carpeta raíz se recorre buscando STL, 3MF, OBJ, GLB, glTF y FBX (este, con Blender). Vulcan mide cada archivo, comprueba si es estanco, genera la miniatura y solo vuelve a leer lo que cambia." />
       <form data-copilot-editor="root:new" className="panel mb-6 grid gap-3 md:grid-cols-[minmax(0,1fr)_220px]" onSubmit={submit}>
         <div>
           <label className="label" htmlFor="path">Ruta de la carpeta</label>
@@ -59,7 +59,7 @@ export default function Carpetas() {
           {advanced ? (
             <>
               <label className="label" htmlFor="include">Incluir (globs)</label>
-              <input id="include" className="field" placeholder="**/*.stl, **/*.3mf, **/*.obj" value={form.include} onChange={(e) => setForm({ ...form, include: e.target.value })} />
+              <input id="include" className="field" placeholder="**/*.stl, **/*.3mf, **/*.obj, **/*.glb, **/*.gltf, **/*.fbx" value={form.include} onChange={(e) => setForm({ ...form, include: e.target.value })} />
               <label className="label mt-2" htmlFor="exclude">Excluir (globs)</label>
               <input id="exclude" className="field" placeholder="**/borradores/**, **/export_*/**" value={form.exclude} onChange={(e) => setForm({ ...form, exclude: e.target.value })} />
               <p className="help mt-1">Útil para saltarse carpetas generadas automáticamente (capas, exportaciones de un programa): un patrón por carpeta, con <code>**</code> a ambos lados.</p>
@@ -67,7 +67,7 @@ export default function Carpetas() {
               <input id="skip-small" className="field" placeholder="0 = listar todos" inputMode="numeric" value={form.skip_small_bytes} onChange={(e) => setForm({ ...form, skip_small_bytes: e.target.value.replace(/[^0-9]/g, "") })} />
             </>
           ) : (
-            <button type="button" className="btn-link text-[12px]" onClick={() => setAdvanced(true)}>Personalizar patrones (por defecto: todos los STL, 3MF y OBJ; se ignoran .git, node_modules y ocultos)</button>
+            <button type="button" className="btn-link text-[12px]" onClick={() => setAdvanced(true)}>Personalizar patrones (por defecto: todos los STL, 3MF, OBJ, GLB, glTF y FBX; el FBX se lee con Blender; se ignoran .git, node_modules y ocultos)</button>
           )}
         </div>
         <div className="flex flex-col gap-2 text-[13px]">

@@ -160,7 +160,9 @@ export default function Viewer({ model, glbUrl = null, onCloseGlb, overlay = nul
         renderer.render(scene, camera);
       });
       setState({ phase: "loading", error: null });
-      let loaded = await load(glbUrl ? "glb" : model.format, glbUrl || `/api/models/${model.id}/file?v=${encodeURIComponent(model.sha256 || "")}`);
+      const scene3d = !glbUrl && ["glb", "gltf", "fbx"].includes(model.format); // library glTF scene: one GLB (glTF packed, FBX converted)
+      let loaded = await load(glbUrl || scene3d ? "glb" : model.format,
+        glbUrl || (scene3d ? `/api/models/${model.id}/glb?v=${encodeURIComponent(model.sha256 || "")}` : `/api/models/${model.id}/file?v=${encodeURIComponent(model.sha256 || "")}`));
       if (disposed) { dispose(loaded); return; }
       if (loaded.animations?.length) { // animated GLB: the mixer drives the glTF scene itself (track names resolve inside it)
         const mixer = new THREE.AnimationMixer(loaded);
@@ -176,6 +178,12 @@ export default function Viewer({ model, glbUrl = null, onCloseGlb, overlay = nul
         inMillimetres.add(loaded);
         inMillimetres.scale.setScalar(WEB_GLB_TO_MM);
         loaded = inMillimetres;
+      } else if (scene3d) { // a library GLB/glTF/FBX: metres and Y up, shown like its measurements (millimetres, Z up)
+        const upright = new THREE.Group();
+        upright.add(loaded);
+        upright.scale.setScalar(WEB_GLB_TO_MM);
+        upright.rotation.x = Math.PI / 2;
+        loaded = upright;
       }
       object = prepare(loaded);
       if (dense) {

@@ -6,8 +6,12 @@ trimesh converts it). `units_guess` flags files whose size makes millimetres unl
 
 from __future__ import annotations
 
+import functools
+import hashlib
 import logging
+import os
 import re
+import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -15,8 +19,39 @@ import numpy as np
 
 log = logging.getLogger("vulcan.geometry")
 
-FORMATS = {".stl": "stl", ".3mf": "3mf", ".obj": "obj"}
-DEFAULT_INCLUDE = ["**/*.stl", "**/*.3mf", "**/*.obj"]
+FORMATS = {".stl": "stl", ".3mf": "3mf", ".obj": "obj", ".glb": "glb", ".gltf": "gltf"}
+LEGACY_INCLUDE = ["**/*.stl", "**/*.3mf", "**/*.obj"]  # the default before GLB/glTF/FBX were indexed: roots that kept it get the new one
+DEFAULT_INCLUDE = LEGACY_INCLUDE + ["**/*.glb", "**/*.gltf", "**/*.fbx"]
+SCENE_FORMATS = ("glb", "gltf", "fbx")  # glTF conventions: metres and Y up (FBX is read through Blender into a GLB)
+Y_UP_TO_Z_UP = np.array([[1.0, 0, 0, 0], [0, 0, -1.0, 0], [0, 1.0, 0, 0], [0, 0, 0, 1.0]])
+
+
+@functools.lru_cache(maxsize=1)
+def fbx_supported() -> bool:
+    """FBX files are listed only where Blender can convert them."""
+    from .blender_render import find_blender
+
+    return bool(find_blender())
+
+
+def fbx_cache_dir() -> Path:
+    return Path(os.environ.get("VULCAN_FBX_CACHE") or Path(tempfile.gettempdir()) / "vulcan-fbx-cache")
+
+
+def fbx_as_glb(path: Path) -> Path:
+    """The GLB Blender makes from an FBX, cached by the FBX's content (shared by every process of the app)."""
+    from .asset_animation_fbx import run_blender
+    from .hoard_link import atomic
+
+    digest = hashlib.sha256(Path(path).read_bytes()).hexdigest()[:20]
+    folder = fbx_cache_dir()
+    folder.mkdir(parents=True, exist_ok=True)
+    target = folder / f"{digest}.glb"
+    if not target.is_file():
+        tmp = folder / f"{digest}.{os.getpid()}.tmp.glb"
+        run_blender("fbx2glb", Path(path), tmp)
+        atomic.replace_with_retry(tmp, target)
+    return target
 
 
 @dataclass
@@ -47,7 +82,10 @@ class MeshInfo:
 
 
 def format_for(path: Path) -> str | None:
-    return FORMATS.get(path.suffix.lower())
+    suffix = Path(path).suffix.lower()
+    if suffix == ".fbx":
+        return "fbx" if fbx_supported() else None
+    return FORMATS.get(suffix)
 
 
 def prettify_name(stem: str) -> str:
@@ -76,6 +114,14 @@ def _load(path: Path):
     import trimesh
 
     kind = format_for(path)
+    if kind in SCENE_FORMATS:  # glTF scenes (skinned meshes in their bind pose): metres -> mm and Y up -> Z up, like the library
+        source = fbx_as_glb(path) if kind == "fbx" else path
+        mesh = trimesh.load(str(source), file_type="gltf" if kind == "gltf" else "glb", force="mesh", process=True)
+        if not hasattr(mesh, "faces") or len(mesh.faces) == 0:
+            raise ValueError("no triangles found in the file")
+        mesh.apply_scale(1000.0)
+        mesh.apply_transform(Y_UP_TO_Z_UP)
+        return mesh
     mesh = trimesh.load(str(path), file_type=kind, force="mesh", process=True)
     if not hasattr(mesh, "faces") or len(mesh.faces) == 0:
         raise ValueError("no triangles found in the file")
@@ -113,7 +159,7 @@ def inspect_mesh(mesh) -> MeshInfo:
 
 
 def inspect_file(path: Path) -> MeshInfo:
-    """Parse one STL/OBJ/3MF file. Raises ValueError/OSError on unreadable files."""
+    """Parse one STL/OBJ/3MF/GLB/glTF (or, with Blender, FBX) file. Raises ValueError/OSError on unreadable files."""
     if format_for(path) is None:
         raise ValueError(f"unsupported format: {path.suffix}")
     return inspect_mesh(_load(path))
