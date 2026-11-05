@@ -14,7 +14,7 @@ class Config:
         self.jobs.mkdir(exist_ok=True)
         settings_path=self.data/'settings.json'
         settings=json.loads(settings_path.read_text()) if settings_path.exists() else {}
-        default=Path('D:/LocalAI/HoardStorage/daedalus-models') if os.name=='nt' else Path.home()/'.local/share/daedalus/models'
+        default=Path('E:/Development/AI Models/daedalus') if os.name=='nt' else Path.home()/'.local/share/daedalus/models'
         self.models=Path(os.environ.get('DAEDALUS_MODEL_DIR') or settings.get('model_dir') or default).resolve()
         self.python=os.environ.get('DAEDALUS_ENGINE_PYTHON')
         self.draft_python=os.environ.get('DAEDALUS_DRAFT_PYTHON') or settings.get('draft_python') or self.python
