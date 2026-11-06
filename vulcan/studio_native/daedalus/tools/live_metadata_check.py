@@ -18,7 +18,7 @@ async def main():
                 return json.loads(result.content[0].text)
             results={}
             results['models']=await call('models_status',{})
-            results['settings']=await call('models_configure',{'model_dir':'D:/LocalAI/HoardStorage/daedalus-models'})
+            results['settings']=await call('models_configure',{'model_dir':'E:/Development/AI Models/daedalus'})
             for key,title in [('original_id','Turbina · original'),('refinement_id','Turbina · refinado')]:
                 results[key]=await call('model_rename',{'job_id':proof[key],'title':title})
             results['jobs']=await call('jobs_list',{})
