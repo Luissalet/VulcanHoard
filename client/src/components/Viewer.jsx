@@ -23,10 +23,10 @@ function load(format, url) {
   });
 }
 
-function prepare(object) {
+function prepare(object, keepMaterials = false) {
   object.traverse((node) => {
     if (node.isMesh) {
-      node.material = MATERIAL();
+      if (!keepMaterials) node.material = MATERIAL();
       if (!node.geometry.attributes.normal) node.geometry.computeVertexNormals();
     }
   });
@@ -160,6 +160,7 @@ export default function Viewer({ model, glbUrl = null, onCloseGlb, overlay = nul
         renderer.render(scene, camera);
       });
       setState({ phase: "loading", error: null });
+      const textured = !!glbUrl && glbUrl.includes("/texture/jobs/");
       const scene3d = !glbUrl && ["glb", "gltf", "fbx"].includes(model.format); // library glTF scene: one GLB (glTF packed, FBX converted)
       let loaded = await load(glbUrl || scene3d ? "glb" : model.format,
         glbUrl || (scene3d ? `/api/models/${model.id}/glb?v=${encodeURIComponent(model.sha256 || "")}` : `/api/models/${model.id}/file?v=${encodeURIComponent(model.sha256 || "")}`));
@@ -173,7 +174,13 @@ export default function Viewer({ model, glbUrl = null, onCloseGlb, overlay = nul
         anim.current = { ...anim.current, mixer: null, clips: [], action: null, playing: false };
         setClips([]);
       }
-      if (glbUrl) { // the web GLB is in metres (glTF); the viewer works in millimetres like the library files
+      if (glbUrl && textured) { // an AI-textured GLB: metres and Y up like any library glTF, shown upright with its own texture
+        const upright = new THREE.Group();
+        upright.add(loaded);
+        upright.scale.setScalar(WEB_GLB_TO_MM);
+        upright.rotation.x = Math.PI / 2;
+        loaded = upright;
+      } else if (glbUrl) { // the web GLB is in metres (glTF); the viewer works in millimetres like the library files
         const inMillimetres = new THREE.Group();
         inMillimetres.add(loaded);
         inMillimetres.scale.setScalar(WEB_GLB_TO_MM);
@@ -185,7 +192,7 @@ export default function Viewer({ model, glbUrl = null, onCloseGlb, overlay = nul
         upright.rotation.x = Math.PI / 2;
         loaded = upright;
       }
-      object = prepare(loaded);
+      object = prepare(loaded, textured);
       if (dense) {
         try {
           const { VirtualGeometry } = await import("three-virtual-geometry");
@@ -309,7 +316,8 @@ export default function Viewer({ model, glbUrl = null, onCloseGlb, overlay = nul
       <div className="mt-1 flex flex-wrap items-center gap-3 text-[12px]">
         {overlay && !glbUrl && <span className="help" data-overlay-note>Marcas del inspector: aristas abiertas en rojo, cuerpos en azul, zonas finas en naranja.</span>}
         {glbUrl && glbNote && <span className="help" data-glb-shown-size={shownSize ? shownSize.join("x") : ""}>{glbNote}{shownSize ? ` · ${shownSize.join(" × ")} mm` : ""}</span>}
-        {glbUrl && !glbNote && <span className="help" data-glb-shown-size={shownSize ? shownSize.join("x") : ""}>Viendo el GLB web comprimido (en metros, mostrado en mm{shownSize ? `: ${shownSize.join(" × ")} mm` : ""}) · <button type="button" className="btn-link" onClick={onCloseGlb}>volver al archivo original</button></span>}
+        {glbUrl && !glbNote && glbUrl.includes("/texture/jobs/") && <span className="help" data-glb-shown-size={shownSize ? shownSize.join("x") : ""}>Viendo la variante texturizada con IA{shownSize ? ` (${shownSize.join(" × ")} mm)` : ""} · <button type="button" className="btn-link" onClick={onCloseGlb}>volver al archivo original</button></span>}
+        {glbUrl && !glbNote && !glbUrl.includes("/texture/jobs/") && <span className="help" data-glb-shown-size={shownSize ? shownSize.join("x") : ""}>Viendo el GLB web comprimido (en metros, mostrado en mm{shownSize ? `: ${shownSize.join(" × ")} mm` : ""}) · <button type="button" className="btn-link" onClick={onCloseGlb}>volver al archivo original</button></span>}
         {denseOffer && (
           <label className="inline-flex items-center gap-1" title="WebGPU + three-virtual-geometry: dibuja solo el detalle que se ve">
             <input type="checkbox" checked={dense} onChange={(e) => { setDenseNote(""); setDense(e.target.checked); }} />Modo denso (WebGPU)

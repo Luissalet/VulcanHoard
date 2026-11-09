@@ -122,3 +122,14 @@ slicer, and a dense-mesh viewer mode. Each one has a UI control, a REST route an
 meshoptimizer (MIT, Arseny Kapoulkine), gltfpack (MIT, same author), three-virtual-geometry (MIT, Elad Ben-Haim;
 includes code derived from nanite-webgpu, MIT) and three.js (MIT) are npm dependencies; their licences ship in
 `node_modules/*/LICENSE*` and in the client bundle. rtree (MIT) is a Python dependency.
+
+## AI texturing by view projection
+
+`texture_project(model_id, prompt, views=4..8, style?, size, texture_size, seed, workflow, mode)` runs in a background job (stages: guides, generating, projecting, exporting, validating).
+
+- Cameras: normalised model (largest side 2, base at z=0), lens 50 mm; 4 views = ring at 20 deg, 5 = ring alternating 14/34 deg, 6 = ring of 5 + top, 7 = ring of 6 + top, 8 = ring of 6 + top + bottom.
+- Guides: Blender (3.6 to 5.x, Cycles CPU, GPUs untouched) writes 16-bit depth, camera-space normals and a clay shot per camera; guides are cached in `data/texture/guides/<key>`.
+- Painting: ComfyUI at `HOARD_COMFY_URL` (else the link config, else http://127.0.0.1:8188). Workflow order: `controlnet` (depth ControlNet + image checkpoint), `kontext` (Flux Kontext), `img2img`. `texture_project_status` reports Blender, ComfyUI and the workflow that would be used.
+- Projection: per texel, cameras that see it (depth test, cos > 0.15, eroded silhouette) are blended with weight cos^4; holes are filled by dilation then mean colour.
+- Result: GLB (metres) in `data/variants` registered as a variant of the source model, PNG texture and front/back previews, glTF validation report. The recipe key (model, prompt, style, views, sizes, seed, workflow) makes repeated calls reuse the variant unless `force`.
+- Without ComfyUI or models the call fails with a clear message; `mode=preview` still works.

@@ -3804,6 +3804,193 @@
     "native_name": "gltf_report"
   },
   {
+    "name": "texture_project",
+    "description": "Texture a model with AI by projecting generated views onto it (write). Keywords: texturizar, textura IA.\nBlender (CPU) renders depth/normal/clay guides from 4-8 cameras, ComfyUI paints each view (depth ControlNet, Flux Kontext or img2img), the views are projected on an unwrapped mesh and a textured GLB is saved as a variant, validated with glTF. Returns a job id; mode=preview only returns the guide passes (no ComfyUI).\nSinónimos: texturizar con IA, pintar modelo, proyectar textura, colorear malla, textura desde prompt.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "properties": {
+        "id": {
+          "description": "Model id to texture (its file is never modified; the result is a new GLB variant).",
+          "minimum": 1,
+          "title": "Id",
+          "type": "integer"
+        },
+        "prompt": {
+          "anyOf": [
+            {
+              "maxLength": 400,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "What the surface should look like, e.g. 'weathered bronze armour with green patina'. Required for mode=texture.",
+          "title": "Prompt"
+        },
+        "mode": {
+          "default": "texture",
+          "description": "texture = paint with ComfyUI and save a variant (runs as a job); preview = only render the camera guide passes (depth, normals, clay), no ComfyUI.",
+          "pattern": "^(texture|preview)$",
+          "title": "Mode",
+          "type": "string"
+        },
+        "views": {
+          "default": 6,
+          "description": "Cameras around the model (4 to 8; from 6 one looks down from above).",
+          "maximum": 8,
+          "minimum": 4,
+          "title": "Views",
+          "type": "integer"
+        },
+        "style": {
+          "anyOf": [
+            {
+              "maxLength": 120,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional style words appended to the prompt, e.g. 'hand painted', 'pixel art'.",
+          "title": "Style"
+        },
+        "size": {
+          "default": 768,
+          "description": "Pixel size of every guide pass and painted view.",
+          "maximum": 1536,
+          "minimum": 256,
+          "title": "Size",
+          "type": "integer"
+        },
+        "texture_size": {
+          "default": 1024,
+          "description": "Pixel size of the final texture atlas (texture mode).",
+          "maximum": 2048,
+          "minimum": 512,
+          "title": "Texture Size",
+          "type": "integer"
+        },
+        "seed": {
+          "anyOf": [
+            {
+              "maximum": 2147483647,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Same seed in every view; default derived from model and prompt.",
+          "title": "Seed"
+        },
+        "workflow": {
+          "default": "auto",
+          "description": "auto picks a depth ControlNet, else Flux Kontext on the clay shot, else img2img.",
+          "pattern": "^(auto|controlnet|kontext|img2img)$",
+          "title": "Workflow",
+          "type": "string"
+        },
+        "negative": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "What to avoid; a default is used when omitted.",
+          "title": "Negative"
+        },
+        "force": {
+          "default": false,
+          "description": "Paint again even if the same texture already exists as a variant (or the guide passes are cached).",
+          "title": "Force",
+          "type": "boolean"
+        },
+        "wait": {
+          "default": false,
+          "description": "Block until the job ends (up to an hour) instead of returning the job id at once.",
+          "title": "Wait",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "TextureArgs",
+      "type": "object"
+    },
+    "x-timeout-s": 600.0,
+    "module": "library",
+    "native_name": "texture_project"
+  },
+  {
+    "name": "texture_project_status",
+    "description": "Status of AI texturing jobs and whether Blender/ComfyUI are ready (read-only). Keywords: estado textura.\nWith job_id: stage, progress, painted views, result variant and glTF validation; cancel=true stops it. Without: readiness (Blender, ComfyUI reachable, workflow that would run, missing models) and recent jobs.\nSinónimos: progreso de la textura, cómo va el texturizado, ComfyUI listo, cancelar textura.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "properties": {
+        "job_id": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{12}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Job id returned by texture_project. Omit it to see readiness (Blender, ComfyUI, models) and recent jobs.",
+          "title": "Job Id"
+        },
+        "id": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Without job_id: only the jobs of this model.",
+          "title": "Id"
+        },
+        "cancel": {
+          "default": false,
+          "description": "With job_id: stop the job (the ComfyUI queue item is interrupted).",
+          "title": "Cancel",
+          "type": "boolean"
+        }
+      },
+      "title": "TextureStatusArgs",
+      "type": "object"
+    },
+    "module": "library",
+    "native_name": "texture_project_status"
+  },
+  {
     "name": "gulliver_model_assembly",
     "description": "Assembly guide for a kept build: numbered pieces, files and materials. Guia de montaje.\nUses only that generation. Piece pages share stable numbers; follow next_offset until null.\nSinónimos: montar, piezas, orientacion, filamentos",
     "annotations": {

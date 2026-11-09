@@ -603,6 +603,10 @@ from .gltf_agent_tools import GLTF_TOOLS  # noqa: E402 - official Khronos glTF v
 
 TOOLS += GLTF_TOOLS
 
+from .texture_agent_tools import TEXTURE_TOOLS  # noqa: E402 - AI texturing by view projection
+
+TOOLS += TEXTURE_TOOLS
+
 TOOLS_BY_NAME = {tool.name: tool for tool in TOOLS}
 
 
