@@ -114,6 +114,12 @@ def write_outputs(result: BuildResult, folder: Path, *, name: str, bed: tuple[fl
         "attribution": result.attribution,
         "bytes": {k: (tmp / v).stat().st_size for k, v in files.items()},
     }
+    try:  # Khronos glTF validator of the Vulcan install that hosts this module; a standalone Gulliver simply skips it
+        from vulcan.gltf_validate import validate_beside
+
+        report["gltf_validation"] = validate_beside(tmp / files["glb"])
+    except ImportError:
+        report["gltf_validation"] = None
     report.setdefault("surface_mm2", round(whole.surface_area(), 3))
     report.setdefault("volume_cm3", round(whole.volume() / 1000, 3))
     report["material_estimate"] = printing.estimate(report, p.print_profile)

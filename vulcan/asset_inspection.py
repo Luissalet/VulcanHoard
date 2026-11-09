@@ -859,6 +859,10 @@ def _prepare(services, target: str, model_id: int | None, path: str | None, acce
                       discarded_output=str(out))
     receipt.update(output_path=str(out), output_sha256=sha256_of(out), output_bytes=out.stat().st_size,
                    download_url=f"/api/asset-preparations/{prep_id}/file")
+    if output_format == "glb":  # Khronos validator: recorded in the receipt, never a reason to discard the output
+        from .gltf_validate import validate_export
+
+        receipt["gltf_validation"] = validate_export(services, out)
     if model is not None and output_format in ("stl", "obj", "3mf"):
         from .family_tools import import_file, model_ref
 

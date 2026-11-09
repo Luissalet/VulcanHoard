@@ -56,6 +56,7 @@ slicer, and a dense-mesh viewer mode. Each one has a UI control, a REST route an
 - `scripts/glb_extent.mjs <file.glb>` decodes a GLB with the shipping three.js `GLTFLoader` + `MeshoptDecoder`,
   applies every node transform and prints the world extent in metres (used by the tests and for QA).
 - REST: `POST /api/models/{id}/web-glb`, `GET /api/models/{id}/web.glb`. MCP: `model_export_web_glb`.
+- Each export is checked with the Khronos validator and the result is stored as `gltf_validation` (see [glTF validation](gltf-validation.md)).
 - UI: model page → **GLB comprimido para la web**: export, download, the metre extent, and **Ver en el visor**
   (three.js `GLTFLoader` with `MeshoptDecoder`; the viewer scales the metre GLB by 1000 so it shows at the same
   millimetre scale as the library files, and prints the size it shows).

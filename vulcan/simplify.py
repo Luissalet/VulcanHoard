@@ -43,6 +43,7 @@ import numpy as np
 
 from .family_tools import import_file, model_ref
 from .geometry import _load
+from .gltf_validate import validate_export
 from .hoard_link import atomic
 
 
@@ -531,6 +532,9 @@ def export_web_glb(services, model_id: int, force: bool = False) -> dict:
     if path.is_file() and not force:
         meta = atomic.read_json(path.with_suffix(".json"), default=None) or {}
         if meta.get("semantics") == WEB_GLB_SEMANTICS:
+            if (meta.get("gltf_validation") or {}).get("state") in (None, "not_installed", "error"):  # never checked, or the validator was missing then
+                meta["gltf_validation"] = validate_export(services, path)
+                atomic.write_json_atomic(path.with_suffix(".json"), meta)
             return {"ok": True, "id": model_id, "path": str(path), "url": url, "bytes": path.stat().st_size, "cached": True, **meta}
         force = True  # old cache (millimetre numbers in a metre format): regenerate
     mesh = _load(Path(model["path"]))
@@ -562,5 +566,6 @@ def export_web_glb(services, model_id: int, force: bool = False) -> dict:
             "extent_mm": [round(x, 4) for x in extent_mm], "extent_m": [round(x * MM_TO_M, 7) for x in extent_mm],
             "quantization_tolerance_m": round(max(extent_mm) * MM_TO_M * 2 / 2 ** 14, 9) if compressed else 0.0,
             "units_note": "glTF lengths are metres: the millimetre geometry of the library was scaled by 0.001 (40 mm -> 0.04 m)."}
+    meta["gltf_validation"] = validate_export(services, path, force=True)  # Khronos validator: warnings never fail the export, errors are only flagged
     atomic.write_json_atomic(path.with_suffix(".json"), meta)
     return {"ok": True, "id": model_id, "path": str(path), "url": url, "bytes": path.stat().st_size, "cached": False, **meta}

@@ -246,6 +246,9 @@ def retarget(services, source_id=None, source_path=None, target_id=None, target_
         receipt['mapping'] = facts['pairs']
         output = _prepared_dir(services) / f'{Path(tgt).stem}.retarget.{prep_id}.glb'
         atomic.write_bytes_atomic(output, target_doc.to_glb())
+        from .gltf_validate import validate_export
+
+        receipt['gltf_validation'] = validate_export(services, output)
         written = Doc.load(output)
         measured = fidelity(Doc.load(src), written, facts, bone_map)
         three = reimport(output)

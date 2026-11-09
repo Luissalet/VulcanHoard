@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { api } from "../api.js";
 import { useApp } from "../App.jsx";
 import { bytes, num } from "../format.js";
+import { gltfBadge } from "./GltfValidation.jsx";
 
 const VIEW_SETS = {
   "iso,top,front,side": "Iso, planta, alzado y perfil",
@@ -255,6 +256,12 @@ export function WebGlbPanel({ model, onPreview }) {
         {result && onPreview && <button type="button" className="btn btn-sm" onClick={() => onPreview(api.webGlbUrl(model.id) + `?v=${result.semantics || ""}-${result.bytes}`)}>Ver en el visor</button>}
       </div>
       {result && <p className="help mt-2 text-[12px]">{result.compressed ? "Comprimido con " + result.tool : "Sin comprimir: " + (result.note || "")} · original {bytes(result.original_bytes)} → {bytes(result.bytes)}</p>}
+      {result?.gltf_validation && (
+        <p className="help mt-1 text-[12px]" data-webglb-validation={result.gltf_validation.state}>
+          Validador Khronos: <span className={`chip ${gltfBadge(result.gltf_validation).cls}`}>{gltfBadge(result.gltf_validation).text}</span>
+          {result.gltf_validation.state === "errors" ? " · el GLB se ha guardado igualmente; revisa el informe en «Validación glTF»." : ""}
+        </p>
+      )}
       {result?.units && (
         <p className="help mt-1 text-[12px]" data-webglb-units={result.units}>
           En metros, como pide glTF: {(result.extent_m || []).join(" × ")} m ({(result.extent_mm || []).join(" × ")} mm × 0,001)

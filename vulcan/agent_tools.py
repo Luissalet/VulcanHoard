@@ -599,6 +599,10 @@ from .spatial.tools import SPATIAL_TOOLS  # noqa: E402 - spatial analysis: cover
 
 TOOLS += SPATIAL_TOOLS
 
+from .gltf_agent_tools import GLTF_TOOLS  # noqa: E402 - official Khronos glTF validation of models and files
+
+TOOLS += GLTF_TOOLS
+
 TOOLS_BY_NAME = {tool.name: tool for tool in TOOLS}
 
 

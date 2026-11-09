@@ -10,6 +10,7 @@ import CadParameters from "../components/CadParameters.jsx";
 import ModelComparison from '../components/ModelComparison.jsx';
 import { LookPanel, PhotosPanel, SimplifyPanel, WebGlbPanel } from "../components/MeshTools.jsx";
 import SlicerButton from "../components/SlicerButton.jsx";
+import GltfValidationPanel, { GltfChip } from "../components/GltfValidation.jsx";
 import AssetInspectionPanel from "../components/AssetInspection.jsx";
 import { ModelAnimation } from "../components/AnimationPanel.jsx";
 import { SCENE_FORMATS } from "../format.js";
@@ -183,6 +184,7 @@ export default function Modelo({ param }) {
           {model.watertight === true && <span className="chip chip-ok">estanco</span>}
           {model.watertight === false && <span className="chip chip-warn">con agujeros</span>}
           {model.units_guess !== "mm" && <span className="chip chip-warn">{UNITS_LABEL[model.units_guess]}</span>}
+          {model.status === "ok" && <GltfChip key={id} model={model} />}
           {model.status === "skipped" && <span className="chip chip-warn">no analizado</span>}
           {model.status === "error" && <span className="chip chip-danger">error</span>}
           <a className="btn btn-sm" href={api.fileUrl(model.id)} download>Descargar</a>
@@ -265,6 +267,7 @@ export default function Modelo({ param }) {
           {model.status === "ok" && <LookPanel model={model} />}
           {model.status === "ok" && <PhotosPanel model={model} />}
           {model.status === "ok" && <WebGlbPanel model={model} onPreview={setGlbUrl} />}
+          {model.status === "ok" && <GltfValidationPanel key={id} model={model} />}
 
           <section className="panel-white">
             <h2 className="text-[16px] font-semibold">Etiquetas y notas</h2>

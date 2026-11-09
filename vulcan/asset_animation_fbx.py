@@ -117,6 +117,9 @@ def import_fbx(services, model_id=None, path=None, force=False):
                'original_unchanged': sha256_of(source) == digest,
                'note': 'Inspection and preparation read this GLB; the FBX is never written.' if facts['clips'] else
                        'Blender found no animation in this FBX; the GLB holds the mesh and skeleton only.'}
+    from .gltf_validate import validate_export
+
+    receipt['gltf_validation'] = validate_export(services, glb)
     atomic.write_json_atomic(receipt_path, receipt)
     return receipt
 

@@ -70,6 +70,8 @@ export const api = {
   variants: (id) => request("GET", `/api/models/${id}/variants`),
   webGlb: (id, force) => request("POST", `/api/models/${id}/web-glb`, { params: { force } }),
   webGlbUrl: (id) => `/api/models/${id}/web.glb`,
+  gltfReport: (id) => request("GET", `/api/models/${id}/gltf-validation`),
+  gltfValidate: (id, force) => request("POST", `/api/models/${id}/gltf-validation`, { params: { force } }),
   scene: (id) => request("GET", `/api/models/${id}/scene`),
   lookUrl: (id, views, size, version) => `/api/models/${id}/look.png?views=${encodeURIComponent(views)}&size=${size}&v=${version || ""}`,
   blender: () => request("GET", "/api/blender"),

@@ -3705,6 +3705,105 @@
     "native_name": "spatial_export"
   },
   {
+    "name": "gltf_validate",
+    "description": "Validate a model or a .glb/.gltf file with the official Khronos validator (write: saves the report). Keywords: validar glTF, validar GLB, Khronos.\nRuns the Khronos glTF-Validator (npm gltf-validator, through Node) on a library model/variant by id (GLB/glTF as it is; STL/OBJ/3MF through its web GLB export) or on an absolute path; returns the number of errors, warnings, infos and hints, every message (code, severity, JSON pointer, text) and the asset info (version, generator, meshes, materials, textures, animations, extensions used/required, triangles, vertices). The report is saved next to the file's content hash and reused until the file changes (force=true validates again). status=not_installed when Node or the package is missing. Warnings never block an export; errors only mark it.\nSinónimos: validar glTF, validar GLB, comprobar GLB, validador oficial, Khronos, glTF válido, errores del GLB, avisos del glTF, revisar el modelo web.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Library model or variant id. A GLB/glTF is validated as it is; an STL/OBJ/3MF through its web GLB export.",
+          "title": "Id"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Or the absolute path of a .glb or .gltf file on this PC.",
+          "title": "Path"
+        },
+        "force": {
+          "default": false,
+          "description": "Validate again even when a report for the same file content is already saved.",
+          "title": "Force",
+          "type": "boolean"
+        }
+      },
+      "title": "ValidateArgs",
+      "type": "object"
+    },
+    "x-timeout-s": 180.0,
+    "module": "library",
+    "native_name": "gltf_validate"
+  },
+  {
+    "name": "gltf_report",
+    "description": "Read the saved glTF validation report of a model or file without running anything. Keywords: informe glTF, resultado de la validación.\nReturns the last report stored by gltf_validate or by an export (validated=false when there is none yet): summary state (valid | warnings | errors), counts, messages and asset info.\nSinónimos: informe de validación, último resultado glTF, insignia glTF, ¿es válido el GLB?, errores guardados.",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Library model or variant id.",
+          "title": "Id"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Or the absolute path of a .glb or .gltf file.",
+          "title": "Path"
+        }
+      },
+      "title": "ReportArgs",
+      "type": "object"
+    },
+    "module": "library",
+    "native_name": "gltf_report"
+  },
+  {
     "name": "gulliver_model_assembly",
     "description": "Assembly guide for a kept build: numbered pieces, files and materials. Guia de montaje.\nUses only that generation. Piece pages share stable numbers; follow next_offset until null.\nSinónimos: montar, piezas, orientacion, filamentos",
     "annotations": {

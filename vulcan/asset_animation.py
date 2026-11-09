@@ -1386,6 +1386,9 @@ def prepare(services, target='web-animated', model_id=None, path=None, renames=N
             return _store_receipt(services, receipt)
         output = _prepared_dir(services) / f"{Path(info['path']).stem}.{profile['id']}.{prep_id}.glb"
         atomic.write_bytes_atomic(output, doc.to_glb())
+        from .gltf_validate import validate_export
+
+        receipt['gltf_validation'] = validate_export(services, output)  # recorded, never a reason to fail the preparation
         written = Doc.load(output)
         out_info = _file_info(output)
         after = inspect_doc(written, profile, out_info)

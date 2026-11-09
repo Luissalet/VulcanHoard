@@ -83,6 +83,7 @@
     "scene-summary",
     "web-glb-meshopt",
     "web-glb-metres",
+    "gltf-validation",
     "open-in-slicer",
     "slicer-autodetect",
     "dense-mesh-viewer",
