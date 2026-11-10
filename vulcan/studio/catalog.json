@@ -2646,7 +2646,7 @@
   },
   {
     "name": "anim_targets_list",
-    "description": "Animated destination profiles (web-animated, game-runtime) and their measurable rules. Keywords: perfiles animados.\nRules: bones, influences per vertex, normalised weights, named and required clips, loop continuity (deg/mm), non-uniform bone scale, empty channels, unused bones, target fps and resampling tolerance, triangles and textures, morph target count and empty morph targets, root drift of looping clips.\nSinónimos: perfil animado, requisitos de animación, motor de juego, web animado.",
+    "description": "Animated destination profiles and their measurable rules. Keywords: perfiles animados.\nProfiles such as web-animated and game-runtime. Rules: bones, influences per vertex, normalised weights, named and required clips, loop continuity (deg/mm), non-uniform bone scale, empty channels, unused bones, target fps and resampling tolerance, triangles and textures, morph target count and empty morph targets, root drift of looping clips.\nSinónimos: perfil animado, requisitos de animación, motor de juego, web animado.",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -2800,7 +2800,7 @@
   },
   {
     "name": "anim_prepare",
-    "description": "Prepare a verified animated GLB for a profile; the original is untouched (write). Keywords: preparar animación.\nRenames or trims clips, drops empty channels and bones without influence, normalises or limits weights, resamples dense clips to the target fps with a measured error, writes a NEW GLB, re-inspects it and replays every clip in three.js (Node) to compare clip durations and the final pose with its own evaluation. Status unchanged, prepared, rejected or failed, with a receipt. On request it also closes loops (last pose = first), makes clips play in place (root travel kept as root_motion) and drops morph targets that move nothing; an FBX source is converted with Blender first.\nSinónimos: recortar clip, renombrar animación, remuestrear, quitar huesos, limpiar canales, cerrar bucle, en el sitio, root motion.",
+    "description": "Prepare a verified animated GLB for a profile; original untouched (write). Keywords: preparar animación.\nRenames or trims clips, drops empty channels and unweighted bones, normalises or limits weights, resamples dense clips to the target fps with a measured error, writes a NEW GLB, re-inspects it and replays every clip in three.js. Status unchanged, prepared, rejected or failed, with a receipt. On request it also closes loops, makes clips play in place (root travel kept as root_motion) and drops inert morph targets; an FBX source is converted first.\nSinónimos: recortar clip, renombrar animación, remuestrear, quitar huesos, limpiar canales, cerrar bucle, en el sitio, root motion.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -3064,7 +3064,7 @@
   },
   {
     "name": "anim_fbx_import",
-    "description": "Convert an FBX to GLB with Blender (headless) so it can be inspected and prepared; the FBX is untouched. Keywords: importar FBX.\nCached by the FBX content. The receipt lists what Blender read (actions with frame ranges, armatures and bones, shape keys) next to what the GLB holds (clips, durations, bones, morph targets) and whether each clip matches its action. anim_inspect and anim_prepare also accept an .fbx path and convert it the same way.\nSinónimos: abrir FBX, leer FBX, Mixamo, convertir FBX a GLB.",
+    "description": "Convert an FBX to GLB with Blender (headless); the FBX is untouched. Keywords: importar FBX.\nMakes it ready to inspect and prepare. Cached by the FBX content. The receipt lists what Blender read (actions with frame ranges, armatures and bones, shape keys) next to what the GLB holds (clips, durations, bones, morph targets) and whether each clip matches its action. anim_inspect and anim_prepare also accept an .fbx path and convert it the same way.\nSinónimos: abrir FBX, leer FBX, Mixamo, convertir FBX a GLB.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -3118,7 +3118,7 @@
   },
   {
     "name": "anim_fbx_export",
-    "description": "Write a GLB/glTF (model, path or prepared variant) as FBX with Blender and verify it by reading it back (write). Keywords: exportar FBX.\nBlender re-imports the written FBX and its clips, joints, morph target names and the world position of every joint at the start and end of each clip are compared with the source (tolerance 1 mm). Status exported, partial (a clip that only drives morph targets has no take of its own in an FBX written by Blender; listed), mismatch or failed, with a receipt.\nSinónimos: guardar FBX, pasar a FBX, Unity, Unreal.",
+    "description": "Write a GLB/glTF as FBX with Blender and verify it by reading it back (write). Keywords: exportar FBX.\nSource: model, path or prepared variant. Blender re-imports the written FBX and its clips, joints, morph target names and the world position of every joint at the start and end of each clip are compared with the source (tolerance 1 mm). Status exported, partial (a clip that only drives morph targets has no take of its own in an FBX written by Blender; listed), mismatch or failed, with a receipt.\nSinónimos: guardar FBX, pasar a FBX, Unity, Unreal.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -3220,7 +3220,7 @@
   },
   {
     "name": "anim_retarget",
-    "description": "Retarget clips from one rig onto another with other bone names, lengths or rest orientations (write). Keywords: redirigir animación.\nBones pair by an explicit map or normalised names; each paired bone gets the source world rotation change from rest, and the top-most paired bone the root travel scaled by the skeleton sizes. Writes the target rig plus the new clips as a NEW GLB, measures from the written file how far each target rotation change is from its source (degrees, keys and midpoints), lists unpaired bones and rest-direction differences per pair, and replays every clip in three.js.\nSinónimos: retarget, retargeting, pasar animaciones a otro esqueleto, Mixamo a mi personaje.",
+    "description": "Retarget clips onto another rig with other bone names or proportions (write). Keywords: redirigir animación.\nWorks across bone names, lengths and rest orientations. Bones pair by an explicit map or normalised names; each paired bone gets the source world rotation change from rest, and the top-most paired bone the root travel scaled by the skeleton sizes. Writes the target rig plus the new clips as a NEW GLB, measures from the written file how far each target rotation change is from its source (degrees, keys and midpoints), lists unpaired bones and rest-direction differences per pair, and replays every clip in three.js.\nSinónimos: retarget, retargeting, pasar animaciones a otro esqueleto, Mixamo a mi personaje.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -3706,7 +3706,7 @@
   },
   {
     "name": "gltf_validate",
-    "description": "Validate a model or a .glb/.gltf file with the official Khronos validator (write: saves the report). Keywords: validar glTF, validar GLB, Khronos.\nRuns the Khronos glTF-Validator (npm gltf-validator, through Node) on a library model/variant by id (GLB/glTF as it is; STL/OBJ/3MF through its web GLB export) or on an absolute path; returns the number of errors, warnings, infos and hints, every message (code, severity, JSON pointer, text) and the asset info (version, generator, meshes, materials, textures, animations, extensions used/required, triangles, vertices). The report is saved next to the file's content hash and reused until the file changes (force=true validates again). status=not_installed when Node or the package is missing. Warnings never block an export; errors only mark it.\nSinónimos: validar glTF, validar GLB, comprobar GLB, validador oficial, Khronos, glTF válido, errores del GLB, avisos del glTF, revisar el modelo web.",
+    "description": "Validate a model or .glb/.gltf with the official Khronos validator (write). Keywords: validar glTF, Khronos.\nRuns the Khronos glTF-Validator (npm gltf-validator, via Node) on a library model/variant by id (STL/OBJ/3MF through its web GLB export) or an absolute path; returns counts of errors, warnings, infos and hints, every message (code, severity, JSON pointer, text) and the asset info (version, generator, counts, extensions). The report is saved by content hash and reused until the file changes (force=true repeats). status=not_installed when Node or the package is missing. Warnings never block an export.\nSinónimos: validar glTF, validar GLB, validador oficial, glTF válido, errores del GLB, avisos del glTF.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -3759,7 +3759,7 @@
   },
   {
     "name": "gltf_report",
-    "description": "Read the saved glTF validation report of a model or file without running anything. Keywords: informe glTF, resultado de la validación.\nReturns the last report stored by gltf_validate or by an export (validated=false when there is none yet): summary state (valid | warnings | errors), counts, messages and asset info.\nSinónimos: informe de validación, último resultado glTF, insignia glTF, ¿es válido el GLB?, errores guardados.",
+    "description": "Read the saved glTF validation report of a model or file; runs nothing. Keywords: informe glTF.\nReturns the last report stored by gltf_validate or by an export (validated=false when there is none yet): summary state (valid | warnings | errors), counts, messages and asset info.\nSinónimos: informe de validación, último resultado glTF, insignia glTF, ¿es válido el GLB?, errores guardados.",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,

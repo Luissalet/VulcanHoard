@@ -154,8 +154,8 @@ def run_preparations(services: Services, args: AnimPreparationsArgs) -> dict:
 
 
 ANIM_TOOLS: list[Tool] = [
-    Tool('anim_targets_list', 'Animated destination profiles (web-animated, game-runtime) and their measurable rules. Keywords: perfiles animados.\n'
-         'Rules: bones, influences per vertex, normalised weights, named and required clips, loop continuity (deg/mm), non-uniform bone scale, '
+    Tool('anim_targets_list', 'Animated destination profiles and their measurable rules. Keywords: perfiles animados.\n'
+         'Profiles such as web-animated and game-runtime. Rules: bones, influences per vertex, normalised weights, named and required clips, loop continuity (deg/mm), non-uniform bone scale, '
          'empty channels, unused bones, target fps and resampling tolerance, triangles and textures, morph target count and empty '
          'morph targets, root drift of looping clips.\n'
          'Sinónimos: perfil animado, requisitos de animación, motor de juego, web animado.', Empty, ann(True), run_targets),
@@ -168,12 +168,11 @@ ANIM_TOOLS: list[Tool] = [
          'materials and textures; one check per rule (pass, fail, not evaluated), automatic operations, suggested motion changes '
          '(close loops, in place) and manual steps. Measures integrity and continuity, not artistic quality. Writes nothing (an .fbx is converted first).\n'
          'Sinónimos: revisar rig, comprobar clips, bucle de idle, huesos, pesos, animaciones.', AnimSourceArgs, ann(True), run_inspect),
-    Tool('anim_prepare', 'Prepare a verified animated GLB for a profile; the original is untouched (write). Keywords: preparar animación.\n'
-         'Renames or trims clips, drops empty channels and bones without influence, normalises or limits weights, resamples dense clips '
-         'to the target fps with a measured error, writes a NEW GLB, re-inspects it and replays every clip in three.js (Node) to compare '
-         'clip durations and the final pose with its own evaluation. Status unchanged, prepared, rejected or failed, with a receipt. '
-         'On request it also closes loops (last pose = first), makes clips play in place (root travel kept as root_motion) and drops '
-         'morph targets that move nothing; an FBX source is converted with Blender first.\n'
+    Tool('anim_prepare', 'Prepare a verified animated GLB for a profile; original untouched (write). Keywords: preparar animación.\n'
+         'Renames or trims clips, drops empty channels and unweighted bones, normalises or limits weights, resamples dense clips '
+         'to the target fps with a measured error, writes a NEW GLB, re-inspects it and replays every clip in three.js. '
+         'Status unchanged, prepared, rejected or failed, with a receipt. On request it also closes loops, makes clips play in place '
+         '(root travel kept as root_motion) and drops inert morph targets; an FBX source is converted first.\n'
          'Sinónimos: recortar clip, renombrar animación, remuestrear, quitar huesos, limpiar canales, cerrar bucle, en el sitio, root motion.',
          AnimPrepareArgs, ann(False, False, False),
          run_prepare, timeout_s=300),
@@ -181,21 +180,21 @@ ANIM_TOOLS: list[Tool] = [
          'Without id: the latest ones (optionally of one model) with status, operations and output. With id: the full receipt '
          '(hashes, operations with errors, checks before and after, three.js reimport comparison).\n'
          'Sinónimos: historial de animaciones, recibo, variante animada.', AnimPreparationsArgs, ann(True), run_preparations),
-    Tool('anim_fbx_import', 'Convert an FBX to GLB with Blender (headless) so it can be inspected and prepared; the FBX is untouched. Keywords: importar FBX.\n'
-         'Cached by the FBX content. The receipt lists what Blender read (actions with frame ranges, armatures and bones, shape keys) '
+    Tool('anim_fbx_import', 'Convert an FBX to GLB with Blender (headless); the FBX is untouched. Keywords: importar FBX.\n'
+         'Makes it ready to inspect and prepare. Cached by the FBX content. The receipt lists what Blender read (actions with frame ranges, armatures and bones, shape keys) '
          'next to what the GLB holds (clips, durations, bones, morph targets) and whether each clip matches its action. '
          'anim_inspect and anim_prepare also accept an .fbx path and convert it the same way.\n'
          'Sinónimos: abrir FBX, leer FBX, Mixamo, convertir FBX a GLB.', AnimFbxImportArgs, ann(False, False, True), run_fbx_import, timeout_s=900),
-    Tool('anim_fbx_export', 'Write a GLB/glTF (model, path or prepared variant) as FBX with Blender and verify it by reading it back (write). Keywords: exportar FBX.\n'
-         'Blender re-imports the written FBX and its clips, joints, morph target names and the world position of every joint at the start '
+    Tool('anim_fbx_export', 'Write a GLB/glTF as FBX with Blender and verify it by reading it back (write). Keywords: exportar FBX.\n'
+         'Source: model, path or prepared variant. Blender re-imports the written FBX and its clips, joints, morph target names and the world position of every joint at the start '
          'and end of each clip are compared with the source (tolerance 1 mm). Status exported, partial (a clip that only drives morph '
          'targets has no take of its own in an FBX written by Blender; listed), mismatch or failed, with a receipt.\n'
          'Sinónimos: guardar FBX, pasar a FBX, Unity, Unreal.', AnimFbxExportArgs, ann(False, False, False), run_fbx_export, timeout_s=1800),
     Tool('anim_fbx_exports', 'Past FBX exports and their receipts, and whether Blender is available. Keywords: exportaciones FBX.\n'
          'Without id: the latest exports with status and round-trip verdict. With id: the full receipt.\n'
          'Sinónimos: historial FBX.', AnimFbxExportsArgs, ann(True), run_fbx_exports),
-    Tool('anim_retarget', 'Retarget clips from one rig onto another with other bone names, lengths or rest orientations (write). Keywords: redirigir animación.\n'
-         'Bones pair by an explicit map or normalised names; each paired bone gets the source world rotation change from rest, and the '
+    Tool('anim_retarget', 'Retarget clips onto another rig with other bone names or proportions (write). Keywords: redirigir animación.\n'
+         'Works across bone names, lengths and rest orientations. Bones pair by an explicit map or normalised names; each paired bone gets the source world rotation change from rest, and the '
          'top-most paired bone the root travel scaled by the skeleton sizes. Writes the target rig plus the new clips as a NEW GLB, '
          'measures from the written file how far each target rotation change is from its source (degrees, keys and midpoints), lists '
          'unpaired bones and rest-direction differences per pair, and replays every clip in three.js.\n'
