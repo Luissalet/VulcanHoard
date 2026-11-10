@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import React, { Suspense, createContext, lazy, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { api } from "./api.js";
 import { Toast } from "./components/ui.jsx";
 import { num } from "./format.js";
@@ -16,6 +16,8 @@ import Animar from "./pages/Animar.jsx";
 import Ajustes from "./pages/Ajustes.jsx";
 import { installCopilotAdapter } from "./copilot.js";
 
+const Mesa = lazy(() => import("./pages/Mesa.jsx")); // three.js loads only when the 3D table opens
+
 const PAGES = [
   { path: "galeria", label: "Galería", icon: "M4 5h6v6H4zM14 5h6v6h-6zM4 15h6v6H4zM14 15h6v6h-6z", component: Galeria },
   { path: "colecciones", label: "Colecciones", icon: "M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2z", component: Colecciones },
@@ -25,6 +27,7 @@ const PAGES = [
   { path: "estadisticas", label: "Estadísticas", icon: "M4 20V10m5 10V4m5 16v-8m5 8V7", component: Estadisticas },
   { path: "disenar", label: "Diseñar", icon: "M4 20h16M6 16l9-9 3 3-9 9H6zM14 8l3 3", component: Disenar },
   { path: "codigo", label: "Código", icon: "M8 8l-4 4 4 4M16 8l4 4-4 4M14 5l-4 14", component: Codigo },
+  { path: "mesa", label: "Mesa 3D", icon: "M3 9l9-5 9 5-9 5zM3 9v6l9 5 9-5V9M12 14v6", component: Mesa },
   { path: "animar", label: "Animaciones", icon: "M12 4a2 2 0 100 4 2 2 0 000-4zM12 8v5m0 0l-4 6m4-6l4 6M7 10l5 1 5-1", component: Animar },
   { path: "espacial", label: "Espacial", icon: "M12 21s-7-6.2-7-11a7 7 0 1114 0c0 4.8-7 11-7 11zM12 12a2.5 2.5 0 100-5 2.5 2.5 0 000 5z", component: Espacial },
   { path: "ajustes", label: "Ajustes", icon: "M12 15a3 3 0 100-6 3 3 0 000 6zM19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z", component: Ajustes },
@@ -140,7 +143,9 @@ export default function App() {
               No se pudo contactar con Vulcan: {error}. <button type="button" className="btn-link" onClick={refresh}>Reintentar</button>
             </div>
           )}
-          <Component param={route.param} query={route.query} />
+          <Suspense fallback={<p className="help">Cargando…</p>}>
+            <Component param={route.param} query={route.query} />
+          </Suspense>
         </main>
       </div>
       <Toast message={toast} onClose={() => setToast(null)} />

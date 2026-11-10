@@ -333,3 +333,223 @@ def test_real_engine_saves_to_the_library(services):
     assert result["saved"] is True and result["measures"]["bbox_mm"] == [80.0, 40.0, 6.0]
     assert result["gltf_validation"]["state"] in ("valid", "warnings", "errors", "error", "not_installed")
     assert services.models.get(result["id"])["triangles"] == result["measures"]["triangles"]
+
+
+# ---------- examples, requirements, parameters (no engine) ----------
+
+from vulcan import code_checks  # noqa: E402
+
+WRONG_SIZE = GOOD.replace("w, d, t = 80, 40, 6", "w, d, t = 70, 40, 6")
+
+
+def test_examples_cover_the_families_and_have_named_parameters():
+    rows = code_checks.load_examples()
+    assert {r["family"] for r in rows} >= {"soporte", "caja", "bisagra", "gancho", "organizador", "engranaje", "adaptador", "pie"}
+    for row in rows:
+        assert row["code"].startswith("import sand3d as s3d") and "model = " in row["code"] and check_program(row["code"]) == []
+        assert len(row["parameters"]) >= 4 and len(row["expected"]["bbox_mm"]) == 3, row["id"]
+        assert all(p["comment"] for p in row["parameters"] if not p["scope"]), row["id"]  # every parameter says what it is
+
+
+@pytest.mark.parametrize("text, first", [("Soporte de pared para un mando de consola, 3 mm de grosor", "wall_bracket"),
+                                         ("caja 60x40x30 con tapa", "box_with_lid"), ("gancho para colgar auriculares", "hook"),
+                                         ("organizador de 3 huecos", "organizer"), ("engranaje de 24 dientes", "spur_gear"),
+                                         ("adaptador para tubo de 25 mm", "pipe_adapter"), ("tope de puerta", "furniture_foot"),
+                                         ("bisagra para una caja", "hinge"), ("print-in-place hinge", "hinge")])
+def test_examples_are_picked_by_the_words_of_the_description(text, first):
+    picked = code_checks.pick_examples(text)
+    assert picked[0]["id"] == first and 2 <= len(picked) <= 3
+
+
+def test_an_unrelated_description_still_gets_two_general_examples():
+    assert [e["id"] for e in code_checks.pick_examples("una cosa rara")] == ["wall_bracket", "box_with_lid"]
+
+
+def test_requirements_are_parsed_from_spanish_and_english():
+    parse = code_checks.parse_requirements
+    assert parse("caja 60x40x30 con tapa")[0] == {"kind": "size", "values": [60.0, 40.0, 30.0], "text": "60x40x30"}
+    reqs = parse("caja de 6 x 4 x 3 cm, paredes de 2 mm")
+    assert reqs[0]["values"] == [60.0, 40.0, 30.0] and reqs[1]["kind"] == "thickness" and reqs[1]["value"] == 2.0
+    assert parse("soporte de pared, 3 mm de grosor") == [{"kind": "thickness", "value": 3.0, "text": "3 mm de grosor"}]
+    assert parse("adaptador para tubo de 25 mm")[0]["kind"] == "round" and parse("adaptador para tubo de 25 mm")[0]["value"] == 25.0
+    plate = parse("plate 80 x 40 mm, 6 mm thick, two M4 holes")
+    assert [r["kind"] for r in plate] == ["size", "thickness", "hole"] and plate[2]["value"] == 4.5
+    foot = parse("pie de 40 mm de diámetro y 20 mm de alto")
+    assert foot[0] == {"kind": "round", "value": 40.0, "text": "40 mm de diametro"} and foot[1]["kind"] == "extent" and foot[1]["value"] == 20.0
+    assert parse("agujeros pasantes de 5,5 mm")[0]["value"] == 5.5
+    assert parse("gancho para colgar auriculares") == []
+
+
+def test_parameters_are_read_and_set_in_place():
+    code = code_checks.example("box_with_lid")["code"]
+    params = {p["name"]: p for p in code_checks.program_parameters(code)}
+    assert params["w"]["value"] == 60 and params["h"]["value"] == 30 and "outside" in params["w"]["comment"]
+    new, changed = code_checks.set_parameters(code, {"h": 35.5, "wall": 3})
+    assert "w, d, h = 60, 40, 35.5" in new and "wall = 3 " in new and new.count("\n") == code.count("\n")
+    assert [c["name"] for c in changed] == ["h", "wall"] and changed[0]["from"] == 30 and changed[0]["to"] == 35.5
+    with pytest.raises(ValueError, match="no parameter"):
+        code_checks.set_parameters(code, {"nope": 1})
+    defaults = code_checks.program_parameters("import sand3d as s3d\ndef plate(w=80, t=6):\n    return s3d.box('p', w, 10, t)\nmodel = plate()\n")
+    assert [(p["name"], p["scope"]) for p in defaults] == [("w", "plate"), ("t", "plate")]
+
+
+@pytest.mark.parametrize("instruction, changes", [
+    ("hazla de 8 mm de grosor", {"t": 8.0}), ("5 mm más gruesa", {"t": 10.0}), ("2 mm thinner", {"t": 3.0}),
+    ("make it 100 mm wide", {"width": 100.0}), ("agujeros de 5 mm", {"screw_d": 5.0}), ("t = 6", {"t": 6.0}),
+    ("brazo de 90 mm", {"arm_l": 90.0}), ("más gruesa en 2 mm", {"t": 7.0}),
+    ("añade un logo", None), ("hazla más bonita y 2 mm más gruesa", None)])
+def test_an_instruction_that_is_only_a_measure_maps_to_one_parameter(instruction, changes):
+    plan = code_checks.parameter_edit(instruction, code_checks.example("wall_bracket")["code"])
+    assert (plan["changes"] if plan else None) == changes
+
+
+def test_a_size_instruction_maps_onto_the_size_tuple():
+    plan = code_checks.parameter_edit("que mida 80x50x35", code_checks.example("box_with_lid")["code"])
+    assert plan["changes"] == {"w": 80.0, "d": 50.0, "h": 35.0}
+    assert code_checks.parameter_edit("más alta: 40 mm de alto", code_checks.example("box_with_lid")["code"])["changes"] == {"h": 40.0}
+
+
+def test_measures_and_checks_of_a_real_mesh():
+    ring = trimesh.creation.annulus(r_min=12.5, r_max=16, height=20, sections=96)  # a 25 mm bore, 3.5 mm wall
+    ring.apply_translation((0, 0, 10))
+    measured = code_checks.measure_part(ring.vertices, ring.faces)
+    assert measured["bbox_mm"] == pytest.approx([32, 32, 20], abs=0.05) and measured["walls"]["median_mm"] > 0
+    assert any(abs(v - 25) < 0.3 for v in measured["round_holes_mm"]) and any(abs(v - 32) < 0.3 for v in measured["round_outlines_mm"])
+    check = code_checks.verify(code_checks.parse_requirements("tube of 25 mm, 32 x 32 x 20, 3.5 mm walls"), measured)
+    assert check["ok"] is True and check["met"] == 3, check
+    wrong = code_checks.verify(code_checks.parse_requirements("for a 40 mm pipe, 60 x 40 mm, 1 mm walls"), measured)
+    assert wrong["ok"] is False and wrong["met"] == 0
+    text = code_checks.feedback(wrong, measured)
+    assert "40" in text and "32 x 32 x 20" in text and "complete program" in text
+
+
+def test_size_is_checked_against_the_main_body_too():
+    box = trimesh.creation.box(extents=(60, 40, 30))
+    lid = trimesh.creation.box(extents=(60, 40, 2))
+    lid.apply_translation((70, 0, -14))
+    both = trimesh.util.concatenate([box, lid])
+    measured = code_checks.measure_part(both.vertices, both.faces, want_rounds=False, want_walls=False)
+    check = code_checks.verify(code_checks.parse_requirements("caja 60x40x30 con tapa"), measured)
+    assert check["ok"] is True and "main body" in check["items"][0]["note"]
+
+
+# ---------- the measuring loop and edits (simulated model and engine) ----------
+
+def test_a_part_that_misses_the_measures_goes_back_once_with_the_real_ones(sim):
+    sim.link = FakeChat([fence(WRONG_SIZE), fence(GOOD)])
+    job = call_tool(sim, "code_model", {"description": "wall plate for a controller, 80 x 40 mm, 6 mm thick"})
+    result = job["result"]
+    assert job["status"] == "done" and result["attempts"] == 2 and result["measure_retries"] == 1 and job["max_attempts"] == 4
+    feedback = sim.link.calls[1][0][-1]["content"]
+    assert "does not have the measures" in feedback and "70 x 40 x 6" in feedback and "size 80 x 40 mm" in feedback
+    assert result["requirements_check"]["ok"] is True and result["measures"]["bbox_mm"] == [80.0, 40.0, 6.0]
+    prompt = sim.link.calls[0][0]
+    assert "Worked examples" in prompt[0]["content"] and "Measures the part must meet" in prompt[1]["content"]
+    assert [e["id"] for e in result["examples"]][0] == "wall_bracket"
+    assert cm.info(sim, result["id"])["requirements_check"]["ok"] is True
+
+
+def test_a_second_miss_saves_the_part_and_says_which_measures_failed(sim):
+    sim.link = FakeChat([fence(WRONG_SIZE), fence(WRONG_SIZE)])
+    job = call_tool(sim, "code_model", {"description": "plate 80 x 40 mm"})
+    result = job["result"]
+    assert job["status"] == "done" and len(sim.link.calls) == 2 and result["requirements_check"]["ok"] is False
+    assert any("requested measures not met" in w for w in result["warnings"])
+    assert sim.stats.counts()["models"] == 1
+
+
+def test_a_broken_fix_keeps_the_part_that_worked(sim):
+    sim.link = FakeChat([fence(WRONG_SIZE), fence(BAD)])
+    job = call_tool(sim, "code_model", {"description": "plate 80 x 40 mm"})
+    assert job["status"] == "done" and job["result"]["measures"]["bbox_mm"][0] == 70.0 and len(sim.link.calls) == 2
+
+
+def test_a_measure_instruction_changes_the_parameter_without_the_model(sim):
+    saved = call_tool(sim, "code_model_run", {"code": GOOD, "name": "Placa", "description": "plate 80 x 40"})
+    sim.link = FakeChat([])  # any call to the language model would fail the test
+    job = call_tool(sim, "code_model_edit", {"id": saved["id"], "instruction": "hazla de 11 mm de grosor"})
+    assert job["status"] == "done" and job["edit_mode"] == "parameters" and sim.link.calls == []
+    result = job["result"]
+    assert result["measures"]["bbox_mm"] == [80.0, 40.0, 11.0] and result["parameter_edit"]["changed"][0]["name"] == "t"
+    assert "w, d, t = 80, 40, 11" in result["code"] and result["requirements_check"]["ok"] is True
+    info = cm.info(sim, saved["id"])
+    assert info["history"][-1]["parameters_changed"][0]["to"] == 11 and {p["name"] for p in info["parameters"]} == {"w", "d", "t"}
+
+
+def test_other_instructions_reach_the_model_with_the_parameters(sim):
+    saved = call_tool(sim, "code_model_run", {"code": GOOD, "name": "Placa"})
+    sim.link = FakeChat([fence(THICKER)])
+    job = call_tool(sim, "code_model_edit", {"id": saved["id"], "instruction": "round the corners more and make it 5 mm thicker"})
+    assert job["status"] == "done" and job["edit_mode"] == "model"
+    prompt = sim.link.calls[0][0][-1]["content"]
+    assert "Its named parameters" in prompt and "- t = 6" in prompt and "change the parameter that holds it" in prompt
+
+
+def test_run_code_sets_parameters_and_checks_requirements(sim):
+    measured = call_tool(sim, "code_model_run", {"code": GOOD, "params": {"t": 9}, "requirements": "80 x 40 x 9 mm", "save": False})
+    assert measured["measures"]["bbox_mm"] == [80.0, 40.0, 9.0] and measured["requirements_check"]["ok"] is True
+    assert measured["parameters_changed"][0] == {"name": "t", "from": 6, "to": 9.0, "line": 3}
+    bad = call_tool(sim, "code_model_run", {"code": GOOD, "params": {"thickness": 9}})
+    assert bad["ok"] is False and "named parameters: w, d, t" in bad["error"]
+    examples = call_tool(sim, "code_model_status", {"examples": True})["examples"]
+    assert len(examples) == 8 and "code" not in examples[0]
+    one = call_tool(sim, "code_model_status", {"example": "hook"})
+    assert one["family"] == "gancho" and "s3d.stroke" in one["code"]
+    assert call_tool(sim, "code_model_status", {"example": "nope"})["ok"] is False
+
+
+def test_rest_examples_and_requirements(client):
+    rows = client.get("/api/code-model/examples").json()["examples"]
+    assert [r["id"] for r in rows][:2] == ["wall_bracket", "box_with_lid"]
+    assert "w, d, h = 60, 40, 30" in client.get("/api/code-model/examples/box_with_lid").json()["code"]
+    assert client.get("/api/code-model/examples/nope").status_code == 404
+    answer = client.post("/api/code-model/requirements", json={"text": "5 mm más gruesa", "code": GOOD}).json()
+    assert answer["parameter_edit"]["changed"][0] == {"name": "t", "from": 6, "to": 11.0, "line": 3}
+    assert client.post("/api/code-model/requirements", json={"text": "caja 60x40x30"}).json()["examples"][0] == "box_with_lid"
+
+
+@real
+@pytest.mark.parametrize("row", code_checks.load_examples(), ids=lambda r: r["id"])
+def test_every_example_builds_its_expected_part(row):
+    run = cm.run_engine(None, row["code"])
+    try:
+        vertices, faces = cm._mesh_mm(run["stl"])
+        measured = code_checks.measure_part(vertices, faces, want_rounds="diameter_mm" in row["expected"])
+        main = measured["bbox_mm"] if measured["bbox_mm"] == pytest.approx(row["expected"]["bbox_mm"], abs=0.2) else measured["bodies_bbox_mm"][0]
+        assert main == pytest.approx(row["expected"]["bbox_mm"], abs=0.2), row["id"]  # the part, or its main body (a box beside its lid)
+        reqs = [{"kind": "size", "values": row["expected"]["bbox_mm"]}]
+        if "thickness_mm" in row["expected"]:
+            reqs.append({"kind": "thickness", "value": row["expected"]["thickness_mm"]})
+        if "diameter_mm" in row["expected"]:
+            reqs.append({"kind": "round", "value": row["expected"]["diameter_mm"]})
+        check = code_checks.verify(reqs, measured)
+        assert check["ok"] is True, (row["id"], check)
+        from vulcan import cad
+
+        assert cad.measure(vertices, faces)["watertight"] is True
+    finally:
+        shutil.rmtree(run["work"], ignore_errors=True)
+
+
+def test_a_slow_engine_check_is_not_a_broken_engine(monkeypatch, tmp_path):
+    import subprocess
+
+    python = tmp_path / "python.exe"
+    python.write_text("")
+    monkeypatch.setattr(cm, "find_engine", lambda data_dir=None: python)
+    monkeypatch.setattr(cm.proc, "run", lambda *a, **k: (_ for _ in ()).throw(subprocess.TimeoutExpired("python", 90)))
+    cm._INFO_CACHE.clear()
+    info = cm.engine_info(refresh=True)
+    assert info["installed"] is True and info["unverified"] is True and "busy" in info["note"]
+    cm._INFO_CACHE.clear()
+
+
+def test_deleting_a_code_part_removes_its_program_files(sim):
+    saved = call_tool(sim, "code_model_run", {"code": GOOD, "name": "Placa"})
+    stem = Path(sim.models.get(saved["id"])["path"]).stem
+    folder = cm.code_dir(sim)
+    assert (folder / f"{stem}.s3d.py").is_file()
+    result = call_tool(sim, "model_delete", {"id": saved["id"]})
+    assert result["ok"] is True
+    for suffix in (".stl", ".glb", ".s3d.py", ".preview.png", ".code.json"):
+        assert not (folder / f"{stem}{suffix}").exists(), suffix

@@ -15,6 +15,7 @@ from pathlib import Path
 from .services import Services
 
 CAD_SIDECARS = (".cad.json", ".check.png")
+CODE_SIDECARS = (".glb", ".s3d.py", ".preview.png", ".code.json")
 
 
 def _inside(path: Path, folder: Path) -> bool:
@@ -33,6 +34,8 @@ def _owned_files(services: Services, path: Path) -> list[Path]:
     files = [path]
     if _inside(path, data_dir / "cad"):
         files += [path.with_name(path.stem + suffix) for suffix in CAD_SIDECARS]
+    if _inside(path, data_dir / "code_models"):  # a part modelled with code: its GLB, program, preview and record
+        files += [path.with_name(path.stem + suffix) for suffix in CODE_SIDECARS]
     return files
 
 

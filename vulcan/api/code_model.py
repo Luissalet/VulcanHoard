@@ -23,6 +23,8 @@ class RunBody(BaseModel):
     name: str | None = Field(None, max_length=80)
     description: str | None = Field(None, max_length=2000)
     save: bool = True
+    params: dict[str, float] | None = None
+    requirements: str | None = Field(None, max_length=500)
 
 
 class EditBody(BaseModel):
@@ -55,6 +57,40 @@ def reference():
     return cm.api_doc()
 
 
+class CheckBody(BaseModel):
+    text: str = Field(..., min_length=1, max_length=2000)
+    code: str | None = Field(None, max_length=30000)
+
+
+@router.get("/examples")
+def examples():
+    return {"examples": cm.examples_info()}
+
+
+@router.get("/examples/{example_id}")
+def example(example_id: str):
+    from ..code_checks import example as one
+
+    try:
+        row = one(example_id)
+    except LookupError as error:
+        raise HTTPException(404, str(error)) from error
+    return {k: row[k] for k in ("id", "title", "family", "keywords", "expected", "parameters", "code")}
+
+
+@router.post("/requirements")
+def requirements(body: CheckBody):
+    """What a description (or instruction) asks for, and for an instruction with code, the parameter change it maps to."""
+    from .. import code_checks
+
+    out = {"requirements": code_checks.parse_requirements(body.text), "examples": [e["id"] for e in code_checks.pick_examples(body.text)]}
+    if body.code:
+        out["parameters"] = code_checks.public_parameters(body.code)
+        plan = cm.plan_edit(body.code, body.text)
+        out["parameter_edit"] = {k: plan[k] for k in ("changed", "reasons")} if plan else None
+    return out
+
+
 @router.post("/from-text")
 def from_text(request: Request, body: FromTextBody):
     return _guard(lambda: cm.start_from_text(services(request), body.description, body.name))
@@ -62,7 +98,8 @@ def from_text(request: Request, body: FromTextBody):
 
 @router.post("/run")
 def run(request: Request, body: RunBody):
-    return _guard(lambda: cm.run_code(services(request), body.code or "", body.name, body.id, body.description, body.save))
+    return _guard(lambda: cm.run_code(services(request), body.code or "", body.name, body.id, body.description, body.save, body.params,
+                                      body.requirements))
 
 
 @router.get("/jobs/{job_id}")
@@ -83,7 +120,8 @@ def info(request: Request, model_id: int):
 @router.post("/{model_id}/regenerate")
 def regenerate(request: Request, model_id: int, body: RunBody | None = None):
     body = body or RunBody()
-    return _guard(lambda: cm.run_code(services(request), body.code or "", body.name, model_id, body.description, True))
+    return _guard(lambda: cm.run_code(services(request), body.code or "", body.name, model_id, body.description, True, body.params,
+                                      body.requirements))
 
 
 @router.post("/{model_id}/edit")

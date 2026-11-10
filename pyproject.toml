@@ -54,7 +54,7 @@ license-files = ["LICENSE", "licenses/*", "vulcan/studio_native/*/LICENSE", "vul
 
 [tool.setuptools.package-data]
 "*" = ["ui/*.css", "_data/*.json", "LICENSE", "README.md", "README.es.md"]
-"vulcan" = ["sand3d_api.md", "static/**/*"]
+"vulcan" = ["sand3d_api.md", "sand3d_examples/*.py", "sand3d_examples/*.json", "static/**/*"]
 "vulcan.studio" = ["web/**/*", "catalog.json"]
 "vulcan.studio_native" = ["PROVENANCE.json"]
 "vulcan.studio_native.gepetto" = ["dist/**/*", "blender/*.py"]

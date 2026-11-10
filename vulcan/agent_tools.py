@@ -611,6 +611,10 @@ from .code_agent_tools import CODE_TOOLS  # noqa: E402 - modelling with code (sa
 
 TOOLS += CODE_TOOLS
 
+from .impostor_agent_tools import IMPOSTOR_TOOLS  # noqa: E402 - octahedral impostors for many-model 3D views
+
+TOOLS += IMPOSTOR_TOOLS
+
 TOOLS_BY_NAME = {tool.name: tool for tool in TOOLS}
 
 

@@ -12,7 +12,7 @@ export const DENSE_TRIANGLES = 300_000; // from here on the dense (virtual geome
 export const WEB_GLB_TO_MM = 1000; // web GLBs are written in metres (glTF units); shown at the library's millimetre scale
 export const hasWebGPU = () => typeof navigator !== "undefined" && !!navigator.gpu;
 
-function load(format, url) {
+export function load(format, url) {
   return new Promise((resolve, reject) => {
     const onError = (e) => reject(new Error(e?.message || "No se pudo leer el archivo."));
     if (format === "stl") new STLLoader().load(url, (geometry) => resolve(new THREE.Mesh(geometry, MATERIAL())), undefined, onError);
@@ -23,7 +23,7 @@ function load(format, url) {
   });
 }
 
-function prepare(object, keepMaterials = false) {
+export function prepare(object, keepMaterials = false) {
   object.traverse((node) => {
     if (node.isMesh) {
       if (!keepMaterials) node.material = MATERIAL();
@@ -33,7 +33,7 @@ function prepare(object, keepMaterials = false) {
   return object;
 }
 
-function dispose(object) {
+export function dispose(object) {
   object.traverse((node) => {
     if (node.isMesh) {
       node.geometry?.dispose();

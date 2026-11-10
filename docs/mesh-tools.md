@@ -1,7 +1,8 @@
 # Mesh tools of the library
 
-Four tools on top of the model library: lighter LOD variants, a multi-view look for assistants, opening models in a
-slicer, and a dense-mesh viewer mode. Each one has a UI control, a REST route and an MCP tool.
+Tools on top of the model library: lighter LOD variants, a multi-view look for assistants, opening models in a
+slicer, a dense-mesh viewer mode, AI texturing by view projection and octahedral impostors for the many-model 3D table. Each one
+has a UI control, a REST route and an MCP tool.
 
 ## Simplify / LOD variants
 
@@ -133,3 +134,50 @@ includes code derived from nanite-webgpu, MIT) and three.js (MIT) are npm depend
 - Projection: per texel, cameras that see it (depth test, cos > 0.15, eroded silhouette) are blended with weight cos^4; holes are filled by dilation then mean colour.
 - Result: GLB (metres) in `data/variants` registered as a variant of the source model, PNG texture and front/back previews, glTF validation report. The recipe key (model, prompt, style, views, sizes, seed, workflow) makes repeated calls reuse the variant unless `force`.
 - Without ComfyUI or models the call fails with a clear message; `mode=preview` still works.
+
+## Octahedral impostors and the 3D table
+
+For views with hundreds or thousands of models, each model gets an **impostor**: an atlas of N x N views baked on the CPU, so a far
+model is drawn as two triangles. Code: `vulcan/impostor.py` (directions, bake, cache, batches), `client/src/impostor.js` (three.js
+material and texture arrays), `client/src/pages/Mesa.jsx` (the **Mesa 3D** page).
+
+- Views: hemi-octahedral map of the upper hemisphere (Z up, as the library prints). Cell (i, j) of an N x N grid looks along the direction
+  decoded from u = -1 + 2i/(N-1), v = -1 + 2j/(N-1): x = (u+v)/2, y = (u-v)/2, z = 1 - |x| - |y|, normalised. Each view is an orthographic
+  render of the bounding sphere (centre = bbox centre, radius = farthest vertex), camera basis right = normalize(Z x d) (X when d is
+  vertical), up = d x right. Grids 4, 6, 8, 10, 12, 16 (default 8 = 64 views); 16 to 128 px per view (default 32, a 256 x 256 atlas).
+- Bake: the thumbnail rasteriser (numpy + Pillow, no GPU, no Blender), meshes decimated to 20 000 triangles first, back faces skipped on
+  closed meshes, every view drawn at 2x and box-filtered with premultiplied alpha. Lighting is baked in world space the way three.js lights
+  the same material in the model views (hemisphere, key and fill lights, Lambert in linear space, sRGB out), so a model keeps its tone
+  when it swaps to its mesh. Two PNGs per model: `color` (RGBA, transparent outside the model) and `depth` (8-bit,
+  0.5 + dot(p - c, d) / 2R scaled to 1..255, 0 = empty). Measured: 1000 library models of up to 50 000 triangles baked in about 8 minutes
+  on a busy CPU (about 0.5 s each); a 3MF of a million triangles takes about a minute (loading and decimating it). `BAKE_VERSION` in the
+  metadata makes atlases from an older bake count as missing.
+- Measured on the table (RTX 4070 Ti, Chromium without frame cap): 100 models, about 4 000 fps with impostors (3 draw calls, 200 triangles)
+  against about 1 500 fps as meshes (100 calls, 540 000 triangles); 1000 models, about 3 300 fps with impostors (17 calls, 2 000
+  triangles) against about 70 fps as meshes (about 960 calls, 4.9 million triangles).
+- Cache: `data/impostors/<sha[:2]>/<sha>-g<N>-c<cell>.{png,depth.png,json}`, keyed by the file's SHA-256 (identical files share one atlas,
+  an edited file gets a new one). The JSON keeps centre, radius, faces used and bake time.
+- Viewer: atlases are packed into `DataArrayTexture`s (256 x 256 layers, 64 models per array) and each array is one instanced draw call.
+  The vertex shader turns the quad to the camera and finds the triangle of the view grid that holds the camera direction; the fragment
+  shader intersects the camera ray with each of the three views' planes (so views drawn with different orientations line up) and blends
+  the three samples by barycentric weight (the blend can be switched off). The table keeps each model in its own square scaled to the same
+  visual size; models nearer than the chosen distance (up to a cap) load their real mesh (STL/OBJ/3MF/GLB loaders of the model viewer) and
+  hide their impostor; meshes that fall behind beyond the cap are released. Models without an impostor are always drawn as meshes. Double
+  click on a model opens its page.
+- Page **Mesa 3D**: number of models (50 to 2000), name/collection filter, maximum triangles per model, **Usar impostores para los lejanos**, **Mezclar las tres vistas
+  vecinas**, mesh distance slider, maximum real meshes, **Girar la cámara**, **Generar los N impostores que faltan** (batch with progress);
+  the HUD shows fps, impostors and meshes drawn, draw calls and triangles. The same numbers are in `window.__mesa` for automated checks.
+- MCP: `model_impostor(id, grid, cell, generate, force)` and `model_impostors_batch(ids?, limit, q, collection, max_triangles, grid, cell, force,
+  wait, job_id, cancel)`. REST: `GET /api/impostors/{id}` (info), `POST /api/impostors/{id}` (bake), `GET /api/impostors/{id}/color.png|depth.png`,
+  `POST /api/impostors/batch`, `GET /api/impostors/batch/{job}`, `POST /api/impostors/batch/{job}/cancel`, `GET /api/impostors/scene`
+  (distinct models with their atlas state), `GET /api/impostors/stats`.
+
+Limits:
+
+- Only views from above the horizon: the table keeps the camera above it (a view from below shows the horizon view).
+- The depth atlas is baked and served but the table does not use it yet (no depth-correct overlap between impostors, which sit in
+  separate squares); impostors do not cast or receive shadows, their lighting is baked (no specular highlight, no light that moves),
+  and at 32 px per view a near impostor looks soft, which is why the near ones switch to their mesh.
+- Atlases are not mipmapped (mipmaps would bleed between views), so very small far impostors can shimmer; 1000 models use about
+  256 MB of texture memory at the default layer size.
+- Batches live in memory until the app restarts; the cache on disk stays.

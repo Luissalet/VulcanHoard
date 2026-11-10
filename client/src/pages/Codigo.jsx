@@ -17,6 +17,7 @@ const STAGES = [
   ["queued", "En cola"],
   ["writing", "El modelo de lenguaje escribe el programa"],
   ["running", "Ejecutando el programa en el motor aislado"],
+  ["measuring", "Midiendo la pieza y comparándola con las medidas pedidas"],
   ["exporting", "Exportando STL y GLB"],
   ["validating", "Validando el glTF"],
   ["saving", "Guardando en la biblioteca"],
@@ -30,7 +31,62 @@ const REFUSALS = {
   program: "El programa falló al ejecutarse.",
   rejected: "El programa usa algo que no está permitido (solo sand3d y módulos matemáticos).",
   timeout: "El programa tardó demasiado y se detuvo.",
+  invalid: "El cambio no se pudo aplicar.",
 };
+
+const mm = (v) => (v === null || v === undefined ? "nada" : Array.isArray(v) ? `${v.map((x) => Math.round(x * 10) / 10).join(" × ")} mm` : `${Math.round(v * 10) / 10} mm`);
+const REQUIREMENT = {
+  size: (i) => `Tamaño ${mm(i.wanted)}`,
+  extent: (i) => `Una medida de ${mm(i.wanted)}`,
+  thickness: (i) => `Paredes de ${mm(i.wanted)}`,
+  hole: (i) => `Agujero de ${mm(i.wanted)}`,
+  round: (i) => `Encaje redondo de ${mm(i.wanted)}`,
+};
+
+/** The measures asked for in the description, and what the built part measured for each. */
+function RequirementsCheck({ check }) {
+  if (!check?.items?.length) return <p className="help">La descripción no pedía medidas concretas, así que no se ha comprobado ninguna.</p>;
+  return (
+    <div data-requirements>
+      <p className="help font-semibold">Medidas pedidas: {check.met} de {check.total} cumplidas</p>
+      <ul className="text-[13px]" style={{ listStyle: "none", padding: 0 }}>
+        {check.items.map((item, index) => (
+          <li key={index} data-requirement-ok={String(item.ok)} style={{ color: item.ok === false ? "var(--danger-ink)" : undefined }}>
+            {item.ok === true ? "✓" : item.ok === false ? "✗" : "?"} {(REQUIREMENT[item.kind] || ((x) => x.requirement))(item)}: medida {mm(item.actual)}
+            {item.tolerance_mm !== undefined && <span className="help"> (tolerancia ± {Array.isArray(item.tolerance_mm) ? item.tolerance_mm[0] : item.tolerance_mm} mm)</span>}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** Named parameters of the program: change the numbers and rebuild the same part, without a language model. */
+function ParametersPanel({ parameters, busy, ready, onApply }) {
+  const top = (parameters || []).filter((p) => !p.scope);
+  const [values, setValues] = useState({});
+  useEffect(() => { setValues(Object.fromEntries(top.map((p) => [p.name, String(p.value)]))); }, [parameters]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!top.length) return null;
+  const changed = Object.fromEntries(top.filter((p) => values[p.name] !== undefined && values[p.name] !== "" && Number(values[p.name]) !== Number(p.value))
+    .map((p) => [p.name, Number(values[p.name])]));
+  return (
+    <section className="panel-white space-y-3" aria-labelledby="code-params" data-parameters>
+      <h2 id="code-params" className="text-[15px] font-semibold">Parámetros con nombre</h2>
+      <p className="help">Son las variables numéricas del programa. Cambia los números y la pieza se rehace con el mismo id; el resto del código no se toca.</p>
+      <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(190px, 1fr))" }}>
+        {top.map((p) => (
+          <label key={p.name} className="block" title={p.comment || p.name}>
+            <span className="label">{p.name}{p.comment ? <span className="help"> · {p.comment.slice(0, 40)}</span> : null}</span>
+            <input className="field num" type="number" step="any" aria-label={`Parámetro ${p.name}`} value={values[p.name] ?? ""}
+              onChange={(event) => setValues((v) => ({ ...v, [p.name]: event.target.value }))} />
+          </label>
+        ))}
+      </div>
+      <button type="button" className="btn btn-primary" disabled={!!busy || !ready || !Object.keys(changed).length} onClick={() => onApply(changed)}>
+        {busy === "params" ? "Aplicando…" : `Aplicar parámetros${Object.keys(changed).length ? ` (${Object.keys(changed).length})` : ""}`}</button>
+    </section>
+  );
+}
 
 const measures = (m) => (m ? `${m.bbox_mm.join(" × ")} mm · ${Math.round(m.volume_mm3 / 10) / 100} cm³ · ${m.watertight ? "cerrada" : "no cerrada"} · ${m.bodies} ${m.bodies === 1 ? "cuerpo" : "cuerpos"} · ${m.triangles} triángulos` : "");
 
@@ -49,6 +105,7 @@ export default function Codigo({ param }) {
   const [job, setJob] = useState(null);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState(null);
+  const [lastEdit, setLastEdit] = useState(null);
   const timer = useRef(null);
   const installTimer = useRef(null);
 
@@ -77,6 +134,7 @@ export default function Codigo({ param }) {
   };
 
   const finish = useCallback(async (done) => {
+    setLastEdit(done.kind === "edit" && done.status === "done" ? { mode: done.edit_mode, changed: done.result?.parameter_edit?.changed || [] } : null);
     if (done.status === "done" && done.result?.id) {
       setModelId(done.result.id);
       if (window.location.hash !== `#/codigo/${done.result.id}`) window.history.replaceState(null, "", `#/codigo/${done.result.id}`);
@@ -105,8 +163,11 @@ export default function Codigo({ param }) {
     try {
       const r = modelId && kind !== "measure" ? await api.codeRegenerate(modelId, body) : await api.codeRun({ ...body, save: kind !== "measure" });
       if (r.ok === false) setError(r);
-      else if (kind === "measure") setInfo((previous) => ({ ...(previous || {}), measuredOnly: r.measures }));
-      else { setModelId(r.id); window.history.replaceState(null, "", `#/codigo/${r.id}`); await loadPart(r.id); }
+      else if (kind === "measure") setInfo((previous) => ({ ...(previous || {}), measuredOnly: r.measures, measuredCheck: r.requirements_check }));
+      else {
+        setLastEdit(kind === "params" ? { mode: "parameters", changed: r.parameters_changed || [] } : null);
+        setModelId(r.id); window.history.replaceState(null, "", `#/codigo/${r.id}`); await loadPart(r.id);
+      }
     } catch (failure) { setError({ error: failure.message }); }
     setBusy("");
   };
@@ -130,7 +191,7 @@ export default function Codigo({ param }) {
         </section>
       )}
       {status && ready && (
-        <p className="help">Motor: sand3d {status.engine.sand3d}, Blender bpy {status.engine.bpy}. {status.llm.available ? `Modelo de lenguaje: ${status.llm.model}.` : "Sin modelo de lenguaje ahora mismo: puedes escribir el código a mano."}</p>
+        <p className="help">{status.engine.unverified ? "Motor: instalado (no respondió a tiempo a la comprobación de versión; el equipo va cargado)." : `Motor: sand3d ${status.engine.sand3d}, Blender bpy ${status.engine.bpy}.`} {status.llm.available ? `Modelo de lenguaje: ${status.llm.model}.` : "Sin modelo de lenguaje ahora mismo: puedes escribir el código a mano."}</p>
       )}
 
       <section className="panel-white space-y-3" aria-labelledby="code-describe">
@@ -175,6 +236,15 @@ export default function Codigo({ param }) {
             </Suspense>
           </div>
           <p className="help">{measures(info.measures)}</p>
+          {lastEdit && (
+            <p className="help" role="status" data-last-edit={lastEdit.mode}>
+              {lastEdit.mode === "parameters"
+                ? `Cambio aplicado sin modelo de lenguaje, solo en los parámetros: ${lastEdit.changed.map((c) => `${c.name} ${c.from} → ${c.to}`).join(", ") || "ninguno"}.`
+                : "El modelo de lenguaje ha reescrito el programa a partir de tu instrucción."}
+            </p>
+          )}
+          <RequirementsCheck check={info.requirements_check} />
+          {info.examples?.length > 0 && <p className="help" data-examples-used>Ejemplos probados que recibió el modelo: {info.examples.map((e) => e.title).join(", ")}.</p>}
           <p className="help">{badge && <span className={`chip ${badge.cls}`}>{badge.text}</span>} <a className="btn-link" href={`#/modelo/${modelId}`}>Abrir la ficha del modelo</a> · <a className="btn-link" href={info.glb_url} download>Descargar GLB</a> · <a className="btn-link" href={info.stl_url} download>Descargar STL</a></p>
           {(info.warnings || []).map((warning, index) => <p key={index} className="help" style={{ overflowWrap: "anywhere" }}>{warning}</p>)}
         </section>
@@ -187,11 +257,19 @@ export default function Codigo({ param }) {
         <div className="flex flex-wrap gap-2">
           <button type="button" className="btn btn-primary" disabled={!!busy || !ready || !code.trim()} onClick={() => runNow("run", { code, name: name.trim() || undefined, description: description.trim() || undefined })}>{busy === "run" ? "Ejecutando…" : "Ejecutar este código"}</button>
           <button type="button" className="btn" disabled={!!busy || !ready || !modeled} onClick={() => runNow("regen", {})}>{busy === "regen" ? "Regenerando…" : "Regenerar"}</button>
-          <button type="button" className="btn" disabled={!!busy || !ready || !code.trim()} onClick={() => runNow("measure", { code })}>{busy === "measure" ? "Midiendo…" : "Solo medir"}</button>
+          <button type="button" className="btn" disabled={!!busy || !ready || !code.trim()} onClick={() => runNow("measure", { code, requirements: description.trim() || undefined })}>{busy === "measure" ? "Midiendo…" : "Solo medir"}</button>
           {dirty && modeled && <button type="button" className="btn-link" onClick={() => setCode(saved)}>Volver al código guardado</button>}
           <button type="button" className="btn-link" onClick={() => setCode(STARTER)}>Ejemplo: placa con agujeros</button>
+          {status?.examples?.length > 0 && (
+            <select className="field" style={{ width: "auto" }} aria-label="Cargar un ejemplo probado" value=""
+              onChange={(event) => { const id = event.target.value; if (id) api.codeExample(id).then((row) => setCode(row.code)).catch((failure) => setError({ error: failure.message })); }}>
+              <option value="">Cargar un ejemplo probado…</option>
+              {status.examples.map((e) => <option key={e.id} value={e.id}>{e.title}</option>)}
+            </select>
+          )}
         </div>
         {info?.measuredOnly && <p className="help" role="status">Medido sin guardar: {measures(info.measuredOnly)}</p>}
+        {info?.measuredOnly && info.measuredCheck && <RequirementsCheck check={info.measuredCheck} />}
         {modeled && info.previous_codes?.length > 0 && (
           <details><summary className="help">Versiones anteriores del código ({info.previous_codes.length})</summary>
             <ul className="space-y-1 mt-2">{[...info.previous_codes].reverse().map((version, index) => (
@@ -201,10 +279,12 @@ export default function Codigo({ param }) {
         )}
       </section>
 
+      {modeled && !dirty && <ParametersPanel parameters={info.parameters} busy={busy} ready={ready} onApply={(params) => runNow("params", { params })} />}
+
       {modeled && (
         <section className="panel-white space-y-3" aria-labelledby="code-edit">
           <h2 id="code-edit" className="text-[15px] font-semibold">Cambiar hablando</h2>
-          <p className="help">El modelo de lenguaje recibe el código guardado y tu instrucción, y devuelve el programa nuevo. Guarda antes lo que hayas cambiado a mano.</p>
+          <p className="help">Si la instrucción es solo una medida («hazla de 5 mm de grosor», «100 mm de ancho») se cambia el parámetro que la guarda, sin modelo de lenguaje. Si pide otra cosa, el modelo recibe el código guardado, sus parámetros y tu instrucción, y devuelve el programa nuevo. Guarda antes lo que hayas cambiado a mano.</p>
           <label className="block"><span className="label">Instrucción</span>
             <input className="field" maxLength={2000} placeholder="Hazla 5 mm más gruesa y añade dos agujeros de 4 mm" value={instruction} onChange={(event) => setInstruction(event.target.value)} /></label>
           <button type="button" className="btn" disabled={!!busy || !ready || instruction.trim().length < 3 || dirty} onClick={() => startJob("edit", () => api.codeEdit(modelId, instruction.trim()))}>{busy === "edit" ? "Aplicando…" : "Aplicar el cambio"}</button>
