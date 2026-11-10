@@ -607,6 +607,10 @@ from .texture_agent_tools import TEXTURE_TOOLS  # noqa: E402 - AI texturing by v
 
 TOOLS += TEXTURE_TOOLS
 
+from .code_agent_tools import CODE_TOOLS  # noqa: E402 - modelling with code (sand3d)
+
+TOOLS += CODE_TOOLS
+
 TOOLS_BY_NAME = {tool.name: tool for tool in TOOLS}
 
 

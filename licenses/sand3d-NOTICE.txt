@@ -1,0 +1,7 @@
+sand3d (https://github.com/Sandflow-ai/sand3d), Apache License 2.0.
+
+Vulcan's Hoard does not redistribute the library: "Modelar con código" installs it with pip into its own engine environment
+(.sand3d-venv, which brings Blender's bpy module), where pip keeps the full license text in the package metadata.
+
+vulcan/sand3d_api.md is a copy of the library's docs/api.md (Apache License 2.0), included unchanged because it is the reference
+that goes into the language model's prompt when it writes a program.

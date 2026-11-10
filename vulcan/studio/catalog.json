@@ -3991,6 +3991,242 @@
     "native_name": "texture_project_status"
   },
   {
+    "name": "code_model",
+    "description": "Model a 3D part from a description by writing a sand3d program (write). Keywords: modelar con código.\nThe family's language model writes the program with the sand3d reference, it runs isolated with a time limit, errors go back to the model (3 attempts), then STL (mm) and GLB are exported, the GLB is validated, a preview is rendered and the part is saved in the library with its editable program. Returns id, measures, links, validation, program.\nSinónimos: modelar con código, diseñar con Python, soporte, pieza, texto a 3D, sand3d, programa 3D.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "properties": {
+        "description": {
+          "description": "The part to model, with sizes in mm, e.g. 'wall hook for a game controller, 3 mm thick'.",
+          "maxLength": 2000,
+          "minLength": 3,
+          "title": "Description",
+          "type": "string"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "maxLength": 80,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Library name; default taken from the description.",
+          "title": "Name"
+        },
+        "wait": {
+          "default": true,
+          "description": "Wait for the result (up to 30 minutes); false returns a job id to follow with code_model_status.",
+          "title": "Wait",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "description"
+      ],
+      "title": "CodeModelArgs",
+      "type": "object"
+    },
+    "module": "library",
+    "native_name": "code_model",
+    "x-timeout-s": 1800.0
+  },
+  {
+    "name": "code_model_run",
+    "description": "Run a sand3d program (no language model) and save or measure the part (write). Keywords: ejecutar código 3D.\nRuns the program in the isolated engine, exports STL (mm) and GLB, validates the GLB and saves a new library model, or rebuilds the part with id in place (without code it reruns the stored program: regenerate). save=false only measures. Errors name the program line.\nSinónimos: regenerar pieza, ejecutar programa sand3d, editar código, medir pieza, rehacer modelo.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "properties": {
+        "code": {
+          "anyOf": [
+            {
+              "maxLength": 30000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "A sand3d program (import sand3d as s3d ... model = <solid>). Omit it with id to rebuild a saved part from its stored program.",
+          "title": "Code"
+        },
+        "id": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "A part made with code_model: rebuild this library model in place (same id).",
+          "title": "Id"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "maxLength": 80,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Library name for a new part.",
+          "title": "Name"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "What the part is (stored with it).",
+          "title": "Description"
+        },
+        "save": {
+          "default": true,
+          "description": "false only builds and measures; nothing is written to the library.",
+          "title": "Save",
+          "type": "boolean"
+        }
+      },
+      "title": "CodeModelRunArgs",
+      "type": "object"
+    },
+    "module": "library",
+    "native_name": "code_model_run",
+    "x-timeout-s": 300.0
+  },
+  {
+    "name": "code_model_edit",
+    "description": "Change a part made with code by an instruction in plain words (write). Keywords: editar modelo con código.\nThe language model gets the stored program and the instruction and returns the full new program; it is run and checked like in code_model, and the same library model is rebuilt in place (previous programs are kept). Returns measures, links and the new program.\nSinónimos: modificar pieza, hazla más gruesa, añade agujeros, cambiar medidas, retocar modelo.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "properties": {
+        "id": {
+          "description": "A part made with code_model or code_model_run.",
+          "minimum": 1,
+          "title": "Id",
+          "type": "integer"
+        },
+        "instruction": {
+          "description": "What to change, e.g. 'make the plate 5 mm thicker and add two M4 holes'.",
+          "maxLength": 2000,
+          "minLength": 3,
+          "title": "Instruction",
+          "type": "string"
+        },
+        "wait": {
+          "default": true,
+          "description": "Wait for the result (up to 30 minutes); false returns a job id.",
+          "title": "Wait",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "instruction"
+      ],
+      "title": "CodeModelEditArgs",
+      "type": "object"
+    },
+    "module": "library",
+    "native_name": "code_model_edit",
+    "x-timeout-s": 1800.0
+  },
+  {
+    "name": "code_model_status",
+    "description": "Code engine readiness, jobs and a part's program (install=true sets it up). Keywords: estado código 3D.\nWithout arguments: sand3d/bpy versions, language model available, limits and recent jobs. job_id: stage and result (cancel=true stops it). id: program, measures, history. api_reference=true returns the sand3d reference. install=true creates the engine environment.\nSinónimos: motor sand3d instalado, cómo va el modelo, ver el código de la pieza, instalar sand3d.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "properties": {
+        "job_id": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{12}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "A job id from code_model or code_model_edit: its stage, attempt, result and errors.",
+          "title": "Job Id"
+        },
+        "id": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "A saved part: its program, measures, history and links.",
+          "title": "Id"
+        },
+        "cancel": {
+          "default": false,
+          "description": "With job_id: stop the job.",
+          "title": "Cancel",
+          "type": "boolean"
+        },
+        "install": {
+          "default": false,
+          "description": "Create the engine environment and pip install sand3d (about 350 MB; runs in the background).",
+          "title": "Install",
+          "type": "boolean"
+        },
+        "api_reference": {
+          "default": false,
+          "description": "Return the sand3d reference (the text a model gets to write programs).",
+          "title": "Api Reference",
+          "type": "boolean"
+        }
+      },
+      "title": "CodeModelStatusArgs",
+      "type": "object"
+    },
+    "module": "library",
+    "native_name": "code_model_status"
+  },
+  {
     "name": "gulliver_model_assembly",
     "description": "Assembly guide for a kept build: numbered pieces, files and materials. Guia de montaje.\nUses only that generation. Piece pages share stable numbers; follow next_offset until null.\nSinónimos: montar, piezas, orientacion, filamentos",
     "annotations": {

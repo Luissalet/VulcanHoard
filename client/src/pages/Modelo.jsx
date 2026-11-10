@@ -10,6 +10,7 @@ import CadParameters from "../components/CadParameters.jsx";
 import ModelComparison from '../components/ModelComparison.jsx';
 import { LookPanel, PhotosPanel, SimplifyPanel, WebGlbPanel } from "../components/MeshTools.jsx";
 import TexturePanel from "../components/TexturePanel.jsx";
+import CodeModelLink from "../components/CodeModelLink.jsx";
 import SlicerButton from "../components/SlicerButton.jsx";
 import GltfValidationPanel, { GltfChip } from "../components/GltfValidation.jsx";
 import AssetInspectionPanel from "../components/AssetInspection.jsx";
@@ -265,6 +266,7 @@ export default function Modelo({ param }) {
             </dl>
           </section>
 
+          <CodeModelLink key={id} model={model} />
           {model.status === "ok" && <LookPanel model={model} />}
           {model.status === "ok" && <PhotosPanel model={model} />}
           {model.status === "ok" && <WebGlbPanel model={model} onPreview={setGlbUrl} />}

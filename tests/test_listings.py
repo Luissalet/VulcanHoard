@@ -81,7 +81,8 @@ def test_agent_tools_catalog_and_calls(scanned):
                      "anim_targets_list", "anim_target_save", "anim_inspect", "anim_prepare", "anim_preparations",
                      "anim_fbx_import", "anim_fbx_export", "anim_fbx_exports", "anim_retarget",
                      "spatial_example", "spatial_layers_check", "spatial_coverage", "spatial_screen", "spatial_scenarios", "spatial_scenario_save", "spatial_export", "gltf_validate", "gltf_report",
-                     "texture_project", "texture_project_status"]
+                     "texture_project", "texture_project_status",
+                     "code_model", "code_model_run", "code_model_edit", "code_model_status"]
     for tool in TOOLS:
         assert "Sinónimos:" in tool.description and set(tool.annotations) == {"readOnlyHint", "destructiveHint", "idempotentHint", "openWorldHint"}
     hits = call_tool(services, "models_search", {"q": "cubo", "format": "stl"})

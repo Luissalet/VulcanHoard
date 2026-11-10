@@ -4,6 +4,7 @@ from .agent import router as agent_router
 from .asset_animation import router as asset_animation_router
 from .asset_inspection import router as asset_inspection_router
 from .cad import router as cad_router
+from .code_model import router as code_model_router
 from .collections import router as collections_router
 from .copilot import router as copilot_router
 from .folder_listings import router as folder_listings_router
@@ -17,4 +18,4 @@ from .status import router as status_router
 from .texture import router as texture_router
 
 ROUTERS = [status_router, roots_router, models_router, mesh_tools_router, collections_router, folder_listings_router, organize_router, cad_router,
-           agent_router, copilot_router, asset_inspection_router, asset_animation_router, spatial_router, gltf_router, texture_router]
+           agent_router, copilot_router, asset_inspection_router, asset_animation_router, spatial_router, gltf_router, texture_router, code_model_router]

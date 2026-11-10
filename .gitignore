@@ -7,6 +7,7 @@ venv/
 .venv/
 .engine-venv/
 .multiview-venv/
+.sand3d-venv/
 __pycache__/
 *.pyc
 *.egg-info/

@@ -118,6 +118,7 @@ export default function Galeria({ query }) {
     <div data-copilot-editor="search">
       <PageHeader title="Galería" description="Todos tus modelos con su miniatura, medidas y formato. Busca por nombre, etiqueta, carpeta o texto de la ficha.">
         <div className="flex items-center gap-2">
+          <a className="btn btn-primary" href="#/codigo">Modelar con código</a>
           <select className="field w-auto" aria-label="Ordenar" value={filters.sort || (filters.q ? "relevance" : "name")} onChange={(e) => set({ sort: e.target.value })}>
             {filters.q && <option value="relevance">Relevancia</option>}
             {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
