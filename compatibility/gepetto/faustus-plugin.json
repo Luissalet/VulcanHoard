@@ -60,5 +60,6 @@
       "repository": "https://github.com/Luissalet/VulcanHoard"
     }
   },
-  "notes": "Capabilities and native data belong to Vulcan's Hoard. Modules are enabled explicitly in the owner."
+  "notes": "Capabilities and native data belong to Vulcan's Hoard. Modules are enabled explicitly in the owner.",
+  "skills": {"slugs": ["print-ready-3d-model", "web-3d-asset-pipeline"], "limit": 2}
 }

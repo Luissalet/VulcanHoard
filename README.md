@@ -239,3 +239,7 @@ GPL-3.0 combined studio. Original component grants and notices are retained; see
 ## Native connections
 
 Former MCP and Hub identities can use the incorporated cold compatibility adapters without the retired repositories. See [native connections](docs/NATIVE-CONNECTIONS.md). Modules still require explicit activation.
+
+## Skills for the agents that connect
+
+This app carries procedures from the skill library of the family's workspace for the agents that connect to it: vulcan: `print-ready-3d-model`, `web-3d-asset-pipeline`, `blender-asset-production`, `verification-loop`; daedalus: `print-ready-3d-model`, `web-3d-asset-pipeline`, `blender-asset-production`; gepetto: `print-ready-3d-model`, `web-3d-asset-pipeline`; gulliver: `print-ready-3d-model`, `web-3d-asset-pipeline`; heron: `print-ready-3d-model`, `spec-driven-development`, `verification-loop`; platos: `print-ready-3d-model`, `image-composition`. They are named in what an agent reads on connecting, read with `skills_list` and `skill_read`, searched and assigned with `skills_library` and `skills_assign`, and offered as prompts. The person chooses them on the skills page (`/api/agent/skills/page`) or in the hub's Skills tab; the `skills` block of `faustus-plugin.json` holds what the app asks for by default.

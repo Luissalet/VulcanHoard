@@ -172,5 +172,6 @@
       "heron",
       "gulliver"
     ]
-  }
+  },
+  "skills": {"slugs": ["print-ready-3d-model", "web-3d-asset-pipeline", "blender-asset-production", "verification-loop"], "limit": 4}
 }
