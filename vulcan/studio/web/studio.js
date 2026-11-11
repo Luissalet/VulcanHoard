@@ -1,3 +1,7 @@
+let dockQuery = "";
+let dockFocus = null;
+const dockFold = (value) => String(value || "").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
+const dockMatches = (value, query) => dockFold(value).includes(dockFold(query));
 const $ = (selector) => document.querySelector(selector);
 const element = (tag, value, className = "") => {
   const node = document.createElement(tag);
@@ -139,6 +143,12 @@ async function projects() {
     request("/api/modules"),
   ]);
   const list = $("#project-list");
+  // Capture after the requests, immediately before replacing rows, including later typing.
+  const drafts = [...list.querySelectorAll('[data-project-id]')].map((row) => ({
+    id: row.id, fields: [...row.querySelectorAll('input, select')].map((el, index) => ({ index, value: el.value, focused: el === document.activeElement, start: el.selectionStart, end: el.selectionEnd,
+      dirty: el.tagName === 'SELECT' ? el.value !== ([...el.options].find((option) => option.defaultSelected) || el.options[0])?.value : el.value !== el.defaultValue,
+    })).filter((field) => field.dirty),
+  }));
   list.replaceChildren();
   if (!data.projects.length)
     list.append(
@@ -149,6 +159,10 @@ async function projects() {
     );
   for (const project of data.projects) {
     const row = element("article", "");
+    row.id = "project-" + project.id;
+    row.dataset.projectId = project.id;
+    row.dataset.projectTitle = project.title;
+    row.hidden = !dockMatches(project.title, dockQuery);
     row.append(element("h3", project.title));
     const status = element("p", "", "project-status");
     status.setAttribute("role", "status");
@@ -331,6 +345,15 @@ async function projects() {
     row.append(artifactForm, status);
     list.append(row);
   }
+  for (const draft of drafts) {
+    const fields = document.getElementById(draft.id)?.querySelectorAll('input, select');
+    for (const draftField of draft.fields) {
+      const field = fields?.[draftField.index];
+      if (!field) continue;
+      field.value = draftField.value;
+      if (draftField.focused) { field.focus(); if (typeof draftField.start === 'number') field.setSelectionRange(draftField.start, draftField.end); }
+    }
+  }
 }
 $("#project-form").onsubmit = async (event) => {
   event.preventDefault();
@@ -360,9 +383,64 @@ $("#stop-all").onclick = async () => {
     await refresh();
   }
 };
+installAppDock();
 await refresh();
 try {
   await projects();
 } catch (error) {
   showError(error.message);
+}
+
+
+function installAppDock() {
+  const app = window.HoardApp ||= { q: [] };
+  const send = (method, ...args) => app[method] ? app[method](...args) : app.q.push([method, ...args]);
+  const error = (code, message, candidates) => Object.assign(new Error(message), { code, candidates });
+  const choose = (items, args, label) => {
+    const exact = items.filter((item) => args.id ? item.id === args.id : dockFold(label(item)) === dockFold(args.name));
+    const matches = exact.length || args.id ? exact : items.filter((item) => dockMatches(label(item), args.name));
+    if (matches.length !== 1) throw error(matches.length ? 'ambiguous' : 'not_found', matches.length ? 'Several records match; use an id' : 'Record not found', matches.slice(0, 8).map((item) => ({ id: item.id, label: label(item) })));
+    return matches[0];
+  };
+  const point = async (cursor, el) => { if (el) { el.scrollIntoView({ block: 'center' }); await cursor.to(el); } };
+  const tool = (name, description, properties, required, handler) => send('registerTool', name, {
+    description, inputSchema: { type: 'object', properties, required, additionalProperties: false },
+  }, handler);
+  const reference = { id: { type: 'string', minLength: 1 }, name: { type: 'string', minLength: 1 } };
+  const requireRef = (args) => { if (!args.id && !args.name?.trim()) throw error('bad_args', 'Provide id or name'); };
+  tool('vulcan_project', 'Select a shared project by id or unique name', reference, [], async (args, { cursor }) => {
+    requireRef(args);
+    const project = choose((await request('/api/studio/projects')).projects, args, (item) => item.title);
+    dockQuery = ''; await projects();
+    const row = document.getElementById('project-' + project.id);
+    await point(cursor, row); location.hash = '#project-' + project.id;
+    dockFocus = { kind: 'project', id: project.id, label: project.title };
+    return { selected: project.id };
+  });
+  tool('vulcan_filter', 'Filter the shared projects by name; empty query clears it', { query: { type: 'string' } }, ['query'], async ({ query }, { cursor }) => {
+    dockQuery = query; await projects();
+    const rows = [...document.querySelectorAll('[data-project-id]')].filter((row) => !row.hidden);
+    await point(cursor, rows[0] || $('#projects-title')); location.hash = '#projects'; dockFocus = null;
+    return { query, count: rows.length };
+  });
+  tool('vulcan_module', 'Open an enabled native module by id or unique name', reference, [], async (args, { cursor }) => {
+    requireRef(args);
+    const module = choose((await request('/api/modules')).modules, args, (item) => item.name);
+    if (!module.enabled) throw error('disabled', 'The module is off; enable it from Functions first');
+    await point(cursor, document.getElementById(module.id));
+    location.assign(`/${encodeURIComponent(module.id)}/`);
+    return { opened: module.id };
+  });
+  tool('vulcan_view', 'Show functions or shared projects', { view: { type: 'string', enum: ['functions', 'projects'] } }, ['view'], async ({ view }, { cursor }) => {
+    await point(cursor, document.getElementById(view)); location.hash = '#' + view; dockFocus = null; return { view };
+  });
+  const focus = (event) => {
+    const project = event.target.closest?.('[data-project-id]');
+    const module = event.target.closest?.('.module');
+    if (project) dockFocus = { kind: 'project', id: project.dataset.projectId, label: project.dataset.projectTitle };
+    else if (module) dockFocus = { kind: 'module', id: module.id, label: module.querySelector('h2')?.firstChild?.textContent || module.id };
+  };
+  document.addEventListener('click', focus); document.addEventListener('focusin', focus);
+  send('setContext', () => ({ view: location.hash.startsWith('#project') ? 'projects' : 'functions', focus: dockFocus, summary: dockQuery ? `Project filter: ${dockQuery}` : '' }));
+  send('onChanged', async () => { await refresh(); await projects(); });
 }

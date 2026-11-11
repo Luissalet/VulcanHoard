@@ -35,3 +35,9 @@ Assets animados para entregar (Hangar E18, #2203): página «Animaciones» (ruta
 ## Skills for the agents that connect
 
 This app carries procedures from the skill library of the family's workspace for the agents that connect to it: vulcan: `print-ready-3d-model`, `web-3d-asset-pipeline`, `blender-asset-production`, `verification-loop`; daedalus: `print-ready-3d-model`, `web-3d-asset-pipeline`, `blender-asset-production`; gepetto: `print-ready-3d-model`, `web-3d-asset-pipeline`; gulliver: `print-ready-3d-model`, `web-3d-asset-pipeline`; heron: `print-ready-3d-model`, `spec-driven-development`, `verification-loop`; platos: `print-ready-3d-model`, `image-composition`. They are named in what an agent reads on connecting, read with `skills_list` and `skill_read`, searched and assigned with `skills_library` and `skills_assign`, and offered as prompts. The person chooses them on the skills page (`/api/agent/skills/page`) or in the hub's Skills tab; the `skills` block of `faustus-plugin.json` holds what the app asks for by default.
+
+## App Dock
+
+When opened beside a Faustus chat, this page registers `vulcan_project`, `vulcan_filter`, `vulcan_module`, `vulcan_view` through `window.HoardApp`. These tools resolve records by id or unique name, apply the app's filters and switch sections. Ambiguous names return candidates. The current section and focused shared project or module are reported. Native modules open only when already enabled; selecting or filtering projects never activates an engine.
+
+`dock/changed` refreshes the mounted views without a page reload. Existing pending form fields are retained by the app's refresh handlers. The standalone interface continues to use its normal routes and controls. The Dock tools are exposed through the host's `app_view` and `app_act`; the existing backend tool catalogue is unchanged.
