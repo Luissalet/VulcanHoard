@@ -14,6 +14,13 @@ from vulcan.studio.catalog import tool_catalog
 
 
 class StudioBridge(CatalogBridge):
+    def build_server(self):
+        server = super().build_server()
+        from vulcan.hoard_link import skills
+
+        skills.attach(server, "vulcan", root=__file__)
+        return server
+
     async def fetch_catalog(self):
         self._catalog = tool_catalog()
         return self._catalog
