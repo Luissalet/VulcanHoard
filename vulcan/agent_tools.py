@@ -615,6 +615,10 @@ from .impostor_agent_tools import IMPOSTOR_TOOLS  # noqa: E402 - octahedral impo
 
 TOOLS += IMPOSTOR_TOOLS
 
+from .room_tools import ROOM_TOOLS  # noqa: E402 - sketch to a measured textured room
+
+TOOLS += ROOM_TOOLS
+
 TOOLS_BY_NAME = {tool.name: tool for tool in TOOLS}
 
 

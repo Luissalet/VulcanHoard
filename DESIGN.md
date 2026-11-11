@@ -203,6 +203,49 @@ La carpeta muestra fase escrita, contador (archivos hechos/total y archivo actua
 
 Un título, una frase y una única acción («Añadir una carpeta») que lleva a Carpetas.
 
+### Habitación: extensión local y tema de Studio
+
+El bloque de tokens y la descripción anterior conservan la referencia clara de
+la biblioteca independiente. En la ejecución nativa de Studio, el tema compartido
+es la autoridad visual: `vulcan/studio/web/hoard-theme.css` define superficies
+oscuras cálidas (fondo `#1c1614`, superficie `#241e1b`), texto `#ece4e1` y acento
+Vulcan `#e66d40`; `product-theme.css` declara esa prioridad y `module-shell.css`
+aporta la barra común. Se heredan Cinzel para la marca y Source Sans 3 para la
+interfaz; la planta SVG conserva Segoe UI. Esta extensión usa las variables del
+tema activo, sin sustituir la identidad existente por los tokens claros anteriores.
+
+La superficie **Habitación** añade un plano anotado junto a controles compactos
+de volúmenes y materiales. Su ancho máximo es 1300px; las columnas (1,25fr y
+0,9fr, con mínimo de 310px en la segunda) se separan 32px y un borde fino. A
+1100px se apilan y el separador pasa arriba; a 520px las acciones y los controles
+de vértices se reorganizan. Son decisiones de esta superficie, no una nueva
+cuadrícula global.
+
+- Los títulos de sección locales usan 18px y peso 600. Las etiquetas de la
+  planta usan 24 unidades en un SVG de 1000 unidades de ancho, y 29 a 520px o
+  menos; escalan con el diagrama y no amplían la rampa tipográfica global.
+- El contorno usa el acento y su relleno suave; paredes numeradas, longitudes,
+  huecos y nombres de mobiliario comunican geometría. El boceto cargado permanece
+  debajo del trazado. Es un diagrama de datos, no una ilustración decorativa.
+- Los campos mantienen etiquetas visibles y unidades en metros; la biblioteca
+  conserva sus medidas en milímetros. Solo el centro inicial añadido
+  automáticamente al mobiliario se redondea a tres decimales de metro; los valores
+  introducidos por la persona se conservan. El área de suelo del resultado se
+  presenta con formato `es-ES` y un máximo de dos decimales.
+- El resultado aparece debajo, separado por una línea, con el visor orbital
+  existente sobre fondo claro, cubierta abierta, materiales de la escena,
+  medidas y descargas. Un cambio de planta señala que el visor aún muestra la
+  última construcción; construir una variante crea otro modelo.
+- Los mapas de materiales son procedurales y deterministas, generados en
+  ejecución e incluidos en el GLB. Esta extensión no añade imágenes raster
+  estáticas al cliente; los bocetos son entradas del usuario.
+
+Referencia visual revisada: `desktop-plan.png`, `desktop-room.png`,
+`mobile-plan.png` y `mobile-room.png` en `Research/vulcan-boceto2790/`, fuera del
+repositorio, capturadas en viewports de 1440 × 1000 y 390 × 844. El contrato de la
+superficie está en [room-sketch.md](.impeccable/surfaces/room-sketch.md); las
+capacidades y límites están en [ROOM-SKETCH.md](docs/ROOM-SKETCH.md).
+
 ## Do's and Don'ts
 
 ### Do:

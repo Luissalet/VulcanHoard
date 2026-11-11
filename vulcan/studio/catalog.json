@@ -15976,5 +15976,344 @@
       "readonly": true,
       "params": {}
     }
+  },
+  {
+    "name": "room_plan",
+    "description": "Interpret a room sketch as a measured plan. Keywords: boceto, planta, habitación.\nUses the configured global vision model. Returns a measured editable plan, volumes, openings, materials and explicit assumptions. width_m calibrates the horizontal span. Review the plan before room_build. Without vision, trace an outline and pass a RoomPlan directly to room_build. Keywords: boceto, planta, habitación.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "properties": {
+        "image_base64": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Image Base64"
+        },
+        "image_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Image Path"
+        },
+        "width_m": {
+          "default": 5,
+          "exclusiveMinimum": 0,
+          "maximum": 200,
+          "title": "Width M",
+          "type": "number"
+        },
+        "description": {
+          "default": "",
+          "maxLength": 2000,
+          "title": "Description",
+          "type": "string"
+        }
+      },
+      "title": "SketchArgs",
+      "type": "object"
+    },
+    "x-timeout-s": 300.0,
+    "module": "library",
+    "native_name": "room_plan"
+  },
+  {
+    "name": "room_build",
+    "description": "Build a textured room from a reviewed plan. Keywords: habitación 3D, materiales.\nBuilds in metres as a GLB library model. Includes concave floor, wall volumes, real door/window openings and furniture boxes; five procedural materials with planar UV projection. Retains editable plan, runnable code and optional sketch. Creates a new model each time. The existing texture_project tool can paint a further variant. Keywords: habitación 3D, materiales, boceto a 3D.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "$defs": {
+        "Block": {
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "default": "Volume",
+              "maxLength": 80,
+              "minLength": 1,
+              "title": "Name",
+              "type": "string"
+            },
+            "center": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "title": "Center",
+              "type": "array"
+            },
+            "size": {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "title": "Size",
+              "type": "array"
+            },
+            "angle": {
+              "default": 0,
+              "title": "Angle",
+              "type": "number"
+            },
+            "material": {
+              "default": "oak",
+              "enum": [
+                "plaster",
+                "oak",
+                "tile",
+                "concrete",
+                "brick"
+              ],
+              "title": "Material",
+              "type": "string"
+            }
+          },
+          "required": [
+            "center",
+            "size"
+          ],
+          "title": "Block",
+          "type": "object"
+        },
+        "Opening": {
+          "additionalProperties": false,
+          "properties": {
+            "wall": {
+              "minimum": 0,
+              "title": "Wall",
+              "type": "integer"
+            },
+            "offset": {
+              "description": "Distance along wall from its first vertex, metres.",
+              "minimum": 0,
+              "title": "Offset",
+              "type": "number"
+            },
+            "width": {
+              "exclusiveMinimum": 0,
+              "title": "Width",
+              "type": "number"
+            },
+            "bottom": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Bottom",
+              "type": "number"
+            },
+            "height": {
+              "default": 2.1,
+              "exclusiveMinimum": 0,
+              "title": "Height",
+              "type": "number"
+            }
+          },
+          "required": [
+            "wall",
+            "offset",
+            "width"
+          ],
+          "title": "Opening",
+          "type": "object"
+        },
+        "RoomPlan": {
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "default": "Room",
+              "maxLength": 80,
+              "minLength": 1,
+              "title": "Name",
+              "type": "string"
+            },
+            "outline": {
+              "items": {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              "maxItems": 64,
+              "minItems": 3,
+              "title": "Outline",
+              "type": "array"
+            },
+            "height": {
+              "default": 2.7,
+              "maximum": 20,
+              "minimum": 0.5,
+              "title": "Height",
+              "type": "number"
+            },
+            "thickness": {
+              "default": 0.15,
+              "maximum": 1,
+              "minimum": 0.03,
+              "title": "Thickness",
+              "type": "number"
+            },
+            "floor_material": {
+              "default": "oak",
+              "enum": [
+                "plaster",
+                "oak",
+                "tile",
+                "concrete",
+                "brick"
+              ],
+              "title": "Floor Material",
+              "type": "string"
+            },
+            "wall_material": {
+              "default": "plaster",
+              "enum": [
+                "plaster",
+                "oak",
+                "tile",
+                "concrete",
+                "brick"
+              ],
+              "title": "Wall Material",
+              "type": "string"
+            },
+            "openings": {
+              "items": {
+                "$ref": "#/$defs/Opening"
+              },
+              "maxItems": 64,
+              "title": "Openings",
+              "type": "array"
+            },
+            "blocks": {
+              "items": {
+                "$ref": "#/$defs/Block"
+              },
+              "maxItems": 100,
+              "title": "Blocks",
+              "type": "array"
+            },
+            "assumptions": {
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 30,
+              "title": "Assumptions",
+              "type": "array"
+            }
+          },
+          "required": [
+            "outline"
+          ],
+          "title": "RoomPlan",
+          "type": "object"
+        }
+      },
+      "properties": {
+        "plan": {
+          "$ref": "#/$defs/RoomPlan"
+        },
+        "image_base64": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Image Base64"
+        },
+        "sketch_width_m": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "maximum": 200,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sketch Width M"
+        }
+      },
+      "required": [
+        "plan"
+      ],
+      "title": "BuildArgs",
+      "type": "object"
+    },
+    "x-timeout-s": 300.0,
+    "module": "library",
+    "native_name": "room_build"
+  },
+  {
+    "name": "room_get",
+    "description": "Read a room recipe and measurements. Keywords: planta, receta habitación.\nReturns the saved plan, assumptions, material choices, dimensions and scoped download URLs without changing it.",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "properties": {
+        "id": {
+          "minimum": 1,
+          "title": "Id",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "RoomId",
+      "type": "object"
+    },
+    "module": "library",
+    "native_name": "room_get"
   }
 ]

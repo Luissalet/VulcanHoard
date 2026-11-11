@@ -1,0 +1,35 @@
+.room-workspace { max-width: 1300px; margin: 0 auto; }
+.room-heading { display: flex; gap: 20px; align-items: start; justify-content: space-between; margin-bottom: 26px; }
+.room-heading .help { margin-top: 10px; max-width: 72ch; }
+.room-workspace h2 { font-size: 18px; font-weight: 600; margin-bottom: 16px; }
+.room-workspace h3 { font-size: 14px; font-weight: 600; margin: 24px 0 8px; }
+.room-columns { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(310px, 0.9fr); gap: 32px; align-items: start; }
+.room-columns > section { min-width: 0; }
+.room-spec { border-left: 1px solid var(--line); padding-left: 28px; }
+.room-spec > label, .room-details > label { display: block; margin: 12px 0; }
+.room-field-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 12px 0; }
+.room-workspace .field { width: 100%; min-width: 0; }
+.room-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.room-file { position: relative; overflow: hidden; cursor: pointer; }
+.room-file input { position: absolute; width: 100%; height: 100%; inset: 0; opacity: 0; cursor: pointer; }
+.room-file:focus-within { outline: 2px solid var(--focus); outline-offset: 2px; }
+.room-drawing { margin: 18px 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--white); }
+.room-drawing svg { display: block; width: 100%; max-height: 65vh; }
+.room-drawing text { fill: var(--ink); font: 24px 'Segoe UI', sans-serif; paint-order: stroke; stroke: var(--white); stroke-width: 7px; stroke-linejoin: round; }
+.room-drawing.is-tracing { cursor: crosshair; outline: 2px solid var(--focus); }
+.room-details { margin: 18px 0; padding-top: 16px; border-top: 1px solid var(--line); }
+.room-details summary { font-size: 14px; font-weight: 600; cursor: pointer; margin-bottom: 12px; }
+.room-item { min-width: 0; border: 1px solid var(--line); border-radius: 6px; padding: 12px; margin: 14px 0; }
+.room-item legend { font-size: 12px; padding: 0 5px; color: var(--supporting-ink); }
+.room-vertex { display: grid; grid-template-columns: 20px minmax(0, 1fr) minmax(0, 1fr) auto; gap: 8px; align-items: end; margin: 10px 0; }
+.room-vertex > span { align-self: center; }
+.room-error { background: var(--danger-bg); color: var(--danger-ink); border: 1px solid var(--danger-line); padding: 14px; margin: 16px 0; border-radius: 6px; overflow-wrap: anywhere; }
+.room-assumptions { background: var(--panel); padding: 12px 16px; margin: 16px 0; font-size: 13px; }
+.room-assumptions h3 { margin-top: 0; }
+.room-assumptions ul { list-style: disc; padding-left: 18px; }
+.room-build { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--line); }
+.room-build .help { margin-top: 10px; }
+.room-result { margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--line); }
+.room-result .viewer { max-height: 65vh; }
+@media (max-width: 1100px) { .room-columns { grid-template-columns: minmax(0, 1fr); gap: 26px; } .room-spec { padding-left: 0; border-left: 0; border-top: 1px solid var(--line); padding-top: 24px; } }
+@media (max-width: 520px) { .room-heading { display: block; } .room-heading > button { margin-top: 14px; } .room-drawing text { font-size: 29px; } .room-vertex { grid-template-columns: 16px minmax(0, 1fr) minmax(0, 1fr); } .room-vertex > button { grid-column: 2 / 4; } }

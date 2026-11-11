@@ -59,7 +59,7 @@ async function makeRenderer(dense) {
 /** three.js viewer: orbit controls, Z-up print orientation, auto-fit, grid at the build plate. `glbUrl` shows a (meshopt
  * compressed) GLB instead of the model file. Dense mode: WebGPU renderer + three-virtual-geometry (cluster LOD picked per
  * frame on the GPU), offered for very dense meshes when the browser has WebGPU; anything failing falls back to WebGL. */
-export default function Viewer({ model, glbUrl = null, onCloseGlb, overlay = null, glbNote = null }) {
+export default function Viewer({ model, glbUrl = null, onCloseGlb, overlay = null, glbNote = null, roomView = false }) {
   const host = useRef(null);
   const live = useRef({ scene: null, radius: 1 }); // scene + model radius, for the defect overlay layer
   const [state, setState] = useState({ phase: "loading", error: null });
@@ -121,7 +121,7 @@ export default function Viewer({ model, glbUrl = null, onCloseGlb, overlay = nul
       const distance = radius / Math.sin((camera.fov * Math.PI) / 360) * 1.15;
       camera.near = distance / 100;
       camera.far = distance * 100;
-      camera.position.set(centre.x + distance * 0.62, centre.y - distance * 0.62, centre.z + distance * 0.48);
+      camera.position.set(centre.x + distance * (roomView ? 0.38 : 0.62), centre.y - distance * (roomView ? 0.42 : 0.62), centre.z + distance * (roomView ? 0.84 : 0.48));
       camera.updateProjectionMatrix();
       controls.target.copy(centre);
       controls.update();
@@ -192,7 +192,7 @@ export default function Viewer({ model, glbUrl = null, onCloseGlb, overlay = nul
         upright.rotation.x = Math.PI / 2;
         loaded = upright;
       }
-      object = prepare(loaded, textured);
+      object = prepare(loaded, textured || scene3d);
       if (dense) {
         try {
           const { VirtualGeometry } = await import("three-virtual-geometry");
@@ -225,7 +225,7 @@ export default function Viewer({ model, glbUrl = null, onCloseGlb, overlay = nul
       renderer?.dispose();
       renderer?.domElement.remove();
     };
-  }, [model?.id, model?.format, model?.sha256, glbUrl, dense]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [model?.id, model?.format, model?.sha256, glbUrl, dense, roomView]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Defect overlay (open-edge loops red, bodies blue boxes, thin-wall samples orange): file coordinates, original file only.
   useEffect(() => {

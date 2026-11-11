@@ -24,7 +24,7 @@ A 3D studio with independently activated modules: model library (Vulcan), editab
 
 All six modules and their automation start **OFF** on first use. Open Vulcan explicitly, activate the function you need, and stop it from the same screen. Listing MCP tools starts no app, engine, database or watcher. Saved explicit choices are remembered; merely enabling generation does not resume historical queued jobs unless its automation is selected.
 
-Shared projects retain native object IDs/revisions and exported-file references with SHA256. You can open the native piece, download its retained file, and index an exported STL in the same library without converting the native project. The complete cold catalogue contains 189 tools (181 catalogue rows plus eight studio controls, including five asset inspection, seven Heron assembly and seven spatial analysis tools); names longer than the MCP limit have short public aliases while retaining their native names and schemas.
+Shared projects retain native object IDs/revisions and exported-file references with SHA256. You can open the native piece, download its retained file, and index an exported STL in the same library without converting the native project. The complete cold catalogue contains 225 tools (217 catalogue rows plus eight studio controls, including five asset inspection, seven Heron assembly and seven spatial analysis tools); names longer than the MCP limit have short public aliases while retaining their native names and schemas.
 
 A local joint multiview route takes ordered foreground/alpha views and makes one geometry-only 512 model through the native queue, API, MCP and form. Measured on four views of an original cup: 180 s on one 16 GB GPU, whole cup recovered, loose sheets removed on export, but the mesh is not watertight; no textures, UVs or PBR. See [multiview status and setup](vulcan/studio_native/daedalus/docs/multiview.md).
 
@@ -249,3 +249,24 @@ This app carries procedures from the skill library of the family's workspace for
 When opened beside a Faustus chat, this page registers `vulcan_project`, `vulcan_filter`, `vulcan_module`, `vulcan_view` through `window.HoardApp`. These tools resolve records by id or unique name, apply the app's filters and switch sections. Ambiguous names return candidates. The current section and focused shared project or module are reported. Native modules open only when already enabled; selecting or filtering projects never activates an engine.
 
 `dock/changed` refreshes the mounted views without a page reload. Existing pending form fields are retained by the app's refresh handlers. The standalone interface continues to use its normal routes and controls. The Dock tools are exposed through the host's `app_view` and `app_act`; the existing backend tool catalogue is unchanged.
+
+## Rooms from sketches
+
+**Biblioteca 3D → Habitación** loads a sketch or photograph, traces or interprets
+its measured plan, and builds a textured room as a new library GLB. Edit concave
+perimeters, wall height/thickness, door and window apertures, furniture volumes
+and separate floor/wall materials. The model retains its plan, runnable program
+and optional sketch; subsequent builds create new variants and preserve the
+original. Materials and UV maps are embedded in the GLB and remain visible in the
+orbit viewer. `room_plan`, `room_build` and `room_get` expose the same workflow
+through native API/MCP; cold catalogue discovery starts nothing.
+
+Manual tracing and procedural materials need no model or GPU. Interpretation
+requires the configured global vision service; its assumptions stay editable.
+The existing generative projection tool can texture an additional variant with
+its usual engine requirements. This is one room with vertical walls, rectangular
+openings and box furniture, without certified architectural measurements or
+automatic perspective correction during manual tracing. Live QA verified the
+manual workflow in browser/MCP; global vision was contract-tested with a simulated
+response because its configured service was unavailable. See
+[the room guide and schemas](docs/ROOM-SKETCH.md).
