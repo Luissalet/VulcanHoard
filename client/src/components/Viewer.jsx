@@ -59,7 +59,7 @@ async function makeRenderer(dense) {
 /** three.js viewer: orbit controls, Z-up print orientation, auto-fit, grid at the build plate. `glbUrl` shows a (meshopt
  * compressed) GLB instead of the model file. Dense mode: WebGPU renderer + three-virtual-geometry (cluster LOD picked per
  * frame on the GPU), offered for very dense meshes when the browser has WebGPU; anything failing falls back to WebGL. */
-export default function Viewer({ model, glbUrl = null, onCloseGlb, overlay = null, glbNote = null, roomView = false }) {
+export default function Viewer({ model, glbUrl = null, onCloseGlb, overlay = null, glbNote = null, roomView = false, roomLighting = null }) {
   const host = useRef(null);
   const live = useRef({ scene: null, radius: 1 }); // scene + model radius, for the defect overlay layer
   const [state, setState] = useState({ phase: "loading", error: null });
@@ -67,6 +67,9 @@ export default function Viewer({ model, glbUrl = null, onCloseGlb, overlay = nul
   const [denseNote, setDenseNote] = useState("");
   const [shownSize, setShownSize] = useState(null); // world box of what is on screen, in mm
   const [sceneVersion, setSceneVersion] = useState(0);
+  const [cutaway, setCutaway] = useState(true);
+  const cutawayRef = useRef(true);
+  useEffect(() => { cutawayRef.current = cutaway; }, [cutaway]);
   // Clip preview of animated GLBs: mixer on the loaded glTF scene, a clip selector and a time bar.
   const anim = useRef({ mixer: null, action: null, clips: [], playing: false, clock: new THREE.Clock(), lastUi: 0 });
   const [clips, setClips] = useState([]);
@@ -84,7 +87,7 @@ export default function Viewer({ model, glbUrl = null, onCloseGlb, overlay = nul
     live.current = { scene, radius: 1 };
     const camera = new THREE.PerspectiveCamera(40, 4 / 3, 0.1, 100000);
     camera.up.set(0, 0, 1);
-    scene.add(new THREE.HemisphereLight(0xffffff, 0x8a7f74, 1.1));
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x8a7f74, roomView ? .8 : 1.1));
     const key = new THREE.DirectionalLight(0xffffff, 1.4);
     key.position.set(-1, -1.5, 2.5);
     scene.add(key);
@@ -99,6 +102,8 @@ export default function Viewer({ model, glbUrl = null, onCloseGlb, overlay = nul
     let object = null;
     let grid = null;
     let vg = null;
+    let roomDirty = true;
+    let lastCutaway = true;
     const resize = () => {
       if (!renderer) return;
       const width = container.clientWidth || 640;
@@ -106,6 +111,7 @@ export default function Viewer({ model, glbUrl = null, onCloseGlb, overlay = nul
       renderer.setSize(width, height, false);
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
+      roomDirty = true;
     };
 
     const fit = (target) => {
@@ -130,7 +136,46 @@ export default function Viewer({ model, glbUrl = null, onCloseGlb, overlay = nul
       grid = new THREE.GridHelper(span, 10, 0xd9cfc7, 0xe9e2dc);
       grid.rotation.x = Math.PI / 2;
       grid.position.set(centre.x, centre.y, box.min.z);
-      scene.add(grid);
+      if (!roomView) scene.add(grid);
+
+      if (roomView && roomLighting) {
+        key.intensity = .65;
+        fill.intensity = .3;
+        const shadowSize = Math.max(size.x, size.y);
+        const setupShadow = (light) => {
+          light.castShadow = true;
+          light.shadow.mapSize.set(2048, 2048);
+          light.shadow.bias = -.0002;
+          light.shadow.normalBias = 3;
+          light.shadow.radius = 4;
+          light.shadow.camera.near = 20;
+          light.shadow.camera.far = shadowSize*4;
+          light.shadow.camera.updateProjectionMatrix();
+        };
+        for (const window of roomLighting.windows || []) {
+          const daylight = new THREE.DirectionalLight(0xf2f7ff, 2.2);
+          const [x, y, z] = window.center.map((v) => v*1000);
+          const [nx, ny] = window.outward;
+          daylight.position.set(x+nx*2500, y+ny*2500, z+1500);
+          daylight.target.position.set(x-nx*2200, y-ny*2200, 0);
+          setupShadow(daylight);
+          Object.assign(daylight.shadow.camera, { left: -shadowSize, right: shadowSize, top: shadowSize, bottom: -shadowSize });
+          daylight.shadow.camera.updateProjectionMatrix();
+          scene.add(daylight, daylight.target);
+        }
+        for (const position of roomLighting.lamps || []) {
+          const lamp = new THREE.SpotLight(0xffdfb2, 2.2, shadowSize*3, Math.PI/2.5, .85, 0);
+          lamp.position.set(...position.map((v) => v*1000));
+          lamp.target.position.set(position[0]*1000, position[1]*1000, 0);
+          setupShadow(lamp);
+          scene.add(lamp, lamp.target);
+        }
+        object.traverse((node) => {
+          if (!node.isMesh) return;
+          node.castShadow = node.material?.name !== 'glass';
+          node.receiveShadow = true;
+        });
+      }
     };
 
     const start = async () => {
@@ -142,6 +187,7 @@ export default function Viewer({ model, glbUrl = null, onCloseGlb, overlay = nul
       }
       if (disposed) { renderer.dispose(); return; }
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      if (roomView) { renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; }
       container.appendChild(renderer.domElement);
       controls = new OrbitControls(camera, renderer.domElement);
       controls.enableDamping = true;
@@ -149,7 +195,19 @@ export default function Viewer({ model, glbUrl = null, onCloseGlb, overlay = nul
       observer.observe(container);
       resize();
       renderer.setAnimationLoop(() => {
-        controls.update();
+        const moved = controls.update();
+        if (roomView && !roomDirty && !moved && lastCutaway === cutawayRef.current) return;
+        roomDirty = false;
+        lastCutaway = cutawayRef.current;
+        if (roomView && object) {
+          const direction = camera.position.clone().sub(controls.target);
+          object.traverse((node) => {
+            if (!node.isMesh) return;
+            const normal = node.userData.room_outward;
+            const hidden = cutawayRef.current && (node.userData.room_ceiling || (normal && normal[0]*direction.x+normal[1]*direction.y > 0));
+            node.visible = !hidden;
+          });
+        }
         const a = anim.current;
         const delta = a.clock.getDelta();
         if (a.mixer && a.action && a.playing) {
@@ -207,6 +265,7 @@ export default function Viewer({ model, glbUrl = null, onCloseGlb, overlay = nul
       if (disposed) return;
       scene.add(object);
       fit(object);
+      roomDirty = true;
       setState({ phase: "ready", error: null });
       setSceneVersion((v) => v + 1);
     };
@@ -225,7 +284,7 @@ export default function Viewer({ model, glbUrl = null, onCloseGlb, overlay = nul
       renderer?.dispose();
       renderer?.domElement.remove();
     };
-  }, [model?.id, model?.format, model?.sha256, glbUrl, dense, roomView]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [model?.id, model?.format, model?.sha256, glbUrl, dense, roomView, roomLighting]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Defect overlay (open-edge loops red, bodies blue boxes, thin-wall samples orange): file coordinates, original file only.
   useEffect(() => {
@@ -295,6 +354,7 @@ export default function Viewer({ model, glbUrl = null, onCloseGlb, overlay = nul
 
   return (
     <div>
+      {roomView && <label className="room-cutaway"><input type="checkbox" checked={cutaway} onChange={(event) => setCutaway(event.target.checked)} /> Sección de inspección (oculta techo y paredes cercanas)</label>}
       <div className="viewer" ref={host} aria-label="Visor 3D" data-viewer-mode={dense ? "dense" : glbUrl ? "glb" : "normal"}>
         <div className="hud">
           {state.phase === "loading" && "Cargando modelo…"}

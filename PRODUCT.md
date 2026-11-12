@@ -13,12 +13,14 @@ plan, review openings and furniture volumes, then build a new textured GLB in th
 library. It retains the plan, runnable reconstruction program and optional sketch.
 The same room operations are available through the native REST API and MCP.
 
-This workflow handles one simple, possibly concave room, vertical walls, a flat
-floor, rectangular openings and furniture boxes. Image calibration uses the width
-of the entire image in metres. Measurements and vision assumptions need review;
-it does not recover hidden dimensions, correct photograph perspective
-automatically, certify architectural measurements or produce detailed furniture
-or a guaranteed watertight printable building.
+This workflow handles concave perimeters, partitions with doorways connecting
+multiple named rooms, flat ceilings and independently finished interiors and
+exteriors. Doors and windows include frames, leaves and glass. Six parametric
+furniture types can be placed by clicking labels on the sketch. Four-corner
+projective rectification corrects photographs of planar sketches before tracing.
+Measurements and vision assumptions remain reviewable. It does not recover
+hidden dimensions, certify architectural measurements, reconstruct photographic
+furniture detail or guarantee a watertight printable building.
 
 Manual tracing, construction and deterministic procedural materials need no
 language model or GPU. Automatic interpretation requires the configured global

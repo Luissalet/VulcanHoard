@@ -16035,7 +16035,7 @@
   },
   {
     "name": "room_build",
-    "description": "Build a textured room from a reviewed plan. Keywords: habitación 3D, materiales.\nBuilds in metres as a GLB library model. Includes concave floor, wall volumes, real door/window openings and furniture boxes; five procedural materials with planar UV projection. Retains editable plan, runnable code and optional sketch. Creates a new model each time. The existing texture_project tool can paint a further variant. Keywords: habitación 3D, materiales, boceto a 3D.",
+    "description": "Build a textured room from a reviewed plan. Keywords: habitación 3D, materiales.\nBuilds in metres as a GLB library model. Includes concave floors, connected rooms with partitions and doorways, ceilings, framed doors/windows with glass, and parametric bed/table/chair/sofa/shelf/wardrobe furniture or free boxes; selectable interior/exterior materials with planar UV projection. Retains editable plan, runnable code and optional sketch. Creates a new model each time. The existing texture_project tool can paint a further variant. Keywords: habitación 3D, materiales, boceto a 3D.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -16094,12 +16094,27 @@
               "default": "oak",
               "enum": [
                 "plaster",
+                "paint",
                 "oak",
                 "tile",
                 "concrete",
                 "brick"
               ],
               "title": "Material",
+              "type": "string"
+            },
+            "kind": {
+              "default": "box",
+              "enum": [
+                "box",
+                "bed",
+                "table",
+                "chair",
+                "sofa",
+                "shelf",
+                "wardrobe"
+              ],
+              "title": "Kind",
               "type": "string"
             }
           },
@@ -16114,6 +16129,7 @@
           "additionalProperties": false,
           "properties": {
             "wall": {
+              "default": 0,
               "minimum": 0,
               "title": "Wall",
               "type": "integer"
@@ -16140,14 +16156,104 @@
               "exclusiveMinimum": 0,
               "title": "Height",
               "type": "number"
+            },
+            "kind": {
+              "default": "auto",
+              "enum": [
+                "auto",
+                "door",
+                "window",
+                "passage"
+              ],
+              "title": "Kind",
+              "type": "string"
+            },
+            "frame_material": {
+              "default": "oak",
+              "enum": [
+                "plaster",
+                "paint",
+                "oak",
+                "tile",
+                "concrete",
+                "brick"
+              ],
+              "title": "Frame Material",
+              "type": "string"
+            },
+            "open_angle": {
+              "default": 65,
+              "maximum": 120,
+              "minimum": 0,
+              "title": "Open Angle",
+              "type": "number"
             }
           },
           "required": [
-            "wall",
             "offset",
             "width"
           ],
           "title": "Opening",
+          "type": "object"
+        },
+        "Partition": {
+          "additionalProperties": false,
+          "properties": {
+            "start": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "title": "Start",
+              "type": "array"
+            },
+            "end": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "title": "End",
+              "type": "array"
+            },
+            "material": {
+              "default": "plaster",
+              "enum": [
+                "plaster",
+                "paint",
+                "oak",
+                "tile",
+                "concrete",
+                "brick"
+              ],
+              "title": "Material",
+              "type": "string"
+            },
+            "openings": {
+              "items": {
+                "$ref": "#/$defs/Opening"
+              },
+              "maxItems": 16,
+              "title": "Openings",
+              "type": "array"
+            }
+          },
+          "required": [
+            "start",
+            "end"
+          ],
+          "title": "Partition",
           "type": "object"
         },
         "RoomPlan": {
@@ -16197,6 +16303,7 @@
               "default": "oak",
               "enum": [
                 "plaster",
+                "paint",
                 "oak",
                 "tile",
                 "concrete",
@@ -16209,6 +16316,7 @@
               "default": "plaster",
               "enum": [
                 "plaster",
+                "paint",
                 "oak",
                 "tile",
                 "concrete",
@@ -16216,6 +16324,75 @@
               ],
               "title": "Wall Material",
               "type": "string"
+            },
+            "wall_materials": {
+              "additionalProperties": {
+                "enum": [
+                  "plaster",
+                  "paint",
+                  "oak",
+                  "tile",
+                  "concrete",
+                  "brick"
+                ],
+                "type": "string"
+              },
+              "title": "Wall Materials",
+              "type": "object"
+            },
+            "exterior_material": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "plaster",
+                    "paint",
+                    "oak",
+                    "tile",
+                    "concrete",
+                    "brick"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Exterior Material"
+            },
+            "ceiling_material": {
+              "default": "plaster",
+              "enum": [
+                "plaster",
+                "paint",
+                "oak",
+                "tile",
+                "concrete",
+                "brick"
+              ],
+              "title": "Ceiling Material",
+              "type": "string"
+            },
+            "partitions": {
+              "items": {
+                "$ref": "#/$defs/Partition"
+              },
+              "maxItems": 32,
+              "title": "Partitions",
+              "type": "array"
+            },
+            "spaces": {
+              "items": {
+                "$ref": "#/$defs/Space"
+              },
+              "maxItems": 32,
+              "title": "Spaces",
+              "type": "array"
+            },
+            "lamp": {
+              "default": true,
+              "title": "Lamp",
+              "type": "boolean"
             },
             "openings": {
               "items": {
@@ -16246,6 +16423,57 @@
             "outline"
           ],
           "title": "RoomPlan",
+          "type": "object"
+        },
+        "Space": {
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "maxLength": 80,
+              "minLength": 1,
+              "title": "Name",
+              "type": "string"
+            },
+            "center": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "title": "Center",
+              "type": "array"
+            },
+            "floor_material": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "plaster",
+                    "paint",
+                    "oak",
+                    "tile",
+                    "concrete",
+                    "brick"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Floor Material"
+            }
+          },
+          "required": [
+            "name",
+            "center"
+          ],
+          "title": "Space",
           "type": "object"
         }
       },
@@ -16315,5 +16543,78 @@
     },
     "module": "library",
     "native_name": "room_get"
+  },
+  {
+    "module": "library",
+    "native_name": "room_rectify",
+    "name": "room_rectify",
+    "description": "Rectify perspective in a photographed sketch before tracing. Keywords: perspectiva, boceto, foto.\nProvide image_path or image_base64, four normalized corners in top-left/top-right/bottom-right/bottom-left order, and the true paper aspect (width/height). Returns a rectified PNG data URL, width and height; no model required.",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "properties": {
+        "image_base64": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Image Base64"
+        },
+        "image_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Image Path"
+        },
+        "corners": {
+          "description": "Normalized image points: top-left, top-right, bottom-right, bottom-left.",
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array"
+          },
+          "maxItems": 4,
+          "minItems": 4,
+          "title": "Corners",
+          "type": "array"
+        },
+        "aspect": {
+          "default": 1.333333,
+          "description": "True paper width divided by height.",
+          "maximum": 10,
+          "minimum": 0.1,
+          "title": "Aspect",
+          "type": "number"
+        }
+      },
+      "required": [
+        "corners"
+      ],
+      "title": "RectifyArgs",
+      "type": "object"
+    }
   }
 ]

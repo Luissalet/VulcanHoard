@@ -31,5 +31,10 @@
 .room-build .help { margin-top: 10px; }
 .room-result { margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--line); }
 .room-result .viewer { max-height: 65vh; }
+.room-palette { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.room-palette .btn[aria-pressed="true"] { background: var(--accent-soft); color: var(--ink); border-color: var(--accent); }
+.room-wall-material { display: grid; grid-template-columns: 90px minmax(0, 1fr); align-items: center; gap: 12px; margin: 10px 0; }
+.room-check, .room-cutaway { display: flex; align-items: center; gap: 8px; font-size: 13px; margin: 16px 0; }
+.room-workspace .field, .room-workspace .btn { min-height: 40px; }
 @media (max-width: 1100px) { .room-columns { grid-template-columns: minmax(0, 1fr); gap: 26px; } .room-spec { padding-left: 0; border-left: 0; border-top: 1px solid var(--line); padding-top: 24px; } }
 @media (max-width: 520px) { .room-heading { display: block; } .room-heading > button { margin-top: 14px; } .room-drawing text { font-size: 29px; } .room-vertex { grid-template-columns: 16px minmax(0, 1fr) minmax(0, 1fr); } .room-vertex > button { grid-column: 2 / 4; } }

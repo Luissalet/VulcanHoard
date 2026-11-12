@@ -42,35 +42,36 @@ When opened beside a Faustus chat, this page registers `vulcan_project`, `vulcan
 
 `dock/changed` refreshes the mounted views without a page reload. Existing pending form fields are retained by the app's refresh handlers. The standalone interface continues to use its normal routes and controls. The Dock tools are exposed through the host's `app_view` and `app_act`; the existing backend tool catalogue is unchanged.
 
-## Habitación texturizada desde un boceto (mejoras #2790)
+## Habitación desde boceto, interiores y estancias (#2790, #2921)
 
-En Biblioteca 3D, «Habitación» carga un boceto o su fotografía y conserva una
-planta editable en metros. Se puede trazar sobre la imagen, editar vértices con
-teclado o interpretar con el modelo global configurado cuando admite visión.
-La escala corresponde al ancho de toda la imagen; los supuestos quedan visibles.
-Admite perímetro cóncavo, altura y grosor, huecos reales de puertas y ventanas y
-mobiliario como volúmenes con centro, tamaño, giro y material.
+Biblioteca 3D → Habitación conserva planta editable en metros, boceto opcional
+y programa ejecutable. Rectifica fotos marcando cuatro esquinas y la proporción
+real del papel antes de trazar. Perímetro cóncavo, altura/grosor, tabiques unidos
+a paredes, puertas o pasos interiores, nombres y suelos por estancia. El trazado
+asiste el ajuste de extremos a paredes cercanas. El modelo global con visión
+puede interpretar la imagen y sus etiquetas; sus supuestos requieren revisión.
 
-Construir crea un GLB nuevo en biblioteca con cubierta abierta, materiales
-procedurales de enlucido, roble, baldosas, hormigón o ladrillo y UV por proyección
-planar a escala física. El visor conserva materiales y abre desde arriba. Cada
-modelo retiene planta, programa ejecutable y boceto opcional; reabrir recupera
-receta y calibración. Una nueva construcción conserva la anterior. El borrador
-se mantiene en la pestaña y las ediciones durante una construcción se preservan
-como cambios pendientes. Descargas de GLB, JSON y programa en la misma pantalla.
+Acabados interiores de enlucido por defecto, pintura salvia, roble, baldosas,
+hormigón o ladrillo. Material por pared, piel exterior independiente, suelo y
+techo. Puertas con marco y hoja girada; ventanas con marco, alféizar, travesaño y
+cristal transparente. Seis muebles paramétricos (cama, mesa, silla, sofá,
+estantería y armario) colocables pulsando su etiqueta en el boceto; centro,
+dimensiones, giro y material editables. Se conservan los volúmenes libres.
 
-API/MCP: `room_plan` (`POST /api/rooms/plan`), `room_build` (`POST /api/rooms/build`)
-y `room_get` (`GET /api/rooms/{id}`); tres herramientas nuevas en el catálogo frío
-del estudio, ahora225. Los enlaces MCP de descarga incluyen `/library/`. La
-acción de texturizar reutiliza `texture_project` y su seguimiento, como variante
-adicional sin alterar la habitación original.
+GLB con materiales y UV embebidos, techo y piezas separadas. El visor usa luz
+de ventanas y lámparas por estancia con sombras suaves. La sección de inspección
+oculta techo y paredes cercanas según la cámara; se puede desactivar para ver
+el conjunto completo. Las luces son del visor; el GLB conserva la geometría.
+Construir siempre crea una variante nueva y conserva el modelo anterior.
 
-Pruebas:129 pasan y12 omitidas en el área,20 focales finales, seis casos de
-navegador1440/390 sin errores JS, ocho recibos stdio MCP, GLB con cero errores y
-cero avisos del validador y reconstrucción del programa con límites iguales.
-Visión automática: contrato con respuesta simulada; el servicio global configurado
-no respondió en QA real. Proyección generativa: estado inspeccionado, sin generar
-imágenes en esa pasada. El trazado/materiales procedurales funcionan sin ambos.
-Una habitación, paredes verticales, suelo plano, huecos rectangulares y cajas;
-no dimensiones ocultas recuperadas, perspectiva manual corregida automáticamente,
-muebles detallados ni garantía de sólido imprimible. Guía: `docs/ROOM-SKETCH.md`.
+API/MCP nativos: room_plan, room_build, room_get y room_rectify; catálogo frío
+del estudio226 (218 entradas más ocho controles). Descargas MCP con /library/.
+Rectificar, trazar y construir no requieren LLM ni GPU. Interpretar requiere el
+servicio global con visión; no se fabrica una planta si falla. Texturizar por
+proyección conserva su flujo opcional y motores habituales.
+
+Límites: plano del papel rectificable con cuatro puntos, paredes verticales,
+techos planos y huecos rectangulares. Muebles compuestos paramétricos, sin
+reconstruir detalle fotográfico. Sin medidas arquitectónicas certificadas,
+dimensiones ocultas recuperadas ni garantía de sólido imprimible. No hay
+generación nueva de imágenes en esta entrega. Guía: docs/ROOM-SKETCH.md.

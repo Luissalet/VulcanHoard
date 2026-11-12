@@ -26,6 +26,11 @@ def build(request: Request, body: room.BuildArgs):
     return guarded(lambda: room.build(services(request), body))
 
 
+@router.post('/rectify')
+def rectify(body: room.RectifyArgs):
+    return guarded(lambda: room.rectify(body))
+
+
 @router.get('/{model_id}')
 def info(request: Request, model_id: int):
     return guarded(lambda: room.info(services(request), model_id))

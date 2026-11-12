@@ -17,11 +17,16 @@ ROOM_TOOLS = [
          room.SketchArgs, ann(False, False, False), room.interpret, timeout_s=300, capped=False),
     Tool('room_build', 'Build a textured room from a reviewed plan. Keywords: habitación 3D, materiales.\n'
          'Builds in metres as a GLB library model. '
-         'Includes concave floor, wall volumes, real door/window openings and furniture boxes; five procedural materials '
+         'Includes concave floors, connected rooms with partitions and doorways, ceilings, framed doors/windows with glass, '
+         'and parametric bed/table/chair/sofa/shelf/wardrobe furniture or free boxes; selectable interior/exterior materials '
          'with planar UV projection. Retains editable plan, runnable code and optional sketch. Creates a new model each time. '
          'The existing texture_project tool can paint a further variant. Keywords: habitación 3D, materiales, boceto a 3D.',
          room.BuildArgs, ann(False, False, False), room.build, timeout_s=300, capped=False),
     Tool('room_get', 'Read a room recipe and measurements. Keywords: planta, receta habitación.\n'
          'Returns the saved plan, assumptions, material choices, dimensions and scoped download URLs without changing it.',
          RoomId, ann(True), lambda services, args: {'ok': True, **room.info(services, args.id)}, capped=False),
+    Tool('room_rectify', 'Rectify perspective in a photographed sketch before tracing. Keywords: perspectiva, boceto, foto.\n'
+         'Provide image_path or image_base64, four normalized corners in top-left/top-right/bottom-right/bottom-left order, '
+         'and the true paper aspect (width/height). Returns a rectified PNG data URL, width and height; no model required.',
+         room.RectifyArgs, ann(True), lambda services, args: room.rectify(args), capped=False),
 ]

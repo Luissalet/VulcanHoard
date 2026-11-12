@@ -82,7 +82,8 @@ def test_glb_has_embedded_materials_uvs_and_real_dimensions():
     scene.apply_transform(trimesh.transformations.rotation_matrix(-math.pi / 2, [1, 0, 0]))
     data = scene.export(file_type='glb')
     loaded = trimesh.load(io.BytesIO(data), file_type='glb', force='scene')
-    assert loaded.extents == pytest.approx([5.15, 2.78, 4.15])
+    # Framing projects 17.5 mm beyond each side of the structural wall.
+    assert loaded.extents == pytest.approx([5.1675, 2.78, 4.1675])
     assert all(mesh.visual.kind == 'texture' and np.isfinite(mesh.visual.uv).all() for mesh in loaded.geometry.values())
     materials = {mesh.visual.material.name for mesh in loaded.geometry.values()}
     assert {'tile', 'brick', 'oak'} <= materials
@@ -159,7 +160,91 @@ def test_cold_studio_catalog_has_exact_room_schemas():
     from vulcan.studio.catalog import native_catalog
     live = {tool['name']: tool for tool in tool_catalog() if tool['name'].startswith('room_')}
     cold = {tool['name']: tool for tool in native_catalog() if tool['name'].startswith('room_')}
-    assert set(cold) == set(live) == {'room_plan', 'room_build', 'room_get'}
+    assert set(cold) == set(live) == {'room_plan', 'room_build', 'room_get', 'room_rectify'}
     for name, tool in live.items():
         assert cold[name]['inputSchema'] == tool['inputSchema']
         assert cold[name]['module'] == 'library' and cold[name]['native_name'] == name
+
+
+def test_interiors_exterior_skin_ceiling_and_window_glass_survive_glb():
+    scene, report = room.room_scene(plan(wall_materials={1: 'paint'}, exterior_material='brick', ceiling_material='tile'))
+    loaded = trimesh.load(io.BytesIO(scene.export(file_type='glb')), file_type='glb', force='scene')
+    assert loaded.geometry['ceiling'].visual.material.name == 'tile'
+    assert loaded.geometry['ceiling'].metadata['room_ceiling']
+    assert {g.visual.material.name for n,g in loaded.geometry.items() if n.startswith('wall-1')} == {'paint'}
+    assert {g.visual.material.name for n,g in loaded.geometry.items() if n.startswith('wall-0')} == {'plaster'}
+    assert all(g.visual.material.name == 'brick' for n,g in loaded.geometry.items() if n.startswith('exterior-'))
+    glass = loaded.geometry['opening-1-0-glass']
+    assert glass.visual.material.alphaMode == 'BLEND'
+    assert glass.visual.material.baseColorFactor[3] < 100
+    assert loaded.geometry['opening-0-0-leaf'].extents[1] > .7  # real open leaf, not a painted aperture
+    assert len(report['lighting']['windows']) == 1 and len(report['lighting']['lamps']) == 1
+
+
+@pytest.mark.parametrize('kind', ['bed','table','chair','sofa','shelf','wardrobe'])
+def test_parametric_furniture_has_separate_parts_and_fits_rotated_envelope(kind):
+    from vulcan.room_furniture import furniture_parts
+    block = room.Block(name=kind,kind=kind,center=(2,2),size=(1.4,.8,1.6),angle=27)
+    parts = furniture_parts(block)
+    assert len(parts) >= 5
+    inverse = trimesh.transformations.rotation_matrix(-math.radians(block.angle), [0,0,1])
+    for name, mesh, material in parts:
+        mesh.apply_translation((-2,-2,0)); mesh.apply_transform(inverse)
+        assert np.all(mesh.bounds[0] >= np.array([-.7,-.4,0])-1e-8)
+        assert np.all(mesh.bounds[1] <= np.array([.7,.4,1.6])+1e-8), (kind,name,mesh.bounds)
+    if kind == 'table':
+        assert len([name for name,_,_ in parts if name == 'leg']) == 4
+
+
+def apartment(**overrides):
+    return plan(outline=[[0,0],[8,0],[8,5],[0,5]], blocks=[],
+                openings=[{'wall':2,'offset':1,'width':1.5,'bottom':1,'height':1.2}],
+                partitions=[{'start':[4,0],'end':[4,5],'openings':[{'offset':1,'width':.9,'kind':'door'}]}],
+                spaces=[{'name':'Bedroom','center':[2,2],'floor_material':'oak'},
+                        {'name':'Living room','center':[6,2],'floor_material':'tile'}], **overrides)
+
+
+def test_connected_rooms_share_one_partition_with_a_real_door():
+    scene, report = room.room_scene(apartment())
+    assert [r['area_m2'] for r in report['rooms']] == [20,20]
+    assert [r['name'] for r in report['rooms']] == ['Bedroom','Living room']
+    assert report['connections'] == [{'partition':0,'rooms':[0,1],'width_m':.9}]
+    assert report['walls'] == 5 and report['openings'] == 2
+    assert scene.geometry['floor-1'].visual.material.name == 'tile'
+    assert 'opening-4-0-leaf' in scene.geometry
+    assert len(report['lighting']['lamps']) == 2
+    assert not any(v['wall']==4 and v['span_m'][0]<1.5<v['span_m'][1] and v['height_m'][0]<1<v['height_m'][1] for v in report['wall_volumes'])
+
+
+@pytest.mark.parametrize('change', [
+    {'partitions':[{'start':[2,1],'end':[2,3]}]},
+    {'partitions':[{'start':[4,0],'end':[4,5],'openings':[{'offset':4.7,'width':1}]}]},
+    {'partitions':[{'start':[4,0],'end':[4,5]},{'start':[4,0],'end':[4,3]}]},
+    {'wall_materials':{10:'oak'}},
+    {'blocks':[{'center':[4,2],'size':[1,1,1],'kind':'bed'}]},
+])
+def test_invalid_partitions_material_refs_and_furniture_collisions(change):
+    raw = apartment().model_dump(); raw.update(change)
+    with pytest.raises(ValueError):
+        room.RoomPlan.model_validate(raw)
+
+
+def test_rectification_uses_projective_mapping_and_rejects_crossed_corners(client):
+    source = Image.new('RGB',(400,300),'white')
+    from PIL import ImageDraw
+    draw = ImageDraw.Draw(source)
+    # Photograph-like quadrilateral, red at its centre. The output removes the trapezoid.
+    draw.polygon([(80,30),(330,60),(370,270),(30,240)], fill='black')
+    draw.ellipse((196,124,216,144),fill='red')
+    output = io.BytesIO(); source.save(output,'PNG')
+    args = {'image_base64':base64.b64encode(output.getvalue()).decode(),
+            'corners':[[.2,.1],[.825,.2],[.925,.9],[.075,.8]],'aspect':4/3}
+    response = client.post('/api/rooms/rectify',json=args)
+    assert response.status_code == 200
+    record = response.json()
+    image,_ = room.sketch_image(record['image_base64'])
+    assert image.size == (1600,1200)
+    assert image.getpixel((800,600))[0] > 220 and image.getpixel((800,600))[1] < 30
+    assert all(max(image.getpixel(p)) < 100 for p in [(30,30),(1570,30),(1570,1170),(30,1170)])
+    args['corners']=[args['corners'][i] for i in (0,2,1,3)]
+    assert client.post('/api/rooms/rectify',json=args).status_code == 400

@@ -24,7 +24,7 @@ A 3D studio with independently activated modules: model library (Vulcan), editab
 
 All six modules and their automation start **OFF** on first use. Open Vulcan explicitly, activate the function you need, and stop it from the same screen. Listing MCP tools starts no app, engine, database or watcher. Saved explicit choices are remembered; merely enabling generation does not resume historical queued jobs unless its automation is selected.
 
-Shared projects retain native object IDs/revisions and exported-file references with SHA256. You can open the native piece, download its retained file, and index an exported STL in the same library without converting the native project. The complete cold catalogue contains 225 tools (217 catalogue rows plus eight studio controls, including five asset inspection, seven Heron assembly and seven spatial analysis tools); names longer than the MCP limit have short public aliases while retaining their native names and schemas.
+Shared projects retain native object IDs/revisions and exported-file references with SHA256. You can open the native piece, download its retained file, and index an exported STL in the same library without converting the native project. The complete cold catalogue contains 226 tools (218 catalogue rows plus eight studio controls, including five asset inspection, seven Heron assembly and seven spatial analysis tools); names longer than the MCP limit have short public aliases while retaining their native names and schemas.
 
 A local joint multiview route takes ordered foreground/alpha views and makes one geometry-only 512 model through the native queue, API, MCP and form. Measured on four views of an original cup: 180 s on one 16 GB GPU, whole cup recovered, loose sheets removed on export, but the mesh is not watertight; no textures, UVs or PBR. See [multiview status and setup](vulcan/studio_native/daedalus/docs/multiview.md).
 
@@ -253,20 +253,29 @@ When opened beside a Faustus chat, this page registers `vulcan_project`, `vulcan
 ## Rooms from sketches
 
 **Biblioteca 3D → Habitación** loads a sketch or photograph, traces or interprets
-its measured plan, and builds a textured room as a new library GLB. Edit concave
-perimeters, wall height/thickness, door and window apertures, furniture volumes
-and separate floor/wall materials. The model retains its plan, runnable program
-and optional sketch; subsequent builds create new variants and preserve the
-original. Materials and UV maps are embedded in the GLB and remain visible in the
-orbit viewer. `room_plan`, `room_build` and `room_get` expose the same workflow
-through native API/MCP; cold catalogue discovery starts nothing.
+its measured plan, and builds a textured GLB as a new library model. Rectify a
+photographed plan by marking the four paper corners and its true width/height
+ratio before tracing. Draw partitions between walls, add doors or passages and
+name the resulting connected rooms. Floors can have different finishes per room;
+interior walls, exterior skin and ceiling have independent material controls.
 
-Manual tracing and procedural materials need no model or GPU. Interpretation
-requires the configured global vision service; its assumptions stay editable.
-The existing generative projection tool can texture an additional variant with
-its usual engine requirements. This is one room with vertical walls, rectangular
-openings and box furniture, without certified architectural measurements or
-automatic perspective correction during manual tracing. Live QA verified the
-manual workflow in browser/MCP; global vision was contract-tested with a simulated
-response because its configured service was unavailable. See
+Doors have frames and a hinged leaf; windows have frames, sill, mullion and
+transparent glass. Place a bed, table, chair, sofa, shelf or wardrobe by choosing
+its label and clicking the sketch, then edit its dimensions, centre and rotation.
+Free furniture boxes remain available. The viewer has window daylight, interior
+lamps and soft shadows. Its inspection section hides the ceiling and near walls;
+turn it off to see the complete exported scene.
+
+Every build retains the editable plan, runnable reconstruction program and
+optional rectified sketch; rebuilding creates a new variant and preserves the
+original. Textures, UV maps, furniture parts and glass are embedded in the GLB.
+Native API/MCP exposes `room_plan`, `room_build`, `room_get` and `room_rectify`;
+cold catalogue discovery starts no module or model.
+
+Manual tracing, rectification and construction need no model or GPU.
+Interpretation requires the configured global vision service and returns
+reviewable assumptions. The existing projection texturing workflow retains its
+usual engine requirements. This is a parametric scene with vertical walls and
+rectangular openings, without certified measurements, recovered hidden
+dimensions or a guaranteed watertight printable building. See
 [the room guide and schemas](docs/ROOM-SKETCH.md).
