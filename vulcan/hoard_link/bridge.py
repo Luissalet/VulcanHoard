@@ -314,6 +314,9 @@ class CatalogBridge:
         self.heartbeat_s = float(heartbeat_s)
         self._base_url = base_url
         self.instructions = instructions
+        self.skills: list[dict[str, Any]] = []
+        self._shelf_obj: Any = None
+        self._local_skills = False
         if root is None:
             root = sys.argv[0] if sys.argv and sys.argv[0] else os.getcwd()
         root_path = Path(root).resolve()
@@ -354,7 +357,28 @@ class CatalogBridge:
         return bridge_token(self.app, self.data_dir, token_env=self.token_env, token_file=self.token_file, env_prefix=self.prefix)
 
     def autostart_enabled(self) -> bool:
-        return bool(self.autostart) and env_flag(f"{self.prefix}_BRIDGE_AUTOSTART", True)
+        """Whether a call may start the app when it is down. ``<APP>_BRIDGE_AUTOSTART`` decides when set; otherwise the
+        app's own manifest does: an app that declares ``"x-family": {"auto_start": false}`` (one that opens a device, say)
+        is only ever started by the person, so a stray tool call or a catalogue read never wakes it."""
+        return bool(self.autostart) and env_flag(f"{self.prefix}_BRIDGE_AUTOSTART", self._manifest_autostart())
+
+    def _manifest_autostart(self) -> bool:
+        cached = getattr(self, "_manifest_autostart_value", None)
+        if cached is None:
+            cached = True
+            for folder in (self.root, *list(self.root.parents)[:2]):
+                manifest = folder / "faustus-plugin.json"
+                if not manifest.is_file():
+                    continue
+                try:
+                    family = json.loads(manifest.read_text(encoding="utf-8")).get("x-family")
+                except (OSError, ValueError):
+                    family = None
+                if isinstance(family, dict) and family.get("auto_start") is False:
+                    cached = False
+                break
+            self._manifest_autostart_value = cached
+        return cached
 
     def message(self, template: str, **extra: Any) -> str:
         return template.format(title=self.title, package=self.package, prefix=self.prefix, data_dir_env=self.data_dir_env or "the data folder variable",
@@ -386,8 +410,48 @@ class CatalogBridge:
         self._catalog = [t for t in tools if isinstance(t, dict) and t.get("name")]
         if isinstance(data, dict) and isinstance(data.get("instructions"), str):
             self.instructions = data["instructions"]
+        self.skills = [s for s in (data.get("skills") or []) if isinstance(s, dict) and s.get("slug")] if isinstance(data, dict) else []
+        self._own_skills()
         self._fetched_at = time.monotonic()
         return self._catalog
+
+    def _shelf(self) -> Any:
+        """The app's skills shelf as this bridge reads it from the folder its token is in (None when there is no manifest, under
+        pytest, or with HOARD_SKILLS=0). It only reads: the app and the hub keep the copies."""
+        if self._shelf_obj is None:
+            self._shelf_obj = False
+            try:
+                from . import skills as _skills
+                manifest = next((p / "faustus-plugin.json" for p in (self.root, *list(self.root.parents)[:2]) if (p / "faustus-plugin.json").is_file()), None)
+                off = ("pytest" in sys.modules or "PYTEST_CURRENT_TEST" in os.environ          # also the bridges an app's tests start
+                       or os.environ.get("HOARD_SKILLS", "1").strip().lower() in ("0", "false", "no", "off"))
+                if manifest is not None and not off:
+                    self._shelf_obj = _skills.Shelf(self.app, lambda: Path(self._token_path()).parent, _skills.wants_of(manifest), max_age_s=float("inf"))
+                    self._shelf_obj._checked = time.monotonic()        # never looks the library up from here
+            except Exception:  # noqa: BLE001
+                self._shelf_obj = False
+        return self._shelf_obj or None
+
+    def _own_skills(self) -> None:
+        """An app whose own tool list does not hand out skills (it does not use the shared agent router) still gives its
+        agents the ones on its shelf: the bridge adds the tools, the instructions and the prompts itself."""
+        self._local_skills = False
+        names = {str(t.get("name")) for t in self._catalog}
+        shelf = self._shelf()
+        if self.skills or shelf is None or "skills_list" in names:
+            return
+        try:
+            carried = shelf.list(refresh=False)
+        except Exception:  # noqa: BLE001
+            carried = []
+        if not carried:
+            return
+        self._local_skills = True
+        self.skills = carried
+        self._catalog = self._catalog + [e for e in shelf.catalog() if e["name"] not in names and e["name"] != "skills_refresh"]
+        extra = shelf.instructions(carried)
+        if extra and "Skills." not in (self.instructions or ""):
+            self.instructions = (self.instructions or "") + ("\n\n" if self.instructions else "") + extra
 
     async def tools(self, *, force: bool = False) -> list[dict[str, Any]]:
         """The catalogue, refreshed when ``force`` or older than ``refresh_tools_s``. A failed refresh keeps the last good one;
@@ -427,6 +491,13 @@ class CatalogBridge:
     async def call(self, name: str, arguments: Optional[Mapping[str, Any]] = None, progress: Optional[Progress] = None) -> BridgeResult:
         """Proxy ``name(arguments)`` to the app and shape the answer as MCP content. Never raises."""
         arguments = dict(arguments or {})
+        if getattr(self, "_local_skills", False) and name in ("skills_list", "skill_read", "skills_library", "skills_assign"):
+            try:
+                body = await asyncio.to_thread(self._shelf().call, name, arguments)
+                return BridgeResult(content=[_text(body)], body=body)
+            except (KeyError, ValueError) as error:
+                body = {"error": str(error.args[0]) if error.args else str(error), "code": "not_found" if isinstance(error, KeyError) else "invalid"}
+                return BridgeResult(content=[_text(body)], is_error=True, body=body)
         try:
             if self.tool_meta(name) is None:
                 try:
@@ -525,28 +596,73 @@ class CatalogBridge:
             from mcp.server.mcpserver import MCPServer as Base  # type: ignore[no-redef]  # mcp 2.x
             version = 2
         from mcp.types import CallToolResult, ImageContent, TextContent, Tool as MCPTool, ToolAnnotations
+        structured_result = any(name == "structuredContent" or field.alias == "structuredContent"
+                                for name, field in CallToolResult.model_fields.items())
 
         def to_tool(entry: Mapping[str, Any]) -> Any:
             annotations = {k: v for k, v in (entry.get("annotations") or {}).items() if k in _ANNOTATION_KEYS}
-            return MCPTool(name=entry["name"], description=entry.get("description") or "", inputSchema=entry.get("inputSchema") or {"type": "object"},
-                           annotations=ToolAnnotations(**annotations) if annotations else None)
+            schema = entry.get("inputSchema") or {"type": "object"}
+            if "x-timeout-s" in entry:
+                # MCP 1.x keeps Tool extras; 2.x filters them on the wire.
+                # Preserve the existing JSON Schema fallback as well.
+                schema = {**schema, "x-timeout-s": entry["x-timeout-s"]}
+            return MCPTool(name=entry["name"], description=entry.get("description") or "", inputSchema=schema,
+                           annotations=ToolAnnotations(**annotations) if annotations else None,
+                           **({"x-timeout-s": entry["x-timeout-s"]} if "x-timeout-s" in entry else {}))
 
         def to_result(result: BridgeResult) -> Any:
             parts = [TextContent(type="text", text=p["text"]) if p["type"] == "text"
                      else ImageContent(type="image", data=p["data"], mimeType=p["mimeType"]) for p in result.content]
-            return CallToolResult(content=parts, isError=result.is_error)
+            body: dict[str, Any] = {"content": parts, "isError": result.is_error}
+            if structured_result and isinstance(result.body, dict):
+                body["structuredContent"] = result.body
+            return CallToolResult.model_validate(body)
+
+        async def skill_prompts() -> list[Any]:
+            """The app's skills as prompts: an agent's person can call one up by name."""
+            from mcp.types import Prompt
+            await core.tools()
+            return [Prompt(name=f"skill-{s['slug']}", description=str(s.get("description") or "")[:900]) for s in core.skills]
+
+        async def skill_prompt(name: str) -> Any:
+            from mcp.types import GetPromptResult, PromptMessage
+            result = await core.call("skill_read", {"slug": str(name).removeprefix("skill-")})
+            body = result.body if isinstance(result.body, dict) else {}
+            if result.is_error or not body.get("text"):
+                raise ValueError(str(body.get("error") or f"No skill called {name}."))
+            procedure = str(body["text"])
+            if procedure.startswith("---") and "\n---" in procedure[3:]:
+                procedure = procedure[procedure.index("\n---", 3) + 4:].lstrip("\n")       # the front matter is for the library
+            text = f"Follow this procedure with the tools of {core.service}.\n\n{procedure}"
+            return GetPromptResult(description=str(body.get("name") or name),
+                                   messages=[PromptMessage(role="user", content=TextContent(type="text", text=text))])
 
         if version == 1:
             class Server(Base):  # type: ignore[misc, valid-type]
+                def _setup_handlers(self) -> None:
+                    super()._setup_handlers()
+                    from mcp.types import CallToolRequest, ServerResult
+
+                    async def typed_call(request: Any) -> Any:
+                        return ServerResult(await self.call_tool(request.params.name, request.params.arguments or {}))
+
+                    # SDK1.9's call_tool decorator accepts an iterable, rebuilds
+                    # CallToolResult and forces isError=False. Its native typed
+                    # dispatcher preserves the full protocol result instead.
+                    # This same dispatcher contract is retained by SDK1.30.
+                    self._mcp_server.request_handlers[CallToolRequest] = typed_call
+
                 async def list_tools(self) -> list[Any]:
                     return [to_tool(t) for t in await core.tools()]
 
                 async def call_tool(self, name: str, arguments: dict[str, Any]) -> Any:
-                    try:
-                        context = self.get_context()
-                    except Exception:  # noqa: BLE001
-                        context = None
-                    return to_result(await core.call(name, arguments, _progress_of(context)))
+                    return to_result(await core.call(name, arguments, _progress_of(self.get_context())))
+
+                async def list_prompts(self) -> list[Any]:
+                    return await skill_prompts()
+
+                async def get_prompt(self, name: str, arguments: Optional[dict[str, Any]] = None) -> Any:
+                    return await skill_prompt(name)
         else:
             class Server(Base):  # type: ignore[no-redef, misc, valid-type]
                 async def list_tools(self) -> list[Any]:
@@ -554,6 +670,12 @@ class CatalogBridge:
 
                 async def call_tool(self, name: str, arguments: dict[str, Any], context: Any = None) -> Any:
                     return to_result(await core.call(name, arguments, _progress_of(context)))
+
+                async def list_prompts(self, *args: Any, **kwargs: Any) -> list[Any]:
+                    return await skill_prompts()
+
+                async def get_prompt(self, name: str, arguments: Optional[dict[str, Any]] = None, *args: Any, **kwargs: Any) -> Any:
+                    return await skill_prompt(name)
 
         return Server(name=self.service, instructions=self.instructions or None)
 

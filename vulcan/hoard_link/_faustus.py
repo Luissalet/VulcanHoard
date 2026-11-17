@@ -12,11 +12,12 @@ from __future__ import annotations
 
 import asyncio
 import ipaddress
-import os
 from typing import Any, Optional
 from urllib.parse import urlsplit
 
 import httpx
+
+from . import where
 
 TIMEOUT_S = 1.5
 REMOTE_TIMEOUT_S = 8.0
@@ -69,21 +70,15 @@ def auth_headers(token: Optional[str]) -> Optional[dict[str, str]]:
     return {"Authorization": f"Bearer {token}"} if token else None
 
 
-DEFAULT_HUB_URL = "http://127.0.0.1:8810"
-
-
 async def placement_urls(client: httpx.AsyncClient, hub_url: Optional[str] = None) -> tuple[str, ...]:
     """Where Faustus answers when the Hub moved it off this PC (its "Run on" control: Faustus, Hermes and Prometheus on a
-    Spark so the PC can be switched off). Asks the Hub's ``/api/placement``; empty when the Hub does not answer or
-    Faustus runs here."""
-    base = (hub_url or os.environ.get("HOARD_HUB_URL") or DEFAULT_HUB_URL).rstrip("/")
-    status, data = await get(client, f"{base}/api/placement")
-    if status != 200 or not isinstance(data, dict) or data.get("location") != "sparks":
+    Spark so the PC can be switched off). Asks the Hub's ``/api/placement`` and reads it with ``where.placed`` (the one
+    rule every Hoard shares); empty when the Hub does not answer or Faustus runs here."""
+    status, data = await get(client, f"{where.hub_url(hub_url)}/api/placement")
+    if status != 200 or not isinstance(data, dict):
         return ()
-    if (data.get("job") or {}).get("running"):
-        return ()
-    url = (data.get("urls") or {}).get("faustus")
-    return (str(url).rstrip("/"),) if isinstance(url, str) and url.startswith(("http://", "https://")) else ()
+    url = where.placed("faustus", data)
+    return (url,) if url else ()
 
 
 async def find_reachable(
@@ -145,8 +140,30 @@ def model_items(data: Any) -> list[dict]:
     return [i for i in items if isinstance(i, dict)] if isinstance(items, list) else []
 
 
+_NO_IMAGE_PROBE_BACKENDS = {"llamacpp", "llama.cpp", "ollama", "lmstudio"}
+
+
 def find_model_items(models: list[dict], capability: str) -> list[dict]:
-    return [item for item in models if item.get("model_type") == capability]
+    """The registry entries that can serve ``capability``.
+
+    For ``vision`` a chat endpoint counts too: one whose ``models_vision`` lists models that accept images (narrowed to
+    those), and an OpenAI-compatible server on this machine or the local network that Faustus has no answer for yet
+    (vLLM on the Sparks: a multimodal checkpoint such as glm-5.3-flash says nothing in its name). The second kind is
+    marked ``vision_probe`` and is only used once a one-token request with a tiny image succeeds.
+    """
+    out = [item for item in models if item.get("model_type") == capability]
+    if capability != "vision":
+        return out
+    probe: list[dict] = []
+    for item in models:
+        if item.get("model_type") not in (None, "", "llm"):
+            continue
+        seeing = [m for m in (item.get("models_vision") or []) if isinstance(m, str) and m]
+        if seeing:
+            out.append({**item, "models": seeing, "models_extra": []})
+        elif str(item.get("backend") or "").lower() not in _NO_IMAGE_PROBE_BACKENDS and host_scope(item.get("url")) in ("loopback", "lan"):
+            probe.append({**item, "vision_probe": True})
+    return out + probe
 
 
 def api_for_backend(backend: Optional[str]) -> str:
