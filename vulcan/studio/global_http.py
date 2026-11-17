@@ -26,7 +26,7 @@ def select_global(config=None):
     config = config or LinkConfig.load(app='vulcan')
     if not config.faustus_urls:
         raise RuntimeError('No está configurado el servicio global de Faustus.')
-    origin = config.faustus_urls[0].rstrip('/')
+    origin = config.faustus_origin()
     auth = {'Authorization': 'Bearer ' + config.faustus_token} if config.faustus_token else {}
     with _httpx.Client(timeout=10, trust_env=False) as client:
         response = client.get(origin + '/api/global-model', headers=auth)

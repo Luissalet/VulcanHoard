@@ -29,7 +29,7 @@ def transport(monkeypatch, *, selection=None, status=200, backend=None):
         return backend(request) if backend else httpx.Response(200,json={'choices':[{'message':{'content':'{}'},'finish_reason':'stop'}]})
     real_client=httpx.Client
     monkeypatch.setattr(global_http._httpx,'Client',lambda *args,**kwargs:real_client(*args,transport=httpx.MockTransport(handle),**kwargs))
-    monkeypatch.setattr(global_http.LinkConfig,'load',lambda **kwargs:SimpleNamespace(faustus_urls=('http://faustus.invalid','http://wrong-dev.invalid'),faustus_token='fixture-token'))
+    monkeypatch.setattr(global_http.LinkConfig,'load',lambda **kwargs:SimpleNamespace(faustus_urls=('http://faustus.invalid','http://wrong-dev.invalid'),faustus_origin=lambda:'http://faustus.invalid',faustus_token='fixture-token'))
     return calls
 
 

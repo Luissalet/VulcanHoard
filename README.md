@@ -76,7 +76,7 @@ The server binds to 127.0.0.1 and answers only localhost hosts; to reach it from
 
 ## Connection with Faustus and the Hoard Hub
 
-- Vulcan is a Faustus plugin (`faustus-plugin.json`, port 5186) and a member of the Hoard Hub family; it vendors Hoard Link in `vulcan/hoard_link/`.
+- Vulcan is a Faustus plugin (`faustus-plugin.json`, port 5186) and a member of the Hoard Hub family; it vendors Hoard Link in `vulcan/hoard_link/`. The global model is read from wherever Faustus answers, including a Spark when the Hub's "Run on" has moved it there.
 - The floating Faustus button opens the shared copilot panel in every view and passes the current model, folder listing, root or album, filters, selection and form draft. Conversation and execution belong to Faustus. See `docs/copilot.md`.
 - Opened beside a Faustus chat, the page registers `vulcan_project`, `vulcan_filter`, `vulcan_module` and `vulcan_view` through the App Dock.
 - MCP: `mcp_server.py` is a stdio bridge to `GET /api/agent/tools` and `POST /api/agent/call` using the token in `<DATA_DIR>/mcp-token` (`VULCAN_URL`, `VULCAN_TOKEN_FILE`). The catalogue holds more than two hundred tools, grouped as: library (search, info, listings, tags, notes, delete, stats, duplicates, roots, rescan, import, comparison), folder listings and organising, CAD (spec schema, from text, regenerate, design intent, fit), destination inspection and preparation, animation, glTF validation, texturing, code modelling, impostors, rooms, Heron assemblies, spatial analysis, and the modules' own tools. Long names have short aliases. The tool instructions tell the assistant to describe models only from measured data.
