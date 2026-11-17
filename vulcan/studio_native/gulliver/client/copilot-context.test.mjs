@@ -40,3 +40,17 @@ test("edit form and settings", async () => {
   assert.equal(s.active_objects[0].bed_x_mm, 256);
   assert.deepEqual(modelObject(model).centre, [-3.7, 40.42]);
 });
+
+test("area view page describes its crop and layer", async () => {
+  const view = { view_id: "ab12cd34", name: "Plaza", crop: { lon: -5.66, lat: 40.96, width_m: 600, height_m: 400, shape: "rect" }, layer: { id: "viirs", date: "2024-06-15" },
+    model_check: { scale: "1:3.300", model_mm: [180, 120] } };
+  const asked = [];
+  const ctx = await buildContext({ hash: "#/vista?view=ab12cd34", ...deps, getView: async (id) => { asked.push(id); return view; } });
+  assert.deepEqual(asked, ["ab12cd34"]);
+  assert.equal(ctx.view.page, "area-view");
+  assert.equal(ctx.view.object_id, "ab12cd34");
+  assert.deepEqual(ctx.active_objects[0], { kind: "area-view", object_id: "ab12cd34", title: "Plaza", centre: [-5.66, 40.96], ground_m: [600, 400],
+    shape: "rect", layer: "viirs", date: "2024-06-15", scale: "1:3.300", size_mm: [180, 120] });
+  const none = await buildContext({ hash: "#/vista", ...deps, getView: async () => { throw new Error("no view"); } });
+  assert.deepEqual(none.active_objects, []);
+});

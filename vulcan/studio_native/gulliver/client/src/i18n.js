@@ -2,6 +2,7 @@
 // Each entry is [español, English]; `{name}` placeholders are filled by t(key, { name }). A key with an `_one` twin uses it when n is 1.
 
 import PRINTING_STRINGS from "./printing-strings.js";
+import VIEW_STRINGS from "./view-strings.js";
 
 const D = {
   // shell
@@ -528,7 +529,7 @@ export function initialLang() {
   return "es";
 }
 
-Object.assign(D, PRINTING_STRINGS);
+Object.assign(D, PRINTING_STRINGS, VIEW_STRINGS);
 
 export function saveLang(lang) {
   try {

@@ -2,7 +2,7 @@
 // plus a way to refresh the open view when the assistant finishes a turn. Nothing here renders anything.
 import { api } from "./api.js";
 
-const PAGE_NAMES = { "": "library", nueva: "new-model", m: "model", ajustes: "settings" };
+const PAGE_NAMES = { "": "library", nueva: "new-model", vista: "area-view", m: "model", ajustes: "settings" };
 const MAX_MODELS = 8;
 const REFRESH_DEBOUNCE_MS = 250;
 
@@ -35,7 +35,7 @@ async function safe(fn) {
 }
 
 // Pure core (dependencies injected so it can be tested): never throws; unknown ids yield no object.
-export async function buildContext({ hash, editors = [], getList, getModel, getSettings }) {
+export async function buildContext({ hash, editors = [], getList, getModel, getSettings, getView }) {
   const route = parseRoute(hash);
   const page = PAGE_NAMES[route.page] ?? (route.page || "library");
   const active = [];
@@ -55,6 +55,13 @@ export async function buildContext({ hash, editors = [], getList, getModel, getS
       const m = await safe(() => getModel(edit));
       if (m?.id) { view.object_id = m.id; active.push(modelObject(m)); }
     }
+  } else if (route.page === "vista") {
+    const r = await safe(() => getView?.(route.query.get("view") || ""));
+    if (r?.view_id) {
+      view.object_id = r.view_id;
+      active.push({ kind: "area-view", object_id: r.view_id, title: r.name || r.view_id, centre: [r.crop.lon, r.crop.lat], ground_m: [r.crop.width_m, r.crop.height_m],
+        shape: r.crop.shape, layer: r.layer?.id, date: r.layer?.date || undefined, scale: r.model_check?.scale, size_mm: r.model_check?.model_mm });
+    }
   } else if (route.page === "ajustes") {
     const s = await safe(() => getSettings());
     if (s) active.push({ kind: "settings", object_id: "settings", title: "Settings", ...pick(s, ["bed_x_mm", "bed_y_mm", "nozzle_mm", "dem", "export_dir", "vulcan_auto"]) });
@@ -72,6 +79,7 @@ export function context() {
     getList: () => api.call("model_list"),
     getModel: (id) => api.call("model_get", { model_id: id }),
     getSettings: () => api.call("settings_get"),
+    getView: (id) => api.call("area_view_get", { view_id: id }),
   });
 }
 

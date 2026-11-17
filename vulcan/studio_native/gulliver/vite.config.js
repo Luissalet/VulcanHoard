@@ -11,7 +11,7 @@ export default defineConfig({
     chunkSizeWarningLimit: 1200,
     rollupOptions: {
       output: {
-        manualChunks: { three: ['three'], leaflet: ['leaflet'] },
+        manualChunks: { three: ['three'], leaflet: ['leaflet'], maplibre: ['maplibre-gl'] },
       },
     },
   },

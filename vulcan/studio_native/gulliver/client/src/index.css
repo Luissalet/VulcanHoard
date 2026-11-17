@@ -345,6 +345,14 @@ aside .chip { white-space: normal; }
 /* imagery over the area and the model, synthetic terrain panel */
 .map-imagery { position: absolute; z-index: 1000; top: 122px; left: 10px; background: var(--surface); box-shadow: 0 4px 14px #0008; }
 .map-imagery[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.map-3d { position: absolute; z-index: 1000; top: 160px; left: 10px; background: var(--surface); box-shadow: 0 4px 14px #0008; }
+.vista-bar { position: absolute; z-index: 1000; top: 12px; right: 56px; display: flex; gap: 6px; }
+.vista-bar .btn { background: var(--surface); box-shadow: 0 4px 14px #0008; }
+.vista-bar .btn[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.map-layers.seg { flex-wrap: nowrap; }
+.maplibregl-ctrl-top-right { top: 48px; }
+.maplibregl-map { font: inherit; }
+.new-map .gm-map.maplibregl-map { position: absolute; inset: 0; }
 .synth-styles { flex-wrap: wrap; }
 .synth-styles button { flex: 1 1 30%; }
 .synth-preview img { display: block; width: 100%; height: auto; border-radius: var(--hoard-radius); border: 1px solid var(--line); background: var(--surface-2); }

@@ -9,11 +9,14 @@ import Nueva from "./pages/Nueva.jsx";
 import Maqueta from "./pages/Maqueta.jsx";
 import Ajustes from "./pages/Ajustes.jsx";
 
+const Vista = React.lazy(() => import("./pages/Vista.jsx"));   // the 3D map library loads only when the view is opened
+
 export { useApp } from "./context.js";
 
 const PAGES = [
   { path: "", key: "nav_library", icon: ICONS.library, component: Biblioteca },
   { path: "nueva", key: "nav_new", icon: ICONS.map, component: Nueva, full: true },
+  { path: "vista", key: "nav_view", icon: ICONS.layers, component: Vista, full: true },
   { path: "m", key: "nav_library", icon: ICONS.cube, component: Maqueta, hidden: true, parent: "", full: true },
   { path: "ajustes", key: "nav_settings", icon: ICONS.settings, component: Ajustes },
 ];
@@ -150,7 +153,9 @@ export default function App() {
           </div>
         </aside>
         <main id="main" className={`min-w-0 ${page.full ? "main-full" : "px-4 py-4 md:px-7 md:py-6"}`}>
-          <Component key={`${page.path}/${route.param || ""}/${route.query.get("edit") || ""}`} param={route.param} query={route.query} />
+          <React.Suspense fallback={<div className="p-6"><span className="spinner" /> {t("loading")}</div>}>
+            <Component key={`${page.path}/${route.param || ""}/${route.query.get("edit") || ""}/${route.query.get("view") || ""}`} param={route.param} query={route.query} />
+          </React.Suspense>
         </main>
       </div>
       <Toasts toasts={toasts} onClose={closeToast} />

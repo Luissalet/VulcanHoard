@@ -10,6 +10,16 @@ import { num } from "../format.js";
 import { MAX_TRACK_BYTES, frameBox, summariseTrack } from "../track.js";
 
 const START = { lon: -3.7038, lat: 40.4168, width_m: 2000, height_m: 2000 };
+
+// lon, lat, width_m, height_m and shape in the address: the crop chosen in the area view
+function cropFromQuery(query) {
+  const lon = Number(query.get("lon")), lat = Number(query.get("lat"));
+  if (!query.get("lon") || !query.get("lat") || !Number.isFinite(lon) || !Number.isFinite(lat)) return null;
+  const crop = { lon, lat };
+  for (const k of ["width_m", "height_m"]) if (query.get(k) && Number.isFinite(Number(query.get(k)))) crop[k] = Number(query.get(k));
+  if (["rect", "rounded", "circle", "hexagon"].includes(query.get("shape"))) crop.shape = query.get("shape");
+  return crop;
+}
 const SHAPES = ["rect", "rounded", "circle", "hexagon"];
 const PRESET_KEYS = ["city", "landscape", "relief"];
 
@@ -90,7 +100,8 @@ export default function Nueva({ query }) {
         setFlyTo(boxAround(m.params));
       } else {
         const pr = s.default_preset || "city";
-        const start = { ...p.defaults, ...(p.presets[pr] || {}), ...START, ...(last || {}), dem: s.dem || "auto" };
+        const fromView = cropFromQuery(query);        // the crop framed in the area view is the area of the model
+        const start = { ...p.defaults, ...(p.presets[pr] || {}), ...START, ...(last || {}), ...(fromView || {}), dem: s.dem || "auto" };
         setForm(start);
         setBase(start);
         setPreset(pr);
@@ -243,6 +254,10 @@ export default function Nueva({ query }) {
             <button key={k} type="button" aria-pressed={layer === k} onClick={() => setLayer(k)}>{t(`layer_${k}`)}</button>
           ))}
         </div>
+        <a className="btn btn-sm map-3d" data-testid="open-3d" title={t("v_open_3d")}
+          href={`#/vista?${new URLSearchParams({ lon: form.lon, lat: form.lat, width_m: form.width_m, height_m: form.height_m, shape: form.shape || "rect" })}`}>
+          <Icon d={ICONS.cube} size={14} /> {t("v_open_3d")}
+        </a>
         <button type="button" className="btn btn-sm btn-icon map-fit" onClick={() => setFlyTo(boxAround(form))} aria-label={t("map_fit")} title={t("map_fit")}>
           <Icon d={ICONS.target} size={15} />
         </button>
