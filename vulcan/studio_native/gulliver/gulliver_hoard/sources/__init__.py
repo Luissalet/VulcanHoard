@@ -34,6 +34,10 @@ class Sources:
             rounds: int = 3) -> dict[str, Any]:
         return _osm.fetch_raw(self.fetcher, bbox, self.overpass_servers, progress=progress, cancelled=cancelled, rounds=rounds)
 
+    def osm_indoor(self, bbox, *, progress: Optional[Callable[[str], None]] = None) -> dict[str, Any]:
+        """OpenStreetMap's ``indoor=*`` ways over the area (the floors of the area view)."""
+        return _osm.fetch_indoor(self.fetcher, bbox, self.overpass_servers, progress=progress)
+
     def catastro(self, bbox, *, progress: Optional[Callable[[str], None]] = None,
                  cancelled: Optional[Callable[[], bool]] = None) -> Optional[list[dict[str, Any]]]:
         """Building parts from the Spanish cadastre, or None where it has no data."""

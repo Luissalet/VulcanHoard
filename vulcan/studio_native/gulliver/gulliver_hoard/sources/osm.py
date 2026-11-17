@@ -220,6 +220,21 @@ def fetch_raw(fetcher: Fetcher, bbox: tuple[float, float, float, float], servers
     raise last
 
 
+def fetch_indoor(fetcher: Fetcher, bbox: tuple[float, float, float, float], servers: Iterable[str] = DEFAULT_SERVERS,
+                 progress: Optional[Callable[[str], None]] = None, max_age_days: float = 7.0) -> dict[str, Any]:
+    """The ways tagged ``indoor=*`` inside the box (rooms, corridors, areas), for the area view's floors."""
+    from ..indoor import build_query as indoor_query
+    query = indoor_query(bbox)
+    cache_key = "overpass-indoor\n" + query
+    hit = fetcher.cached("overpass", cache_key, ".json", max_age_days * 86400)
+    if hit is not None:
+        return json.loads(hit)
+    servers = list(servers)
+    if not servers:
+        raise GulliverError("invalid", "No Overpass server is configured.", "Add one in the settings.")
+    return _race(fetcher, query, cache_key, servers, progress, None, STAGGER_S)
+
+
 def _race(fetcher: Fetcher, query: str, cache_key: str, servers: list[str], progress: Optional[Callable[[str], None]],
           cancelled: Optional[Callable[[], bool]], stagger_s: float) -> dict[str, Any]:
     pending = list(servers)

@@ -6215,7 +6215,7 @@
       "properties": {
         "params": {
           "$ref": "#/$defs/ParamsPatch",
-          "description": "At least lon and lat; the rest as for model_create."
+          "description": "At least lon and lat (or a view_id); the rest as for model_create."
         },
         "preset": {
           "anyOf": [
@@ -6239,11 +6239,15 @@
           "description": "Also download (or read from the cache) the map data and count what is there.",
           "title": "Fetch Features",
           "type": "boolean"
+        },
+        "view_id": {
+          "default": "",
+          "description": "An area view (area_view): its crop is the area; explicit params win.",
+          "maxLength": 32,
+          "title": "View Id",
+          "type": "string"
         }
       },
-      "required": [
-        "params"
-      ],
       "title": "CheckArgs",
       "type": "object"
     },
@@ -7600,18 +7604,22 @@
         },
         "params": {
           "$ref": "#/$defs/ParamsPatch",
-          "description": "lon and lat are required; width_m/height_m the ground size; anything else optional."
+          "description": "lon and lat are required unless view_id is given; width_m/height_m the ground size; anything else optional."
         },
         "build": {
           "default": true,
           "description": "Start building right away (a job).",
           "title": "Build",
           "type": "boolean"
+        },
+        "view_id": {
+          "default": "",
+          "description": "An area view (area_view): its crop (centre, ground size, shape) is the area, so lon/lat can be left out; explicit params win.",
+          "maxLength": 32,
+          "title": "View Id",
+          "type": "string"
         }
       },
-      "required": [
-        "params"
-      ],
       "title": "CreateArgs",
       "type": "object"
     },
@@ -11262,6 +11270,277 @@
     },
     "module": "gulliver",
     "native_name": "synth_terrain"
+  },
+  {
+    "name": "gulliver_area_view",
+    "description": "Open or change the 3D view of an area (place name or lon/lat) and get the page to look at. Vista del área.\nRelief, buildings extruded at their heights, pictures by date (Sentinel-2 by year, NASA by day), measuring on the curved Earth, floors where there is interior data. The page edits the crop; model_create with view_id builds exactly that crop. fetch=true also counts what the view will show.\nSinónimos: vista 3d, vista previa del área, mapa 3d, SIG, recorte, ver la zona, plantas, interiores, medir",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": true
+    },
+    "inputSchema": {
+      "properties": {
+        "view_id": {
+          "default": "",
+          "description": "Change this view; empty creates a new one (it becomes the current view).",
+          "maxLength": 32,
+          "title": "View Id",
+          "type": "string"
+        },
+        "place": {
+          "default": "",
+          "description": "A place name to centre on (used when lon/lat are not given).",
+          "maxLength": 300,
+          "title": "Place",
+          "type": "string"
+        },
+        "lon": {
+          "anyOf": [
+            {
+              "maximum": 180,
+              "minimum": -180,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Centre longitude of the crop.",
+          "title": "Lon"
+        },
+        "lat": {
+          "anyOf": [
+            {
+              "maximum": 84,
+              "minimum": -84,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Centre latitude of the crop.",
+          "title": "Lat"
+        },
+        "width_m": {
+          "anyOf": [
+            {
+              "maximum": 200000,
+              "minimum": 50,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Ground width east-west in metres.",
+          "title": "Width M"
+        },
+        "height_m": {
+          "anyOf": [
+            {
+              "maximum": 200000,
+              "minimum": 50,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Ground height north-south in metres.",
+          "title": "Height M"
+        },
+        "shape": {
+          "anyOf": [
+            {
+              "enum": [
+                "rect",
+                "circle",
+                "hexagon",
+                "rounded"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Shape"
+        },
+        "layer": {
+          "anyOf": [
+            {
+              "enum": [
+                "osm",
+                "topo",
+                "esri",
+                "s2cloudless",
+                "viirs",
+                "modis"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Picture under the buildings: osm, topo, esri (satellite), s2cloudless (Sentinel-2, by year), viirs / modis (NASA, by day).",
+          "title": "Layer"
+        },
+        "date": {
+          "default": "",
+          "description": "s2cloudless: a year (2016-2025); viirs/modis: YYYY-MM-DD. Empty = the newest.",
+          "maxLength": 10,
+          "title": "Date",
+          "type": "string"
+        },
+        "terrain_exag": {
+          "anyOf": [
+            {
+              "maximum": 10,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Vertical exaggeration of the relief in the view.",
+          "title": "Terrain Exag"
+        },
+        "indoor": {
+          "anyOf": [
+            {
+              "maxLength": 1000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Interior data: auto/osm (the indoor tags of OpenStreetMap), none, or the path of an IMDF archive (.zip) or folder, or an IndoorGML file.",
+          "title": "Indoor"
+        },
+        "indoor_crs": {
+          "anyOf": [
+            {
+              "maxLength": 60,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Coordinate system of an IndoorGML file in projected metres, e.g. EPSG:25830.",
+          "title": "Indoor Crs"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "maxLength": 120,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "fetch": {
+          "default": false,
+          "description": "Also count the buildings and floors the view will show (downloads map data).",
+          "title": "Fetch",
+          "type": "boolean"
+        }
+      },
+      "title": "AreaViewArgs",
+      "type": "object"
+    },
+    "module": "gulliver",
+    "native_name": "area_view"
+  },
+  {
+    "name": "gulliver_area_view_get",
+    "description": "Read a view back: the crop as the person left it, layer, date and (fetch) what it shows. Leer vista.\nSinónimos: recorte elegido, qué zona, estado de la vista",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
+    "inputSchema": {
+      "properties": {
+        "view_id": {
+          "default": "",
+          "description": "Empty = the current view.",
+          "maxLength": 32,
+          "title": "View Id",
+          "type": "string"
+        },
+        "fetch": {
+          "default": false,
+          "description": "Also count the buildings and the floors of the interior data.",
+          "title": "Fetch",
+          "type": "boolean"
+        }
+      },
+      "title": "AreaViewGetArgs",
+      "type": "object"
+    },
+    "module": "gulliver",
+    "native_name": "area_view_get"
+  },
+  {
+    "name": "gulliver_area_measure",
+    "description": "Distance and area between points on the curved Earth (WGS84 ellipsoid). Medir.\nSegments with azimuth, total length; closed=true adds perimeter and area. Also returns the curved path.\nSinónimos: distancia, longitud, superficie, ruta, geodésica",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "properties": {
+        "points": {
+          "description": "[[lon, lat], ...] in order.",
+          "items": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array"
+          },
+          "maxItems": 2000,
+          "minItems": 2,
+          "title": "Points",
+          "type": "array"
+        },
+        "closed": {
+          "default": false,
+          "description": "Close the ring: adds perimeter and area.",
+          "title": "Closed",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "points"
+      ],
+      "title": "MeasureArgs",
+      "type": "object"
+    },
+    "module": "gulliver",
+    "native_name": "area_measure"
   },
   {
     "name": "gulliver_cache_info",

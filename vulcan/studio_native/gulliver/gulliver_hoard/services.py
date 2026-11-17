@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from . import APP_ID, __version__
+from .area_view import Views
 from .config import Config, Settings
 from .errors import GulliverError
 from .geo import format_coord, nice_scale
@@ -57,7 +58,8 @@ class Services:
         else:
             self.sources = Sources(self.fetcher, overpass_servers=self.settings["overpass_servers"])
         self.projects = Projects(config.projects_dir)
-        self.jobs = Jobs(config.jobs_path, background=config.background, on_change=self._job_changed)
+        self.views = Views(config.data_dir / "views")
+        self.jobs =Jobs(config.jobs_path, background=config.background, on_change=self._job_changed)
         self._events: deque[dict[str, Any]] = deque(maxlen=300)
         self._lock = threading.RLock()
 

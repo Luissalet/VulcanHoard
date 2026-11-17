@@ -10,7 +10,7 @@ import httpx
 
 from test_e2e import ROOT, app_process  # noqa: F401 - the shared subprocess fixture
 
-NEW = ("gulliver_area_imagery", "gulliver_model_imagery", "gulliver_synth_terrain")
+NEW = ("gulliver_area_imagery", "gulliver_model_imagery", "gulliver_synth_terrain", "gulliver_area_view", "gulliver_area_view_get", "gulliver_area_measure")
 
 
 def _gulliver_rows():
@@ -55,6 +55,11 @@ def test_cold_discovery_then_explicit_activation_through_the_stdio_bridge(app_pr
                 synth_args = tools["gulliver_synth_terrain"].inputSchema["properties"]
                 assert {"style", "seed", "width_m", "height_m", "create"} <= set(synth_args)
                 assert {"mountains", "ridged", "dunes", "terraced", "islands"} <= set(synth_args["style"]["enum"])
+                view_args = tools["gulliver_area_view"].inputSchema["properties"]
+                assert {"place", "lon", "lat", "width_m", "height_m", "shape", "layer", "date", "indoor"} <= set(view_args)
+                assert {"viirs", "s2cloudless", "esri"} <= set(view_args["layer"]["anyOf"][0]["enum"])
+                assert tools["gulliver_area_measure"].inputSchema["required"] == ["points"]
+                assert tools["gulliver_area_measure"].annotations.readOnlyHint is True
                 # listing and a call while OFF never start the module nor create its store
                 off = await session.call_tool("gulliver_synth_terrain", {"style": "dunes", "seed": 9})
                 assert off.isError and "409" in off.content[0].text  # module_disabled, as the bridge reports it
@@ -71,6 +76,17 @@ def test_cold_discovery_then_explicit_activation_through_the_stdio_bridge(app_pr
                     assert out["spec"]["style"] == "islands" and out["spec"]["seed"] == 7
                     assert out["stats"]["max_m"] > 0 > out["stats"]["min_m"]
                     assert "/api/synth/preview.png?" in out["preview_url"]
+                    # the area view through the same bridge: a view is opened, measured on the ellipsoid and handed to the model
+                    opened = await call("gulliver_area_view", {"lon": 2.2945, "lat": 48.8584, "width_m": 700, "height_m": 500, "shape": "rounded",
+                                                               "layer": "viirs", "date": "2024-06-15"})
+                    assert opened["url"].endswith(f"/#/vista?view={opened['view_id']}") and opened["layer"]["date"] == "2024-06-15"
+                    assert opened["crop"] == {"lon": 2.2945, "lat": 48.8584, "width_m": 700.0, "height_m": 500.0, "shape": "rounded"}
+                    back = await call("gulliver_area_view_get", {"view_id": opened["view_id"]})
+                    assert back["crop"] == opened["crop"] and back["model_check"]["scale"].startswith("1:")
+                    walk = await call("gulliver_area_measure", {"points": [[2.2945, 48.8584], [2.3376, 48.8606]]})
+                    assert 3100 < walk["length_m"] < 3300 and walk["segments"][0]["azimuth_deg"] > 80
+                    draft = await call("gulliver_model_create", {"view_id": opened["view_id"], "params": {"size_mm": 100}, "build": False})
+                    assert (draft["params"]["lon"], draft["params"]["lat"], draft["params"]["width_m"], draft["params"]["shape"]) == (2.2945, 48.8584, 700.0, "rounded")
                     missing = await session.call_tool("gulliver_model_imagery", {"model_id": "invented-model"})
                     assert missing.isError
                 finally:

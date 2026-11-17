@@ -61,6 +61,24 @@ class FakeSources:
             progress("Demo OpenStreetMap")
         return town(proj)
 
+    def osm_indoor(self, bbox, *, progress: Optional[Callable[[str], None]] = None) -> dict[str, Any]:
+        """Rooms and a corridor on three floors inside the demo school (the ``indoor=*`` ways of a mapped building plan)."""
+        proj = Projector((bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2)
+        els: list[dict[str, Any]] = []
+
+        def room(x0, y0, x1, y1, tags):
+            pts = [(x0, y0), (x1, y0), (x1, y1), (x0, y1), (x0, y0)]
+            geometry = [dict(zip(("lon", "lat"), (round(v, 8) for v in proj.inv(x, y)))) for x, y in pts]
+            els.append({"type": "way", "id": 800000 + len(els), "tags": tags, "geometry": geometry})
+
+        for level in ("0", "1", "2"):
+            room(-286, 330, -214, 340, {"indoor": "corridor", "level": level})
+            room(-286, 340, -250, 370, {"indoor": "room", "level": level, "name": f"Aula {level}A", "ref": f"{level}A"})
+            room(-250, 340, -214, 370, {"indoor": "room", "level": level, "name": f"Aula {level}B", "ref": f"{level}B"})
+        room(-286, 330, -214, 370, {"indoor": "room", "level": "-1", "name": "Sótano"})
+        room(-280, 332, -220, 338, {"indoor": "area", "level": "0;1", "name": "Vestíbulo"})
+        return {"version": 0.6, "generator": "gulliver-demo", "elements": els}
+
     def search(self, query: str, limit: int = 6, language: str = "es") -> list[dict[str, Any]]:
         q = (query or "").lower()
         hits = [p for p in PLACES if not q or any(w in p["name"].lower() for w in q.split())]
