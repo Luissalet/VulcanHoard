@@ -12,6 +12,65 @@ from vulcan.articulation.tools import Build
 from vulcan.blender_render import find_blender
 
 
+@pytest.mark.skipif(find_blender() is None, reason="Blender is not installed")
+def test_viewer_ray_identifies_a_selectable_source_face(services, tmp_path):
+    source = tmp_path / "source.glb"
+    trimesh.creation.box().export(source)
+    digest = sha256(source.read_bytes()).hexdigest()
+    args = {"source": str(source), "source_sha256": digest, "origin": [0.12, 0.24, 2], "direction": [0, 0, -1]}
+    hit = call_tool(services, "articulation_pick", args)
+    assert hit["sha256"] == digest
+    assert hit["point"] == pytest.approx([0.12, 0.24, 0.5])
+    assert hit["face_ranges"] == [[hit["source_face"], hit["source_face"]]]
+    visible_hit = call_tool(services, "articulation_pick", {**args, "point": [0.12, 0.24, -0.5]})
+    assert visible_hit["source_face"] != hit["source_face"]
+    assert visible_hit["point"] == pytest.approx([0.12, 0.24, -0.5])
+    result = call_tool(services, "articulation_build", {
+        "source": str(source), "source_sha256": digest, "selection_views": False,
+        "parts": [{"name": "hit", "select": {"face_ranges": hit["face_ranges"]}}],
+    })
+    assert result["parts"]["hit"]["source_faces"] == 1
+
+
+@pytest.mark.skipif(find_blender() is None, reason="Blender is not installed")
+def test_pinned_reconstruction_and_game_keep_bones_pivots_and_budget(services, tmp_path):
+    source = tmp_path / "source.glb"
+    replacement = tmp_path / "replacement.glb"
+    trimesh.creation.icosphere(subdivisions=2).export(source)
+    trimesh.creation.box().export(replacement)
+    revision = sha256(replacement.read_bytes()).hexdigest()
+    result = call_tool(services, "articulation_build", {
+        "source": str(source), "selection_views": False, "game_triangle_budget": 80,
+        "bones": [{"name": "root", "head": [0, 0, 0], "tail": [0, 0, 1]},
+                  {"name": "grip", "parent": "root", "head": [0.2, 0.3, 0.4], "tail": [0.2, 0.3, 0.6]}],
+        "body_bone": "root",
+        "reconstructions": [{"name": "hand", "path": str(replacement), "sha256": revision,
+                              "anchor": [0.2, 0.3, 0.4], "bone": "grip", "reference": "Wrist boundary"}],
+        "panels": [{"name": "map", "outline": [[0, 0, 0], [1, 0, 0], [0, 1, 0]], "thickness": 0.01,
+                    "rgb": [0.5, 0.5, 0.5], "bone": "grip", "pivot": [0.2, 0.3, 0.4], "reference": "Scene map",
+                    "source_object": {"ref": "hoard://writer/project/map", "revision": "a" * 64,
+                                      "dimensions_m": [0.6, 0.45], "finish": "parchment"}}],
+        "poses": [{"name": "turned", "rotations": {"grip": [0, 90, 0]}, "cameras": []}],
+    })
+    assert result["parts"]["hand"]["lineage"] == "reconstructed"
+    assert result["parts"]["hand"]["sha256"] == revision
+    assert result["parts"]["map"]["source_object"]["grip"] == [0.2, 0.3, 0.4]
+    game = result["game"]
+    assert game["triangles"] <= 80 and set(game["pieces"]) == {"body", "hand", "map"}
+    assert game["joints"][1]["pivot"] == pytest.approx([0.2, 0.4, -0.3])
+    assert game["joints"][1]["parent"] == "root"
+    assert game["pose_seconds"]["turned"] == pytest.approx(25 / 24)
+    with open(result["files"]["game"], "rb") as stream:
+        stream.seek(12)
+        size = int.from_bytes(stream.read(4), "little")
+        stream.read(4)
+        gltf = json.loads(stream.read(size))
+    assert len(gltf["skins"][0]["joints"]) == 2
+    assert len(gltf["meshes"]) == 3 and gltf["animations"]
+    assert sum(gltf["accessors"][p["indices"]]["count"] // 3
+               for mesh in gltf["meshes"] for p in mesh["primitives"]) == game["triangles"]
+
+
 def test_seam_routes_along_boundary_and_keeps_a_shared_vertex():
     vertices = np.array([[0, 0], [1, 0], [2, 0], [1, 1], [1, -1]])
     cut = np.array([[0, 1], [1, 2], [1, 3], [3, 4], [1, 4]])

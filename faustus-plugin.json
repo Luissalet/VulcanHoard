@@ -158,6 +158,7 @@
     "production": {
       "handoffs": [
         {"accepts": "character-sheet", "produces": ["reference-mesh"], "skill": "web-3d-asset-pipeline", "check": {"en": "Open the exported GLB, inspect several angles and check silhouette, background and fused parts.", "es": "Abre el GLB exportado, inspecciona varios ángulos y comprueba la silueta, el fondo y las piezas fusionadas."}},
+        {"accepts": "reference-mesh", "produces": ["articulated-mesh", "game-asset", "posed-figure-mesh"], "skill": "blender-asset-production", "check": {"en": "Replay the joint range from the same camera, inspect contacts and check the game triangle budget.", "es": "Reproduce el recorrido de las juntas con la misma cámara, inspecciona los contactos y comprueba el presupuesto de triángulos para juego."}},
         {"accepts": "coloured-3mf", "produces": ["mesh-validation"], "skill": "print-ready-3d-model", "check": {"en": "Measure the exported mesh, inspect non-manifold edges and send the file to the slicer for a separate check.", "es": "Mide la malla exportada, inspecciona las aristas no manifold y abre el fichero en el laminador para una comprobación aparte."}}
       ]
     },

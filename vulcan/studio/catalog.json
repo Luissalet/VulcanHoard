@@ -17103,6 +17103,52 @@
           "title": "Colour",
           "type": "object"
         },
+        "ObjectReference": {
+          "additionalProperties": false,
+          "properties": {
+            "ref": {
+              "maxLength": 500,
+              "minLength": 1,
+              "title": "Ref",
+              "type": "string"
+            },
+            "revision": {
+              "pattern": "^[0-9a-fA-F]{64}$",
+              "title": "Revision",
+              "type": "string"
+            },
+            "dimensions_m": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                }
+              ],
+              "title": "Dimensions M",
+              "type": "array"
+            },
+            "finish": {
+              "maxLength": 500,
+              "minLength": 1,
+              "title": "Finish",
+              "type": "string"
+            }
+          },
+          "required": [
+            "ref",
+            "revision",
+            "dimensions_m",
+            "finish"
+          ],
+          "title": "ObjectReference",
+          "type": "object"
+        },
         "Panel": {
           "additionalProperties": false,
           "properties": {
@@ -17206,6 +17252,18 @@
               ],
               "default": null,
               "title": "Pivot"
+            },
+            "source_object": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ObjectReference"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Pinned dossier object and finish. / Objeto fijado del expediente y acabado."
             }
           },
           "required": [
@@ -17402,6 +17460,72 @@
           "title": "Pose",
           "type": "object"
         },
+        "Reconstruction": {
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,47}$",
+              "title": "Name",
+              "type": "string"
+            },
+            "path": {
+              "description": "Triangulated GLB in source coordinates and metres.",
+              "title": "Path",
+              "type": "string"
+            },
+            "sha256": {
+              "pattern": "^[0-9a-fA-F]{64}$",
+              "title": "Sha256",
+              "type": "string"
+            },
+            "reference": {
+              "maxLength": 500,
+              "minLength": 1,
+              "title": "Reference",
+              "type": "string"
+            },
+            "bone": {
+              "anyOf": [
+                {
+                  "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,47}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Bone"
+            },
+            "anchor": {
+              "description": "Connection point in source space. / Anclaje en el espacio de origen.",
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "title": "Anchor",
+              "type": "array"
+            }
+          },
+          "required": [
+            "name",
+            "path",
+            "sha256",
+            "reference",
+            "anchor"
+          ],
+          "title": "Reconstruction",
+          "type": "object"
+        },
         "Seed": {
           "additionalProperties": false,
           "properties": {
@@ -17596,6 +17720,14 @@
           "title": "Panels",
           "type": "array"
         },
+        "reconstructions": {
+          "items": {
+            "$ref": "#/$defs/Reconstruction"
+          },
+          "maxItems": 16,
+          "title": "Reconstructions",
+          "type": "array"
+        },
         "bones": {
           "items": {
             "$ref": "#/$defs/Bone"
@@ -17710,6 +17842,21 @@
           "default": true,
           "title": "Selection Views",
           "type": "boolean"
+        },
+        "game_triangle_budget": {
+          "anyOf": [
+            {
+              "maximum": 10000000,
+              "minimum": 4,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Additional skinned game GLB with a triangle limit. / GLB adicional de juego con límite de triángulos.",
+          "title": "Game Triangle Budget"
         }
       },
       "required": [
@@ -17812,5 +17959,101 @@
       "title": "Undo",
       "type": "object"
     }
+  },
+  {
+    "module": "library",
+    "native_name": "articulation_pick",
+    "name": "articulation_pick",
+    "description": "Resolve a viewer ray to a source face. Resuelve un rayo del visor a una cara de origen.",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "source_sha256": {
+          "pattern": "^[0-9a-fA-F]{64}$",
+          "title": "Source Sha256",
+          "type": "string"
+        },
+        "origin": {
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Origin",
+          "type": "array"
+        },
+        "direction": {
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Direction",
+          "type": "array"
+        },
+        "point": {
+          "anyOf": [
+            {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Visible impact from the viewer. / Punto de impacto visible en el visor.",
+          "title": "Point"
+        }
+      },
+      "required": [
+        "source",
+        "source_sha256",
+        "origin",
+        "direction"
+      ],
+      "title": "SourcePick",
+      "type": "object",
+      "x-timeout-s": 90.0
+    },
+    "x-timeout-s": 90.0
   }
 ]

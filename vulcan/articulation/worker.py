@@ -114,6 +114,101 @@ def frozen_pose(path, objects, collection):
         bpy.data.meshes.remove(mesh)
 
 
+def game_export(path, rig, objects, budget, animation):
+    counts = {name: len(obj.data.polygons) for name, (obj, _) in objects.items()}
+    # Allocate the spare triangles proportionally after reserving small accessories and a mesh per joint.
+    minimums = {name: min(count, 32) for name, count in counts.items()}
+    reserved = sum(minimums.values())
+    if reserved > budget:
+        raise ValueError("The game budget cannot retain all pieces. / El presupuesto de juego no permite conservar todas las piezas.")
+    if sum(counts.values()) > budget:
+        # Inferred scans can stall above the requested collapse ratio at seams.
+        # Retry from the same geometry with a smaller ratio when that happens.
+        originals = {name: obj.data.copy() for name, (obj, _) in objects.items() if counts[name] > minimums[name]}
+        fraction = (budget - reserved) / (sum(counts.values()) - reserved)
+        try:
+            reduce_game_pieces(objects, counts, minimums, fraction * 0.96)
+            if sum(counts.values()) > budget:
+                for name, original in originals.items():
+                    obj = objects[name][0]
+                    failed = obj.data
+                    obj.data = original
+                    counts[name] = len(original.polygons)
+                    bpy.data.meshes.remove(failed)
+                reduce_game_pieces(objects, counts, minimums, fraction * 0.32)
+        finally:
+            for original in originals.values():
+                if original.users == 0:
+                    bpy.data.meshes.remove(original)
+    triangles = sum(counts.values())
+    if not all(counts.values()) or triangles > budget:
+        raise ValueError(f"The game mesh did not meet its triangle budget. / La malla de juego no cumple el límite de triángulos. "
+                         f"{triangles}/{budget}; {counts}")
+    export_glb(path, [rig, *(obj for obj, _ in objects.values())], animation)
+    return {"triangle_budget": budget, "triangles": triangles, "pieces": counts,
+            "coordinate_system": "glTF Y-up metres",
+            "joints": [{"name": b.name, "parent": b.parent.name if b.parent else None,
+                        "pivot": gltf_vector(b.head_local), "axis": gltf_vector((b.tail_local - b.head_local).normalized())}
+                       for b in rig.data.bones] if rig.type == "ARMATURE" else []}
+
+
+def reduce_game_pieces(objects, counts, minimums, fraction):
+    for name, (obj, _) in objects.items():
+        count = counts[name]
+        target = minimums[name] + int((count - minimums[name]) * fraction)
+        if target == count:
+            continue
+        bpy.context.view_layer.objects.active = obj
+        reduction = obj.modifiers.new("Game triangles", "DECIMATE")
+        reduction.ratio = target / count
+        reduction.use_collapse_triangulate = True
+        bpy.ops.object.modifier_move_to_index(modifier=reduction.name, index=0)
+        bpy.ops.object.modifier_apply(modifier=reduction.name)
+        counts[name] = len(obj.data.polygons)
+
+
+def gltf_vector(vector):
+    return [vector.x, vector.z, -vector.y]
+
+
+def load_source(path):
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    bpy.ops.import_scene.gltf(filepath=str(path))
+    imported = list(bpy.context.scene.objects)
+    meshes = [obj for obj in imported if obj.type == "MESH"]
+    if len(meshes) != 1 or any(obj.type == "ARMATURE" for obj in imported):
+        raise ValueError("Use a GLB with one unrigged inferred mesh.")
+    original = meshes[0]
+    bake_world(original)
+    return original, imported
+
+
+def bake_world(obj):
+    world = obj.matrix_world.copy()
+    obj.parent = None
+    obj.matrix_world = Matrix.Identity(4)
+    obj.data.transform(world)
+    if world.is_negative:
+        obj.data.flip_normals()
+
+
+def reconstruction_mesh(path):
+    existing = set(bpy.context.scene.objects)
+    bpy.ops.import_scene.gltf(filepath=str(path))
+    imported = set(bpy.context.scene.objects) - existing
+    meshes = [obj for obj in imported if obj.type == "MESH"]
+    if len(meshes) != 1 or any(obj.type == "ARMATURE" for obj in imported):
+        raise ValueError("A reconstruction must contain one unrigged mesh.")
+    obj = meshes[0]
+    if not len(obj.data.polygons) or any(len(face.vertices) != 3 for face in obj.data.polygons):
+        raise ValueError("A reconstruction must be triangulated.")
+    bake_world(obj)
+    mesh = obj.data
+    for old in imported:
+        bpy.data.objects.remove(old, do_unlink=True)
+    return mesh
+
+
 def cameras(scene, recipe, source):
     specs = recipe["cameras"] or [{"name": "front", "direction": (0, -1, 0.10)},
                                  {"name": "back", "direction": (0, 1, 0.10)}]
@@ -161,9 +256,11 @@ def collection(scene, name):
 
 
 def validate(recipe):
-    pieces = ["body"] + [part["name"] for part in recipe["parts"] + recipe["panels"]]
+    reconstructions = recipe.get("reconstructions", [])
+    all_parts = recipe["parts"] + recipe["panels"] + reconstructions
+    pieces = ["body"] + [part["name"] for part in all_parts]
     bones = {bone["name"]: bone["parent"] for bone in recipe["bones"]}
-    poses = ["rest", "source", "source-neutral", "selection", "scene", "rigged", "lineage", "recipe"] + [pose["name"] for pose in recipe["poses"]]
+    poses = ["rest", "source", "source-neutral", "selection", "scene", "rigged", "lineage", "recipe", "game"] + [pose["name"] for pose in recipe["poses"]]
     for names in (pieces, [bone["name"] for bone in recipe["bones"]], poses,
                   [camera["name"] for camera in recipe["cameras"]]):
         if len(names) != len(set(name.casefold() for name in names)):
@@ -176,7 +273,7 @@ def validate(recipe):
                 raise ValueError("Bone parents must exist and form a hierarchy.")
             visited.add(cursor)
             cursor = bones[cursor]
-    visible = {"body"} | {part["name"] for part in recipe["parts"] + recipe["panels"] if not part.get("discard")}
+    visible = {"body"} | {part["name"] for part in all_parts if not part.get("discard")}
     retained = {"body"} | {part["name"] for part in recipe["parts"] if not part["discard"]}
     repaired = set()
     for pair in recipe.get("seam_repairs", ()):
@@ -185,7 +282,7 @@ def validate(recipe):
             raise ValueError("Each repaired seam must name two distinct retained source pieces once. / Cada encastre debe indicar dos piezas de origen conservadas una sola vez.")
         repaired.add(seam)
     camera_names = {camera["name"] for camera in recipe["cameras"]} or {"front", "back"}
-    bindings = [recipe["body_bone"]] + [part["bone"] for part in recipe["parts"] + recipe["panels"]]
+    bindings = [recipe["body_bone"]] + [part["bone"] for part in all_parts]
     if any(bone not in bones for bone in bindings if bone is not None):
         raise ValueError("Every piece binding must name a bone in this recipe.")
     for pose in recipe["poses"]:
@@ -198,20 +295,8 @@ def validate(recipe):
 
 def main(source_path, recipe, output, digest):
     validate(recipe)
-    bpy.ops.wm.read_factory_settings(use_empty=True)
-    bpy.ops.import_scene.gltf(filepath=str(source_path))
+    original, imported = load_source(source_path)
     scene = bpy.context.scene
-    imported = list(scene.objects)
-    meshes = [obj for obj in imported if obj.type == "MESH"]
-    if len(meshes) != 1 or any(obj.type == "ARMATURE" for obj in imported):
-        raise ValueError("Use a GLB with one unrigged inferred mesh.")
-    original = meshes[0]
-    world = original.matrix_world.copy()
-    original.parent = None
-    original.matrix_world = Matrix.Identity(4)
-    original.data.transform(world)
-    if world.is_negative:
-        original.data.flip_normals()
     original.name = "Source reference"
     original.show_wire = True
     original["source_sha256"] = digest
@@ -267,6 +352,16 @@ def main(source_path, recipe, output, digest):
                         "outline_corners": len(panel["outline"]), "bone": panel["bone"], "pivot": panel["pivot"],
                         "boundary_edges": 0, "nonmanifold_edges": 0}
         lineage[name] = {"reference": panel["reference"], "added_faces": len(mesh.polygons)}
+        if panel.get("source_object"):
+            reference = {**panel["source_object"], "grip": panel["pivot"], "outline": panel["outline"]}
+            lineage[name]["source_object"] = pieces[name]["source_object"] = reference
+    for reconstruction in recipe.get("reconstructions", ()):
+        name = reconstruction["name"]
+        mesh = reconstruction_mesh(source_path.parent / "reconstructions" / (name + ".glb"))
+        attach(mesh, name, reconstruction["anchor"], objects, parts_collection, reconstruction["bone"], "reconstructed")
+        link = {key: reconstruction[key] for key in ("sha256", "reference", "anchor", "bone")}
+        lineage[name] = {**link, "added_faces": len(mesh.polygons)}
+        pieces[name] = {**link, "lineage": "reconstructed", "faces": len(mesh.polygons)}
     (output / "lineage.json").write_text(json.dumps(lineage, ensure_ascii=False), encoding="utf-8")
     rig = place_bones(recipe, parts_collection, objects)
     scene.render.engine = "BLENDER_WORKBENCH"
@@ -314,12 +409,20 @@ def main(source_path, recipe, output, digest):
     scene.render.filepath = "//articulation.png"
     bpy.ops.wm.save_as_mainfile(filepath=str(output / exports["scene"]))
     export_glb(output / exports["rigged"], [rig, *(obj for obj, _ in objects.values())], len(poses) > 1)
+    game = None
+    if recipe.get("game_triangle_budget"):
+        exports["game"] = "game.glb"
+        game = game_export(output / exports["game"], rig, objects, recipe["game_triangle_budget"], len(poses) > 1)
+        seconds_per_frame = scene.render.fps_base / scene.render.fps
+        game["pose_seconds"] = {mark.name: mark.frame * seconds_per_frame for mark in scene.timeline_markers}
     receipt = {"ok": True, "source": {"path": recipe["source"], "ref": recipe["source_ref"], "sha256": digest,
                                       "vertices": len(source.vertices), "faces": len(source.faces),
                                       "bounds": [source.vertices.min(axis=0).tolist(), source.vertices.max(axis=0).tolist()],
                                       "boundary_edges": len(source.preexisting), "nonmanifold_edges": source.nonmanifold},
                "parts": pieces, "cameras": framing, "poses": [pose["name"] for pose in poses], "files": exports,
                "views": previews}
+    if game is not None:
+        receipt["game"] = game
     (output / "receipt.json").write_text(json.dumps(receipt, ensure_ascii=False), encoding="utf-8")
 
 
