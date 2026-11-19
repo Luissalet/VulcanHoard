@@ -265,7 +265,10 @@ def main(source_path, recipe, output, digest):
     original.hide_render = True
     set_pose(rig, objects, REST)
     if recipe["selection_views"]:
+        for obj, _ in objects.values():
+            obj.hide_render = obj["lineage"] == "added"
         previews += render(scene, output, views, "selection", "OBJECT")
+        set_pose(rig, objects, REST)
     exports = {"scene": "editable.blend", "rigged": "rigged.glb", "lineage": "lineage.json", "recipe": "recipe.json"}
     for pose in recipe["poses"]:
         set_pose(rig, objects, pose)
