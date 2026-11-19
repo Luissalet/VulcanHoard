@@ -161,6 +161,9 @@
         {"accepts": "coloured-3mf", "produces": ["mesh-validation"], "skill": "print-ready-3d-model", "check": {"en": "Measure the exported mesh, inspect non-manifold edges and send the file to the slicer for a separate check.", "es": "Mide la malla exportada, inspecciona las aristas no manifold y abre el fichero en el laminador para una comprobación aparte."}}
       ]
     },
+    "module_controls": {
+      "studio": {"list": "vulcan_modules", "set": "vulcan_set_module", "name_field": "id"}
+    },
     "agent_contract": true,
     "events": true,
     "stack": "python",
