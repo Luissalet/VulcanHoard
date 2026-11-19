@@ -182,5 +182,5 @@
       "gulliver"
     ]
   },
-  "skills": {"slugs": ["print-ready-3d-model", "web-3d-asset-pipeline", "blender-asset-production", "verification-loop"], "limit": 4}
+  "skills": {"slugs": ["print-ready-3d-model", "web-3d-asset-pipeline", "blender-asset-production", "verification-loop", "studio-vulcan-image-to-3d", "studio-figure-print-and-slice"], "limit": 6}
 }
