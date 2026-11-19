@@ -2244,7 +2244,8 @@
         "tolerances"
       ],
       "title": "FitArgs",
-      "type": "object"
+      "type": "object",
+      "x-timeout-s": 45.0
     },
     "x-timeout-s": 45.0,
     "module": "library",
@@ -2577,7 +2578,8 @@
         }
       },
       "title": "PrepareArgs",
-      "type": "object"
+      "type": "object",
+      "x-timeout-s": 600.0
     },
     "x-timeout-s": 600.0,
     "module": "library",
@@ -3002,7 +3004,8 @@
         }
       },
       "title": "AnimPrepareArgs",
-      "type": "object"
+      "type": "object",
+      "x-timeout-s": 300.0
     },
     "x-timeout-s": 300.0,
     "module": "library",
@@ -3110,7 +3113,8 @@
         }
       },
       "title": "AnimFbxImportArgs",
-      "type": "object"
+      "type": "object",
+      "x-timeout-s": 900.0
     },
     "module": "library",
     "native_name": "anim_fbx_import",
@@ -3172,7 +3176,8 @@
         }
       },
       "title": "AnimFbxExportArgs",
-      "type": "object"
+      "type": "object",
+      "x-timeout-s": 1800.0
     },
     "module": "library",
     "native_name": "anim_fbx_export",
@@ -3343,7 +3348,8 @@
         }
       },
       "title": "AnimRetargetArgs",
-      "type": "object"
+      "type": "object",
+      "x-timeout-s": 900.0
     },
     "module": "library",
     "native_name": "anim_retarget",
@@ -3751,7 +3757,8 @@
         }
       },
       "title": "ValidateArgs",
-      "type": "object"
+      "type": "object",
+      "x-timeout-s": 180.0
     },
     "x-timeout-s": 180.0,
     "module": "library",
@@ -3932,7 +3939,8 @@
         "id"
       ],
       "title": "TextureArgs",
-      "type": "object"
+      "type": "object",
+      "x-timeout-s": 600.0
     },
     "x-timeout-s": 600.0,
     "module": "library",
@@ -4033,7 +4041,8 @@
         "description"
       ],
       "title": "CodeModelArgs",
-      "type": "object"
+      "type": "object",
+      "x-timeout-s": 1800.0
     },
     "module": "library",
     "native_name": "code_model",
@@ -4144,7 +4153,8 @@
         }
       },
       "title": "CodeModelRunArgs",
-      "type": "object"
+      "type": "object",
+      "x-timeout-s": 300.0
     },
     "module": "library",
     "native_name": "code_model_run",
@@ -4186,7 +4196,8 @@
         "instruction"
       ],
       "title": "CodeModelEditArgs",
-      "type": "object"
+      "type": "object",
+      "x-timeout-s": 1800.0
     },
     "module": "library",
     "native_name": "code_model_edit",
@@ -4322,7 +4333,8 @@
         "id"
       ],
       "title": "ImpostorArgs",
-      "type": "object"
+      "type": "object",
+      "x-timeout-s": 600.0
     },
     "module": "library",
     "native_name": "model_impostor",
@@ -4445,7 +4457,8 @@
         }
       },
       "title": "ImpostorBatchArgs",
-      "type": "object"
+      "type": "object",
+      "x-timeout-s": 3600.0
     },
     "module": "library",
     "native_name": "model_impostors_batch",
@@ -16306,7 +16319,8 @@
         }
       },
       "title": "SketchArgs",
-      "type": "object"
+      "type": "object",
+      "x-timeout-s": 300.0
     },
     "x-timeout-s": 300.0,
     "module": "library",
@@ -16791,7 +16805,8 @@
         "plan"
       ],
       "title": "BuildArgs",
-      "type": "object"
+      "type": "object",
+      "x-timeout-s": 300.0
     },
     "x-timeout-s": 300.0,
     "module": "library",
@@ -17701,7 +17716,8 @@
         "source"
       ],
       "title": "Build",
-      "type": "object"
+      "type": "object",
+      "x-timeout-s": 600.0
     },
     "x-timeout-s": 600.0
   },
