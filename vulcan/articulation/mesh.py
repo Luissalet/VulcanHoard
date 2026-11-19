@@ -109,9 +109,11 @@ class Source:
         # Reverse the source-facing edge so the cap has the opposite winding on the seam.
         closure = list(zip(source_faces[face_ids, (edges + 1) % 3], source_faces[face_ids, edges]))
         caps = cap_loops(closure, self.vertices)
+        caps, inserted = separate_cap_diagonals(caps, edge_ids, self.stride)
         joined = np.concatenate((source_faces, caps))
         used, compact = np.unique(joined, return_inverse=True)
-        mesh = make_mesh(name, self.vertices[used], compact.reshape(-1, 3))
+        vertices = with_interpolated(self.vertices, inserted)
+        mesh = make_mesh(name, vertices[used], compact.reshape(-1, 3))
         for material in self.mesh.materials:
             mesh.materials.append(material)
         cap_count = len(caps)
@@ -123,7 +125,7 @@ class Source:
         for label, (domain, rgba) in self.colours.items():
             layer = mesh.color_attributes.new(name=label, type="FLOAT_COLOR", domain=domain)
             if domain == "POINT":
-                colours = rgba[used]
+                colours = with_interpolated(rgba, inserted)[used]
             else:
                 average = rgba[corner_ids].mean(axis=0)
                 colours = np.concatenate((rgba[corner_ids], np.tile(average, (cap_count * 3, 1))))
@@ -134,9 +136,12 @@ class Source:
             layer = mesh.uv_layers.new(name=label)
             values = np.concatenate((uv[corner_ids], np.zeros((cap_count * 3, 2), dtype=np.float32)))
             layer.uv.foreach_set("vector", values.ravel())
-        keys, uses = np.unique(edge_keys(joined, self.stride), return_counts=True)
+        stride = len(vertices)
+        keys, uses = np.unique(edge_keys(joined, stride), return_counts=True)
         boundary = keys[uses == 1]
-        open_cut = np.count_nonzero(~np.isin(boundary, self.preexisting))
+        start, end = np.divmod(boundary, stride)
+        original_edges = (end < self.stride) & np.isin(start * self.stride + end, self.preexisting)
+        open_cut = np.count_nonzero(~original_edges)
         return mesh, {"lineage": "source_faces", "source_faces": len(selected), "cap_faces": cap_count,
                       "boundary_edges": len(boundary), "open_cut_edges": int(open_cut),
                       "nonmanifold_edges": int(np.count_nonzero(uses > 2))}
@@ -174,6 +179,39 @@ def cap_loops(edges, points):
         outline = [Vector(points[index]) for index in loop]
         triangles.extend(tuple(loop[index] for index in triangle) for triangle in tessellate_polygon([outline]))
     return np.asarray(triangles, dtype=np.int32).reshape(-1, 3)
+
+
+def separate_cap_diagonals(caps, source_keys, stride):
+    # A cap diagonal can also belong to the retained skin. Give each such diagonal
+    # a private midpoint so adding the cap cannot put four faces on the same edge.
+    keys = edge_keys(caps, stride)
+    unique, uses = np.unique(keys, return_counts=True)
+    shared = unique[(uses > 1) & np.isin(unique, source_keys)]
+    if not len(shared):
+        return caps, []
+    sources = [tuple(map(int, divmod(key, stride))) for key in shared]
+    midpoints = {int(key): stride + index for index, key in enumerate(shared)}
+    triangles = []
+    for tri, tri_keys in zip(caps.tolist(), keys.tolist()):
+        outline = []
+        for vertex, key in zip(tri, tri_keys):
+            outline.append(vertex)
+            if key in midpoints:
+                outline.append(midpoints[key])
+        if len(outline) == 3:
+            triangles.append(tuple(tri))
+            continue
+        centre = stride + len(sources)
+        sources.append(tuple(tri))
+        triangles.extend((a, b, centre) for a, b in zip(outline, outline[1:] + outline[:1]))
+    return np.asarray(triangles, dtype=np.int32), sources
+
+
+def with_interpolated(values, inserted):
+    if not inserted:
+        return values
+    interpolated = np.asarray([values[list(indices)].mean(axis=0) for indices in inserted])
+    return np.concatenate((values, interpolated))
 
 
 def panel_mesh(panel):
