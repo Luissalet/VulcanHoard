@@ -619,6 +619,10 @@ from .room_tools import ROOM_TOOLS  # noqa: E402 - sketch to a measured textured
 
 TOOLS += ROOM_TOOLS
 
+from .articulation.tools import TOOLS as ARTICULATION_TOOLS  # noqa: E402
+
+TOOLS += ARTICULATION_TOOLS
+
 TOOLS_BY_NAME = {tool.name: tool for tool in TOOLS}
 
 

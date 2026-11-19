@@ -16895,5 +16895,806 @@
       "title": "RectifyArgs",
       "type": "object"
     }
+  },
+  {
+    "module": "library",
+    "native_name": "articulation_build",
+    "name": "articulation_build",
+    "description": "Split and rig an inferred mesh. Selección, corte, reparación y articulación.\nSelect by region, plane, colour or seed; cap boundaries, discard debris and rig separate pieces. Creates a new editable package with source face provenance, GLB, frozen poses and optional same-camera previews. Use articulation_undo to revert. Selecciona, separa y repara superficies, retira restos y articula las piezas con huesos.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "draftSafeHint": true
+    },
+    "inputSchema": {
+      "$defs": {
+        "Bone": {
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,47}$",
+              "title": "Name",
+              "type": "string"
+            },
+            "head": {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "title": "Head",
+              "type": "array"
+            },
+            "tail": {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "title": "Tail",
+              "type": "array"
+            },
+            "parent": {
+              "anyOf": [
+                {
+                  "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,47}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Parent"
+            }
+          },
+          "required": [
+            "name",
+            "head",
+            "tail"
+          ],
+          "title": "Bone",
+          "type": "object"
+        },
+        "Camera": {
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,47}$",
+              "title": "Name",
+              "type": "string"
+            },
+            "direction": {
+              "description": "World offset from the common focus, looking towards the subject.",
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "title": "Direction",
+              "type": "array"
+            }
+          },
+          "required": [
+            "name",
+            "direction"
+          ],
+          "title": "Camera",
+          "type": "object"
+        },
+        "Colour": {
+          "additionalProperties": false,
+          "properties": {
+            "rgb": {
+              "description": "Linear RGB in [0,1], averaged per source face.",
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                }
+              ],
+              "title": "Rgb",
+              "type": "array"
+            },
+            "tolerance": {
+              "exclusiveMinimum": 0,
+              "title": "Tolerance",
+              "type": "number"
+            }
+          },
+          "required": [
+            "rgb",
+            "tolerance"
+          ],
+          "title": "Colour",
+          "type": "object"
+        },
+        "Panel": {
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,47}$",
+              "title": "Name",
+              "type": "string"
+            },
+            "outline": {
+              "description": "Ordered planar outline in source space.",
+              "items": {
+                "maxItems": 3,
+                "minItems": 3,
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              "maxItems": 128,
+              "minItems": 3,
+              "title": "Outline",
+              "type": "array"
+            },
+            "thickness": {
+              "exclusiveMinimum": 0,
+              "title": "Thickness",
+              "type": "number"
+            },
+            "rgb": {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                }
+              ],
+              "title": "Rgb",
+              "type": "array"
+            },
+            "reference": {
+              "description": "Reference identifying the added geometry.",
+              "maxLength": 500,
+              "minLength": 1,
+              "title": "Reference",
+              "type": "string"
+            },
+            "bone": {
+              "anyOf": [
+                {
+                  "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,47}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Bone"
+            },
+            "pivot": {
+              "anyOf": [
+                {
+                  "maxItems": 3,
+                  "minItems": 3,
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Pivot"
+            }
+          },
+          "required": [
+            "name",
+            "outline",
+            "thickness",
+            "rgb",
+            "reference"
+          ],
+          "title": "Panel",
+          "type": "object"
+        },
+        "Part": {
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,47}$",
+              "title": "Name",
+              "type": "string"
+            },
+            "select": {
+              "$ref": "#/$defs/Selection"
+            },
+            "bone": {
+              "anyOf": [
+                {
+                  "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,47}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Bone"
+            },
+            "pivot": {
+              "anyOf": [
+                {
+                  "maxItems": 3,
+                  "minItems": 3,
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Pivot"
+            },
+            "discard": {
+              "default": false,
+              "title": "Discard",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "name",
+            "select"
+          ],
+          "title": "Part",
+          "type": "object"
+        },
+        "Plane": {
+          "additionalProperties": false,
+          "properties": {
+            "point": {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "title": "Point",
+              "type": "array"
+            },
+            "normal": {
+              "description": "Signed half-space. Selects faces on the positive side, along existing edges.",
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "title": "Normal",
+              "type": "array"
+            }
+          },
+          "required": [
+            "point",
+            "normal"
+          ],
+          "title": "Plane",
+          "type": "object"
+        },
+        "Pose": {
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,47}$",
+              "title": "Name",
+              "type": "string"
+            },
+            "rotations": {
+              "description": "Bone-local XYZ Euler angles in degrees.",
+              "patternProperties": {
+                "^[A-Za-z][A-Za-z0-9_-]{0,47}$": {
+                  "maxItems": 3,
+                  "minItems": 3,
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "type": "array"
+                }
+              },
+              "title": "Rotations",
+              "type": "object"
+            },
+            "export": {
+              "default": true,
+              "title": "Export",
+              "type": "boolean"
+            },
+            "hide": {
+              "description": "Pieces excluded from this pose and its frozen export.",
+              "items": {
+                "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,47}$",
+                "type": "string"
+              },
+              "title": "Hide",
+              "type": "array"
+            },
+            "turn_degrees": {
+              "default": 0,
+              "description": "World Z rotation around the scene origin.",
+              "title": "Turn Degrees",
+              "type": "number"
+            }
+          },
+          "required": [
+            "name"
+          ],
+          "title": "Pose",
+          "type": "object"
+        },
+        "Seed": {
+          "additionalProperties": false,
+          "properties": {
+            "point": {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "title": "Point",
+              "type": "array"
+            },
+            "distance": {
+              "description": "Maximum surface distance, in metres, from the closest eligible face.",
+              "exclusiveMinimum": 0,
+              "title": "Distance",
+              "type": "number"
+            }
+          },
+          "required": [
+            "point",
+            "distance"
+          ],
+          "title": "Seed",
+          "type": "object"
+        },
+        "Selection": {
+          "additionalProperties": false,
+          "properties": {
+            "lower": {
+              "anyOf": [
+                {
+                  "maxItems": 3,
+                  "minItems": 3,
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Inclusive minimum XYZ of face centres.",
+              "title": "Lower"
+            },
+            "upper": {
+              "anyOf": [
+                {
+                  "maxItems": 3,
+                  "minItems": 3,
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Inclusive maximum XYZ of face centres.",
+              "title": "Upper"
+            },
+            "planes": {
+              "items": {
+                "$ref": "#/$defs/Plane"
+              },
+              "maxItems": 8,
+              "title": "Planes",
+              "type": "array"
+            },
+            "colour": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Colour"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "seed": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Seed"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            }
+          },
+          "title": "Selection",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "description": "Absolute path to a self-contained GLB, in metres.",
+          "title": "Source",
+          "type": "string"
+        },
+        "source_ref": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Ref"
+        },
+        "source_sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-fA-F]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Sha256"
+        },
+        "parts": {
+          "items": {
+            "$ref": "#/$defs/Part"
+          },
+          "maxItems": 32,
+          "title": "Parts",
+          "type": "array"
+        },
+        "panels": {
+          "items": {
+            "$ref": "#/$defs/Panel"
+          },
+          "maxItems": 16,
+          "title": "Panels",
+          "type": "array"
+        },
+        "bones": {
+          "items": {
+            "$ref": "#/$defs/Bone"
+          },
+          "maxItems": 32,
+          "title": "Bones",
+          "type": "array"
+        },
+        "body_bone": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,47}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Body Bone"
+        },
+        "repair_original": {
+          "default": false,
+          "description": "Also attempt to close pre-existing boundary loops.",
+          "title": "Repair Original",
+          "type": "boolean"
+        },
+        "poses": {
+          "items": {
+            "$ref": "#/$defs/Pose"
+          },
+          "maxItems": 8,
+          "title": "Poses",
+          "type": "array"
+        },
+        "cameras": {
+          "items": {
+            "$ref": "#/$defs/Camera"
+          },
+          "maxItems": 8,
+          "title": "Cameras",
+          "type": "array"
+        },
+        "focus": {
+          "anyOf": [
+            {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Focus"
+        },
+        "view_scale": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Orthographic span, in metres.",
+          "title": "View Scale"
+        },
+        "view_size": {
+          "default": 480,
+          "maximum": 1024,
+          "minimum": 256,
+          "title": "View Size",
+          "type": "integer"
+        },
+        "selection_views": {
+          "default": true,
+          "title": "Selection Views",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "source"
+      ],
+      "title": "Build",
+      "type": "object"
+    },
+    "x-timeout-s": 600.0
+  },
+  {
+    "module": "library",
+    "native_name": "articulation_get",
+    "name": "articulation_get",
+    "description": "Read an articulation package. Consulta de articulación.\nReturns its revision, measurements and files. Consulta la procedencia, las medidas y los archivos de la articulación.",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[0-9a-f]{32}$",
+          "title": "Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "Lookup",
+      "type": "object"
+    }
+  },
+  {
+    "module": "library",
+    "native_name": "articulation_view",
+    "name": "articulation_view",
+    "description": "Open a source, selection or pose preview. Vista de articulación.\nUse a PNG name from articulation_get. Abre una vista de origen, selección o pose.",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[0-9a-f]{32}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "file": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,100}\\.png$",
+          "title": "File",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "file"
+      ],
+      "title": "Picture",
+      "type": "object"
+    }
+  },
+  {
+    "module": "library",
+    "native_name": "articulation_undo",
+    "name": "articulation_undo",
+    "description": "Withdraw or restore a package. Deshacer articulación.\nReturns arguments to reverse the operation. Retira o restaura un paquete generado.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[0-9a-f]{32}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "restore": {
+          "default": false,
+          "title": "Restore",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "Undo",
+      "type": "object"
+    }
   }
 ]

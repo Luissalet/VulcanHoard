@@ -4,7 +4,7 @@ Run `python -m vulcan` and open the displayed URL (default5186). The shell contr
 
 | Module | Native editor/API prefix | Preserved capabilities |
 | --- | --- | --- |
-| library | /library/ | Existing STL/3MF/OBJ/GLB/glTF/FBX library, animated assets (inspection, preparation, FBX, retargeting), measurements, CPU thumbnails, collections, listings, parametric STL CAD and family contracts |
+| library | /library/ | Existing STL/3MF/OBJ/GLB/glTF/FBX library, animated assets (inspection, preparation, FBX, retargeting), [mesh articulation](ARTICULATION.md), measurements, CPU thumbnails, collections, listings, parametric STL CAD and family contracts |
 | gepetto | /gepetto/ | Figure/UV/texture relief, semantic proposals, editable Blender/.gepettos/portable projects, reference pose and native maps |
 | daedalus | /daedalus/ | Image-to-3D generation, refinement, repair, optimization and game-ready results |
 | plato | /plato/ | Full silhouette editor and legacy view, composition/fitting/frame, native .silhouettes packages and SVG/PNG/STL exports |
@@ -17,7 +17,7 @@ Shared projects use `studio-projects.json`: native owner/ID/revision/deep link a
 
 Text and vision use Faustus's `/api/global-model` descriptor and `/api/global-model/v1/chat/completions`. Each job pins endpoint, model and connection revision; static/provider credentials never leave Faustus. JSON schema, images, reasoning and SSE completion metadata are preserved. Truncation, filtering, missing completion or selection changes fail explicitly. The synchronous family facade retains the global consumer and the same job pin, including a CAD repair round. No Ollama text-model fallback, load, download or unload is performed. This requires the corresponding Faustus transport to be installed; missing transport is an explicit unavailable state.
 
-Library automation controls initial rescan and folder watching. Generation automation separately controls recovery of historical queued jobs. Neither automation is enabled by merely enabling its module. A cold MCP catalogue contains 226 tools and imports no native engine or SQLite store; it starts no app or worker.
+Library automation controls initial rescan and folder watching. Generation automation separately controls recovery of historical queued jobs. Neither automation is enabled by merely enabling its module. A cold MCP catalogue contains 233 tools and imports no native engine or SQLite store; it starts no app or worker.
 
 CPU installation: source `pip install -r requirements.txt`, then `python scripts/build_studio.py`. Wheel consumers install the `studio` extra. Daedalus's existing GPU runtime remains separate and is selected through DAEDALUS_ENGINE_PYTHON; DAEDALUS_MODEL_DIR points at the model store. GPU operations use the existing Hub leases. Blender remains configured through SCULPTORS_HOARD_BLENDER/RELIEF_BLENDER. No environment or weights are downloaded just by enabling the shell or discovering tools.
 

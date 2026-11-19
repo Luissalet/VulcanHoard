@@ -1,0 +1,20 @@
+# Articulation / Articulación
+
+The library's articulation tools turn one triangulated, unrigged GLB in metres into an editable assembly. The GLB can come directly from image-to-3D. Activate the library explicitly with `vulcan_set_module` (`module: "library"`, `enabled: true`). Tool discovery works with the library stopped. Use the ordinary MCP connection or the Hub's `hub_call_app` for `vulcan`.
+
+## Select and inspect / Seleccionar y comprobar
+
+1. Call `articulation_build` with an absolute `source` path. Pass the predecessor's `source_ref` and `source_sha256` when available. With no `parts`, the tool returns the source bounds and same-camera views for checking the source axes.
+2. Name each entry in `parts`. All selection coordinates use the imported scene's XYZ in metres, Z up. The subject's anatomical front can point in any direction. A part takes the intersection of its criteria: `lower` and `upper` bound face centres, `planes` keep centres on their positive side, `colour` compares linear vertex or corner RGB, and `seed` grows from the nearest eligible face along shared edges up to a surface distance. Planes divide along existing triangle edges. Earlier parts take precedence and remaining faces form `body`. Set `discard: true` for debris.
+3. Inspect `source-…`, `source-neutral-…` and `selection-…` from `articulation_view`. Set `cameras`, `focus` and `view_scale` explicitly to replay the framing in another revision. The receipt retains the camera world matrices. The editable scene includes the original in a reference collection, hidden at first.
+4. The tool caps simple closed cut loops on both sides and reports remaining open and non-manifold edges per part, including new open cut edges. Pre-existing open edges are normally retained. Set `repair_original: true` to attempt a closure that includes them. Color and UV attributes on original triangles are retained. Caps on UV-textured sources have no source UVs. Review them in the editable scene. A fused or missing surface may need local reconstruction. Use `panels` for added planar parts with an explicit ordered outline, thickness, and reference, such as a map with a clipped corner.
+
+## Rig and pass on / Articular y traspasar
+
+- Set a part's `pivot` to change its origin without moving its rest surface. Define the armature with `bones` (head, tail, optional parent) and connect parts via `bone` and `body_bone`. Each bound part uses weight 1 on that bone. The editable file lets a worker adjust the rig and weights.
+- `poses` define bone-local Euler XYZ rotations in degrees, an optional turn around world Z and a list of objects hidden from the pose preview and frozen export. The editable scene and skinned GLB store the rotations on a timeline, starting at the rest pose and spaced by 24 frames. Visibility choices are in the recipe and frozen outputs.
+- The receipt gives the byte size and SHA-256 of each export. It identifies the editable `.blend`, skinned `rigged.glb`, each unskinned `pose-*.glb`, the replayable `recipe.json` and `lineage.json`. Use a frozen pose for the print job. The cutter reports surface topology. Conversion to a printable solid belongs to the print preparation step.
+- `lineage.json` records inclusive runs of zero-based source face indices in the order it imported the exact GLB. Each retained piece keeps those faces in order, with reconstructed cap triangles appended and explicitly identified. Discards have their own source ranges. Added panels record their references. A defect report can cite the source SHA, the piece, the pose and the camera.
+- `articulation_get` reopens a package by ID. Each build publishes a separate directory only once its exports are complete. `articulation_undo` withdraws the directory and returns the arguments for restoring it. Keep the recipe to repeat or revise an operation.
+
+En castellano, el flujo es seleccionar las caras, revisar las vistas de frente y espalda, reparar los bordes del corte, ligar las piezas a huesos y pasar la pose congelada a impresión. La selección trabaja en metros. Las medidas del paquete indican las aristas abiertas o con más de dos caras que requieren revisión.
