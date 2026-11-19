@@ -17,6 +17,7 @@ from pydantic import BaseModel, StrictBool
 from ..hoard_link.atomic import write_json_atomic
 from ..hoard_link.copilot import install_copilot
 from ..hoard_link.guard import install_guard
+from ..hoard_link import family
 from ..hoard_link.tokens import check_bearer, read_or_create_token
 from .native_response import NativeResponse
 from .projects import Projects, TOOLS as PROJECT_TOOLS
@@ -149,6 +150,7 @@ def create_app(data_dir=None, port=None, factory=None, catalog=None):
     data_dir = Path(data_dir or os.environ.get('VULCAN_DATA_DIR') or ROOT.parents[1] / 'data')
     port = port or int(os.environ.get('VULCAN_PORT', '5186'))
     token = read_or_create_token(data_dir / 'mcp-token')
+    family.configure('vulcan', str(data_dir), token_file=str(data_dir / 'mcp-token'))
     settings_path = data_dir / 'studio-modules.json'
     saved = json.loads(settings_path.read_text(encoding='utf-8')) if settings_path.exists() else {}
     paths = saved.get('data_paths', {})

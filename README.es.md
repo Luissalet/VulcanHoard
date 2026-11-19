@@ -36,7 +36,7 @@ La biblioteca se queda en la máquina: SQLite con FTS5 y miniaturas WebP, sin cu
 - Bocetos con restricciones, operaciones sobre caras con nombre, ensamblajes con relaciones y comprobaciones de interferencia y holgura de rosca (Heron).
 - Modelado con código: un programa corto escrito por el modelo de la familia, ejecutado en un proceso aislado sobre Blender y comprobado contra las medidas de la descripción.
 - Inspección y preparación para un destino (configuradores web, impresión FDM) y para activos animados (comprobación de rig y clips, recorte, remuestreo, importación y exportación FBX), siempre escribiendo un archivo nuevo con recibo.
-- Imagen a 3D con ruta multivista conjunta, relieve editable de figuras, extrusión de siluetas y terreno y ciudades imprimibles.
+- Imagen a 3D con reconstrucción multivista conjunta y recorte de fondo uniforme. El generador distribuye las etapas entre las GPU reservadas. También incluye relieve editable de figuras, extrusión de siluetas, terreno y ciudades imprimibles.
 - Análisis espacial: dónde colocar sedes de servicio para cubrir la demanda dentro de un tiempo de viaje y cribado de parcelas por pendiente, acceso y restricciones.
 
 La interfaz está en español.

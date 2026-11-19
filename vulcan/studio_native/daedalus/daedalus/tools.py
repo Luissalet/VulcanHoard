@@ -3,11 +3,11 @@ def tool(name,description,properties=None,required=None):
 
 JOB={'job_id':{'type':'string','description':'ID of a job returned by this Hoard'}}
 TOOLS=[
- tool('model_generate_multiview','Reconstruct one joint 512 geometry from two or more local foreground/alpha views of the same object. Unposed views jointly condition structure and shape; no external inference API, no generated PBR textures. Reserves one GPU and preserves every reference. Returns a job ID.',
+ tool('model_generate_multiview','Reconstruct one joint 512 geometry from two or more local views of the same object. Unposed views jointly condition structure and shape; no external inference API, no generated PBR textures. Reserves one GPU and preserves every reference. Returns a job ID.',
       {'image_ids':{'type':'array','items':{'type':'string'},'minItems':2},'title':{'type':'string'},
        'seed':{'type':'integer','default':42},'gpu':{'type':'integer','minimum':0,'default':1}},['image_ids']),
  tool('image_import','Import a local reference image into Daedalus.',{'path':{'type':'string'}},['path']),
- tool('model_generate','Queue local image-to-3D: trellis uses four GPUs; triposr is a single-GPU vertex-colored draft. Both preserve results as separate versions. Returns a job ID; inspect actual status, memory and geometry.',
+ tool('model_generate','Queue local image-to-3D: trellis shares work across two to four reserved CUDA GPUs; triposr is a single-GPU vertex-colored draft. Both preserve results as separate versions. Returns a job ID; inspect actual status, memory and geometry.',
       {'image_id':{'type':'string'},'title':{'type':'string'},'resolution':{'type':'integer','enum':[512,1024],'default':512},
        'seed':{'type':'integer','default':42},'remove_background':{'type':'boolean','default':True},
        'generator':{'type':'string','enum':['trellis','triposr'],'default':'trellis'},

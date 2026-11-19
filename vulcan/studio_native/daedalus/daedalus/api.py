@@ -5,7 +5,6 @@ import json
 import math
 from pathlib import Path
 import shutil
-import subprocess
 import threading
 from typing import Literal
 import uuid
@@ -223,15 +222,7 @@ def create_app(data_dir=None,runner=None,port=None,automatic=False):
 
     @app.get('/api/models/status')
     def model_status():
-        devices=[]
-        try:
-            result=subprocess.run(['nvidia-smi','--query-gpu=index,name,memory.total,memory.used','--format=csv,noheader,nounits'],
-                                   capture_output=True,text=True,timeout=5,creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0))
-            for line in result.stdout.splitlines():
-                index,name,total,used=[value.strip() for value in line.split(',')]
-                devices.append({'index':int(index),'name':name,'total_mib':int(total),'used_mib':int(used)})
-        except (OSError,ValueError,subprocess.TimeoutExpired):
-            pass
+        devices=config.devices()
         return {'models':config.model_status(),'devices':devices,'selected_gpus':config.gpus,
                 'draft_runtime_configured':bool(config.draft_python and Path(config.draft_python).is_file()),
                 'multiview_runtime_configured':bool(config.multiview_python and Path(config.multiview_python).is_file()),

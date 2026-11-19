@@ -1,5 +1,6 @@
 import json
 import os
+import subprocess
 from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[1]
@@ -19,8 +20,30 @@ class Config:
         self.python=os.environ.get('DAEDALUS_ENGINE_PYTHON')
         self.draft_python=os.environ.get('DAEDALUS_DRAFT_PYTHON') or settings.get('draft_python') or self.python
         self.multiview_python=os.environ.get('DAEDALUS_MULTIVIEW_PYTHON') or settings.get('multiview_python')
+        if not self.multiview_python:
+            runtime=ROOT.parents[2]/'.multiview-venv'/('Scripts/python.exe' if os.name=='nt' else 'bin/python')
+            if runtime.is_file():
+                self.multiview_python=str(runtime)
         self.port=int(os.environ.get('DAEDALUS_PORT','8830'))
-        self.gpus=[1,2,3,0]
+
+    @staticmethod
+    def devices():
+        try:
+            result=subprocess.run(
+                ['nvidia-smi','--query-gpu=index,uuid,name,memory.total,memory.used','--format=csv,noheader,nounits'],
+                capture_output=True,text=True,check=True,timeout=5,creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0))
+            devices=[]
+            for line in result.stdout.splitlines():
+                index,uuid,name,total,used=[value.strip() for value in line.split(',')]
+                devices.append({'index':int(index),'uuid':uuid,'name':name,'total_mib':int(total),'used_mib':int(used)})
+        except (OSError,ValueError,subprocess.SubprocessError):
+            return []
+        return devices
+
+    @property
+    def gpus(self):
+        # Keep the strongest cards first, preserving the original four-card order on that host.
+        return [row['index'] for row in sorted(self.devices(),key=lambda row:(-row['total_mib'],row['index']))[:4]]
 
     def model_status(self):
         model_root=self.models

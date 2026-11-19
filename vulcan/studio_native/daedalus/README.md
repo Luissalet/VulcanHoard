@@ -8,15 +8,15 @@ El refinado crea otra geometría y puede perder huecos o detalles. Permite elegi
 
 «Preparar una versión» añade dos pasadas independientes sobre cualquier resultado terminado. **Impresión** permite reconstruir el volumen a128/256/384 celdas o reparar la superficie con limpieza y relleno de bordes; informa del cierre, orientación, piezas y aristas abiertas. La reconstrucción puede suavizar detalles o unir piezas próximas. Por defecto no elimina las piezas menores. Puede limitar el detalle de trabajo o conservarlo completo. **Juegos** reduce los triángulos al presupuesto solicitado, crea UV y hornea color, transparencia, metal y rugosidad en texturas de 512 a 4096. Si no alcanza el presupuesto, lo indica. Ambas trabajan en CPU, conservan originales y versiones, permiten cancelar y añaden un informe descargable. No añaden rigging ni retopología de animación. El cierre no verifica grosor mínimo, soportes ni parámetros del laminador. Véase `docs/POSTPROCESSING.md`.
 
-## Reconstrucción multivista, candidato1185
+## Reconstrucción multivista
 
-La ruta conjunta local recibe varias vistas ordenadas del mismo objeto y produce geometría512, sin texturas. El formulario, API y MCP conservan todas las referencias; se reserva una sola GPU. La primera generación real terminó y se pudo exportar y editar en Blender, pero la taza salió cortada y deforme. Se han corregido discrepancias de precisión y superficie; falta repetir el ensayo y comprobar su calidad. No se declara equivalencia con la demo de referencia ni una función lista para uso. Preparación, alcance y licencias en [docs/multiview.md](docs/multiview.md). El borrador de unaGPU y las rutas anteriores se conservan.
+La ruta conjunta local recibe varias vistas ordenadas del mismo objeto y produce geometría 512. El formulario, la API y MCP conservan cada referencia y reservan una GPU. Usa el alfa de recorte de la imagen. En imágenes opacas o casi opacas, puede recortar un fondo uniforme conectado al borde. La salida conserva la geometría y la procedencia de las vistas. Preparación, alcance y licencias en [docs/multiview.md](docs/multiview.md).
 
 ## Ejecución
 
 En este equipo, abre `launch.cmd` o Daedalus en Hoard Hub. Puerto predeterminado: http://127.0.0.1:8830. El entorno propio está en `D:/LocalAI/HoardStorage/daedalus-runtime`; los pesos, en `D:/LocalAI/HoardStorage/daedalus-models`. La carpeta puede cambiarse en «4 gráficas». El programa no descarga pesos al generar.
 
-El motor incorporado vive en `daedalus/geometry`. No inicia ComfyUI ni el programa de otro proyecto. Las rutas TRELLIS y de refinado usan las cuatro NVIDIA del equipo: físicas 1, 2 y 3 (16 GB) y 0 (12 GB). Distribuye las capas del generador en 8/8/8/6 y las de DetailGen en 6/6/6/6. UltraShape reparte 21 bloques según el peso de sus expertos, en 13/4/2/2; la consulta geométrica posterior utiliza las cuatro tarjetas. Es reparto secuencial de capas; no suma las memorias como si fueran una tarjeta ni promete acelerar frente a una GPU mayor. El Hub concede los cuatro leases antes de cargar. Si están ocupadas, espera y se puede cancelar. El LLM global de las Sparks sigue siendo el servicio de Faustus y del copilot común.
+TRELLIS distribuye cada etapa entre dos y cuatro GPU CUDA detectadas. Antes de cargar los modelos, reserva memoria de cada tarjeta en el Hub y usa sus UUID para mantener el mismo reparto en el motor. La reconstrucción multivista y los borradores usan una tarjeta. Los refinadores mantienen su reparto de cuatro tarjetas. Si una reserva está ocupada, el trabajo espera y se puede cancelar.
 
 Para preparar otro entorno, instala Python 3.13, PyTorch CUDA 12.8 y las dependencias de `requirements.txt` (el índice oficial de PyTorch debe proporcionar los paquetes `+cu128`). `hoard-link` es la biblioteca compartida de la familia. Coloca los archivos con la estructura descrita en `docs/MODELS.md`. `tools/prepare_models.py` es una ayuda de instalación desde los archivos locales de investigación de este equipo; no forma parte de la ejecución del motor.
 
@@ -31,10 +31,6 @@ El tamaño no se deduce de una imagen. El lado mayor indicado al exportar se esc
 ## API y MCP
 
 `python -m daedalus` inicia la aplicación. `python -m daedalus.mcp` expone 14 herramientas por stdio contra esa misma API: importar imagen, generar, ampliar a 1024, refinar, reparar, optimizar para juegos, listar/leer/cancelar trabajos, consultar versiones, renombrar, exportar, consultar motores y configurar su carpeta. Las pasadas devuelven un ID de trabajo asíncrono; `job_get` lee el estado real. Configuración MCP en `faustus-plugin.json`; `DAEDALUS_URL` selecciona la instancia y `DAEDALUS_TOKEN_FILE` su token local. Los agentes y la interfaz utilizan la misma cola y los mismos datos.
-
-## Verificación
-
-Pruebas CPU: `python -m pytest`. Cubren conservación de versiones, unidades exportadas, cancelación y eventos tardíos, recuperación, instancia única, paridad API/herramientas y operaciones geométricas. Las pruebas reales de generación/refinado por MCP y las comprobaciones de navegador tienen sus recibos en las carpetas privadas de investigación de la tarea Ágora622; no se ejecutan durante la suite CPU. Los resultados y límites de los experimentos están en `docs/EXPERIMENT.md`. El reparto de Ultra se contrastó numéricamente en FP32 entre una tarjeta y cuatro: error relativo L2 8,97×10⁻⁷. Eso valida el reparto del motor propio, no una mejora de calidad ni una equivalencia universal con otros motores.
 
 Los pesos de Ultra figuran como Apache-2.0, pero declaran una base Hunyuan3D-2.1 y el repositorio de referencia tiene restricciones geográficas. Esa discrepancia está conservada en `docs/ULTRA-PROVENANCE.md`; no se afirma permiso de redistribución sin restricciones.
 

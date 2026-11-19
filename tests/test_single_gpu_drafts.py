@@ -62,6 +62,10 @@ def test_draft_acquires_only_its_selected_gpu_and_preserves_original_dispatch(tm
     acquired.clear()
     manager.run_native({**spec,'generator':'trellis','physical_gpus':[1,2,3,0]},lambda event:None,threading.Event())
     assert [row['gpu'] for row in acquired]==[1,2,3,0]
+    acquired.clear()
+    manager.run_native({**spec,'generator':'trellis','physical_gpus':[2,1,0],
+                        'gpu_total_mib':{2:16311,1:16311,0:12282}},lambda event:None,threading.Event())
+    assert [(row['gpu'],row['vram_mb']) for row in acquired]==[(2,13000),(1,13000),(0,9825)]
 
 
 def test_draft_worker_uses_native_module_and_offline_single_gpu_environment(tmp_path,monkeypatch):
@@ -79,6 +83,8 @@ def test_draft_worker_uses_native_module_and_offline_single_gpu_environment(tmp_
     assert captured['command'][1:3]==['-I','-u']
     assert Path(captured['command'][3]).name=='worker.py'
     assert captured['env']['CUDA_VISIBLE_DEVICES']=='2'
+    manager.run_worker({**spec,'gpu_uuids':{2:'GPU-real-card'}},lambda event:None,threading.Event(),tmp_path/'request.json')
+    assert captured['env']['CUDA_VISIBLE_DEVICES']=='GPU-real-card'
     assert captured['env']['HF_HUB_OFFLINE']=='1' and captured['env']['TRANSFORMERS_OFFLINE']=='1'
     manager.run_worker(spec,lambda event:None,threading.Event(),tmp_path/'request.json',cpu=True)
     assert captured['env']['CUDA_VISIBLE_DEVICES']=='-1'
@@ -111,6 +117,23 @@ def test_draft_reference_keeps_source_and_one_pixel_foreground(tmp_path):
     result=np.asarray(prepare_reference(source))
     assert np.any(np.all(result==[255,0,0],axis=-1))
     assert source.read_bytes()==before
+
+
+def test_nearly_opaque_reference_uses_border_cutout_and_preserves_real_alpha(tmp_path):
+    from vulcan.studio_native.daedalus.daedalus.geometry.background import foreground
+    from vulcan.studio_native.daedalus.daedalus.worker import prepare_input
+
+    raster = Image.new('RGBA', (24, 24), (245, 245, 245, 253))
+    raster.paste((161, 35, 28, 255), (8, 8, 16, 16))
+    source = tmp_path / 'reference.png'
+    raster.save(source)
+    spec = {'kind': 'generate', 'generator': 'triposr', 'image': str(source), 'output_dir': str(tmp_path)}
+    prepare_input(spec)
+    with Image.open(spec['image']) as result:
+        assert result.getpixel((0, 0))[3] == 0
+        assert result.getpixel((12, 12)) == (161, 35, 28, 255)
+    raster.putpixel((0, 0), (245, 245, 245, 0))
+    assert foreground(raster).tobytes() == raster.tobytes()
 
 
 def test_isolated_worker_imports_own_geometry_without_cwd_binary_leaks(tmp_path):

@@ -7,7 +7,7 @@ import sys
 import threading
 
 from vulcan.hoard_link.lease import lease,LeaseTimeout
-from vulcan.hoard_link import proc
+from vulcan.hoard_link import family, proc
 from .store import TERMINAL
 
 class JobManager:
@@ -19,6 +19,7 @@ class JobManager:
         self.lock=threading.RLock()
         self.stopping=threading.Event()
         self.runner=runner or self.run_native
+        self.emit=family.emit if runner is None else None
         self.store.recover()
         self.thread=threading.Thread(target=self.loop,name='daedalus-jobs',daemon=True)
         self.thread.start()
@@ -31,6 +32,13 @@ class JobManager:
         with self.lock:
             self.events[identity]=threading.Event()
         self.queue.put(identity)
+
+    def announce(self, state, job, **extra):
+        if self.emit and job:
+            self.emit(f"vulcan.job.{state}", {
+                'job_id': job['id'], 'title': job['title'], 'kind': job['kind'],
+                'url': f"http://127.0.0.1:{self.config.port}/daedalus/?job={job['id']}", **extra,
+            })
 
     def cancel(self,identity):
         with self.lock:
@@ -58,8 +66,12 @@ class JobManager:
                 image=self.store.image(job['image_id'])
                 folder=self.config.jobs/identity
                 folder.mkdir(exist_ok=True)
+                devices=[] if job['kind'] in {'repair','optimize'} else self.config.devices()
+                ordered=sorted(devices,key=lambda row:(-row['total_mib'],row['index']))[:4]
                 spec={**job['params'],'kind':job['kind'],'image':image['path'],'output_dir':str(folder),
-                      'model_root':str(self.config.models),'physical_gpus':self.config.gpus,'job_id':identity}
+                      'model_root':str(self.config.models),'physical_gpus':[row['index'] for row in ordered],
+                      'gpu_uuids':{row['index']:row['uuid'] for row in devices},
+                      'gpu_total_mib':{row['index']:row['total_mib'] for row in devices},'job_id':identity}
                 if job['kind']=='generate' and job['params'].get('generator')=='triposr':
                     spec['physical_gpus']=[job['params'].get('draft_gpu',0)]
                 if job['kind']=='generate' and job['params'].get('generator')=='multiview':
@@ -97,21 +109,29 @@ class JobManager:
                         current=self.store.job(identity)
                         if current['status'] not in {'waiting','running'}:
                             return
+                        if current['status']=='waiting':
+                            self.announce('started', job)
                         self.store.update(identity,status='running',stage=event.get('stage','working'),
                                           progress=max(current['progress'],float(event.get('progress',current['progress']))))
+                self.announce('queued', job)
                 result=self.runner(spec,on_event,cancel)
                 with self.lock:
                     if cancel.is_set():
                         self.store.update(identity,status='interrupted' if self.stopping.is_set() else 'cancelled',stage='cancelled')
+                        self.announce('cancelled', job)
                     else:
                         self.store.finish(identity,result)
+                        self.announce('done', job)
             except proc.Cancelled:
                 self.store.update(identity,status='interrupted' if self.stopping.is_set() else 'cancelled',stage='cancelled')
+                self.announce('cancelled',self.store.job(identity))
             except Exception as error:
                 with self.lock:
                     job=self.store.job(identity)
                     status='cancelled' if job and job['status']=='cancelling' else 'error'
                     self.store.update(identity,status=status,stage=status,error=str(error))
+                    if status=='error':
+                        self.announce('failed',job,error=str(error)[:300])
             finally:
                 with self.lock:
                     self.events.pop(identity,None)
@@ -130,9 +150,15 @@ class JobManager:
                 with ExitStack() as stack:
                     draft=spec['kind']=='generate' and spec.get('generator')=='triposr'
                     multiview=spec['kind']=='generate' and spec.get('generator')=='multiview'
-                    for gpu in spec.get('physical_gpus',self.config.gpus):
-                        reservation=stack.enter_context(lease(vram_mb=11000 if multiview else 7000 if draft or gpu==0 else 13000,
-                            purpose=f'Daedalus {spec["kind"]} {spec["job_id"]}',owner='daedalus',
+                    cards=spec['physical_gpus']
+                    minimum=1 if draft or multiview else 4 if spec['kind']=='refine' else 2
+                    if len(cards)<minimum:
+                        raise RuntimeError(f'El motor necesita {minimum} GPU CUDA. Detectadas: {len(cards)}.')
+                    for gpu in cards:
+                        total=spec.get('gpu_total_mib',{}).get(gpu,16384)
+                        budget=11000 if multiview else 7000 if draft else min(13000,int(total*.8))
+                        reservation=stack.enter_context(lease(vram_mb=budget,
+                            purpose=f'Daedalus {spec["kind"]} {spec["job_id"]}',owner='vulcan:daedalus',
                             gpu=gpu,timeout_s=3,autostart=False))
                         if reservation.via!='hub' or reservation.state!='granted':
                             raise RuntimeError('Hoard Hub no responde para coordinar las gráficas. Abre el Hub y vuelve a intentarlo.')
@@ -148,7 +174,9 @@ class JobManager:
     def run_worker(self,spec,on_event,cancel,request,cpu=False):
         draft=spec['kind']=='generate' and spec.get('generator')=='triposr'
         multiview=spec['kind']=='generate' and spec.get('generator')=='multiview'
-        env=proc.build_env(CUDA_VISIBLE_DEVICES='-1' if cpu else ','.join(map(str,spec.get('physical_gpus',self.config.gpus))),CUDA_DEVICE_ORDER='PCI_BUS_ID')
+        uuids=spec.get('gpu_uuids',{})
+        visible='-1' if cpu else ','.join(uuids.get(gpu,str(gpu)) for gpu in spec['physical_gpus'])
+        env=proc.build_env(CUDA_VISIBLE_DEVICES=visible,CUDA_DEVICE_ORDER='PCI_BUS_ID')
         if draft or multiview:
             env.update(HF_HUB_OFFLINE='1',TRANSFORMERS_OFFLINE='1')
         log_path=Path(spec['output_dir'])/'engine.log'
