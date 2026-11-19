@@ -76,6 +76,8 @@ The server binds to 127.0.0.1 and answers only localhost hosts; to reach it from
 
 ## Connection with Faustus and the Hoard Hub
 
+Declares production handoffs for image-to-3D reference meshes and print mesh measurements. A reference mesh is the input to further modelling, and a print measurement feeds the slicer check.
+
 - Vulcan is a Faustus plugin (`faustus-plugin.json`, port 5186) and a member of the Hoard Hub family; it vendors Hoard Link in `vulcan/hoard_link/`. The global model is read from wherever Faustus answers, including a Spark when the Hub's "Run on" has moved it there.
 - The floating Faustus button opens the shared copilot panel in every view and passes the current model, folder listing, root or album, filters, selection and form draft. Conversation and execution belong to Faustus. See `docs/copilot.md`.
 - Opened beside a Faustus chat, the page registers `vulcan_project`, `vulcan_filter`, `vulcan_module` and `vulcan_view` through the App Dock.
