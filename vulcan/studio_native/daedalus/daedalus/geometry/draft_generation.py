@@ -10,7 +10,7 @@ from PIL import Image
 def prepare_reference(source):
     image=Image.open(source).convert('RGBA')
     rgba=np.asarray(image)
-    if np.any(rgba[...,3]<255):
+    if np.any(rgba[...,3]<250):
         rows,columns=np.where(rgba[...,3]>0)
         if not len(rows):
             raise ValueError('La referencia es completamente transparente.')

@@ -59,27 +59,13 @@ def prepare_input(spec):
         return
     if spec.get('generator')=='multiview':
         return
-    import numpy as np
     from PIL import Image
-    from scipy.ndimage import binary_propagation
-    image=Image.open(spec['image']).convert('RGBA')
-    rgba=np.asarray(image).copy()
-    if spec.get('remove_background',True) and np.all(rgba[...,3]==255):
-        rgb=rgba[...,:3].astype(np.float32)
-        border=np.concatenate([rgb[0],rgb[-1],rgb[:,0],rgb[:,-1]])
-        color=np.median(border,axis=0)
-        close=np.linalg.norm(rgb-color,axis=-1)<18
-        border_close=np.linalg.norm(border-color,axis=-1)<18
-        if border_close.mean()>.95:
-            seed=np.zeros(close.shape,dtype=bool)
-            seed[0]=close[0]
-            seed[-1]=close[-1]
-            seed[:,0]=close[:,0]
-            seed[:,-1]=close[:,-1]
-            background=binary_propagation(seed,mask=close)
-            rgba[...,3][background]=0
+    from .geometry.background import foreground
+
+    with Image.open(spec['image']) as image:
+        prepared=foreground(image) if spec.get('remove_background',True) else image.convert('RGBA')
     output=Path(spec['output_dir'])/'input.png'
-    Image.fromarray(rgba).save(output)
+    prepared.save(output)
     spec['image']=str(output)
 
 def attach_progress(engine,kind,resolution):
