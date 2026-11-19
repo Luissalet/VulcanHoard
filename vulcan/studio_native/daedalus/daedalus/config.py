@@ -1,8 +1,17 @@
 import json
 import os
+import subprocess
 from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[1]
+RUNTIMES=(Path('E:/Development/Tools/engines') if os.name=='nt'
+          else Path.home()/'.local/share/daedalus/engines')
+
+
+def runtime_python(environment):
+    executable=environment/('Scripts/python.exe' if os.name=='nt' else 'bin/python')
+    return str(executable) if executable.is_file() else None
+
 
 class Config:
     def __init__(self,data_dir=None):
@@ -16,11 +25,32 @@ class Config:
         settings=json.loads(settings_path.read_text()) if settings_path.exists() else {}
         default=Path('E:/Development/AI Models/daedalus') if os.name=='nt' else Path.home()/'.local/share/daedalus/models'
         self.models=Path(os.environ.get('DAEDALUS_MODEL_DIR') or settings.get('model_dir') or default).resolve()
-        self.python=os.environ.get('DAEDALUS_ENGINE_PYTHON')
+        repo=ROOT.parents[2]
+        self.python=os.environ.get('DAEDALUS_ENGINE_PYTHON') or runtime_python(repo/'.engine-venv')
         self.draft_python=os.environ.get('DAEDALUS_DRAFT_PYTHON') or settings.get('draft_python') or self.python
-        self.multiview_python=os.environ.get('DAEDALUS_MULTIVIEW_PYTHON') or settings.get('multiview_python')
+        self.multiview_python=(os.environ.get('DAEDALUS_MULTIVIEW_PYTHON') or settings.get('multiview_python')
+                               or runtime_python(RUNTIMES/'daedalus-multiview')
+                               or runtime_python(repo/'.multiview-venv'))
         self.port=int(os.environ.get('DAEDALUS_PORT','8830'))
-        self.gpus=[1,2,3,0]
+
+    @staticmethod
+    def devices():
+        try:
+            result=subprocess.run(
+                ['nvidia-smi','--query-gpu=index,uuid,name,memory.total,memory.used','--format=csv,noheader,nounits'],
+                capture_output=True,text=True,check=True,timeout=5,creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0))
+            devices=[]
+            for line in result.stdout.splitlines():
+                index,uuid,name,total,used=[value.strip() for value in line.split(',')]
+                devices.append({'index':int(index),'uuid':uuid,'name':name,'total_mib':int(total),'used_mib':int(used)})
+        except (OSError,ValueError,subprocess.SubprocessError):
+            return []
+        return devices
+
+    @property
+    def gpus(self):
+        # Keep the strongest cards first, preserving the original four-card order on that host.
+        return [row['index'] for row in sorted(self.devices(),key=lambda row:(-row['total_mib'],row['index']))[:4]]
 
     def model_status(self):
         model_root=self.models

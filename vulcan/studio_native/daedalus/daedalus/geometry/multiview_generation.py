@@ -11,6 +11,7 @@ from PIL import Image
 import torch
 import trimesh
 
+from .background import foreground
 from .multiview_model.models.conditioning import StructuredLatentConditioner
 from .multiview_model.models.dino import DinoV3Encoder
 from .multiview_model.models.loaders import assert_materialized, load_adapter, load_decoder, load_flow, load_structure
@@ -47,11 +48,6 @@ def local_config(model_root):
     if not Path(config['dino_checkpoint']).is_file():
         raise FileNotFoundError(config['dino_checkpoint'])
     return config
-
-
-def cropped_image(image):
-    """An opaque image is explicitly treated as already cropped foreground."""
-    return image.convert('RGBA')
 
 
 def finalize_mesh(vertices, faces):
@@ -144,7 +140,7 @@ def run(spec, progress):
         with Image.open(path) as image:
             image.convert('RGBA').save(folder / f'view-{index + 1:02d}.png')
         references.append({'index': index, 'name': path.name, 'sha256': digest, 'file': f'view-{index + 1:02d}.png'})
-    batch = build_input_batch(images, config['image_preprocess'], cropped_image)
+    batch = build_input_batch(images, config['image_preprocess'], foreground)
     Image.fromarray((batch.dino_images512[0, 0].permute(1, 2, 0).numpy() * 255).astype(np.uint8)).save(folder / 'preprocessed.png')
     timings = {}
 
@@ -216,7 +212,7 @@ def run(spec, progress):
         'precision': 'declared FP32/FP16 weights; BF16 autocast for encoding and sampling',
         'resolution': 512, 'textures': False,
         'surface_processing': surface_processing_note(output_mesh),
-        'input': 'foreground alpha or already cropped images', 'views': references,
+        'input': 'foreground alpha or border-connected background removal', 'views': references,
     }
     (folder / 'multiview.json').write_text(json.dumps(provenance, indent=2), encoding='utf-8')
     result = {
@@ -225,7 +221,7 @@ def run(spec, progress):
         'fragments_removed': fragments_removed(output_mesh),
         'seconds_total': time.perf_counter() - started, 'generator': 'multiview',
         'model_provenance': provenance, 'stage_times': timings,
-        'memory': [{'logical_gpu': 0, 'peak_allocated_mib': torch.cuda.max_memory_allocated(device) / 2**20}],
+        'memory': [{'logical_gpu': 0, 'physical_gpu': spec['physical_gpus'][0], 'peak_allocated_mib': torch.cuda.max_memory_allocated(device) / 2**20}],
     }
     (folder / 'result.json').write_text(json.dumps(result, indent=2), encoding='utf-8')
     stage('preparing_export', .87)

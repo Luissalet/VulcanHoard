@@ -1,6 +1,7 @@
 """Isolated TRELLIS.2 experiment, full BF16 weights and sequential model parallelism."""
 import argparse
 from collections import Counter
+from contextlib import contextmanager
 import gc
 import hashlib
 import json
@@ -27,7 +28,7 @@ from .surface_vae import ShapeVae, TextureVae, SparseTensor, VarLenTensor
 
 DTYPE = torch.bfloat16
 CALLS = Counter()
-HANDLES = []
+PHYSICAL_GPUS = []
 EVENTS = []
 START = time.perf_counter()
 
@@ -39,11 +40,11 @@ def event(name, **data):
 
 
 def memory():
-    return [{'logical_gpu': i, 'physical_gpu': [1, 2, 3, 0][i],
+    return [{'logical_gpu': i, 'physical_gpu': physical,
              'allocated_mib': round(torch.cuda.memory_allocated(i) / 2**20, 1),
              'reserved_mib': round(torch.cuda.memory_reserved(i) / 2**20, 1),
              'peak_allocated_mib': round(torch.cuda.max_memory_allocated(i) / 2**20, 1)}
-            for i in range(4)]
+            for i, physical in enumerate(PHYSICAL_GPUS)]
 
 
 def move(value, device):
@@ -70,25 +71,31 @@ def place(module, device, name):
         CALLS[f'{name}@{device}'] += 1
         return move(args, device), move(kwargs, device)
 
-    HANDLES.append(module.register_forward_pre_hook(route, with_kwargs=True))
+    return module.register_forward_pre_hook(route, with_kwargs=True)
 
 
-def split(model):
-    # One DiT forward traverses 8/8/8/6 blocks across four GPUs.
-    for stage_name in ['structure_model', 'img2shape_512', 'img2shape', 'shape2txt']:
-        stage = getattr(model, stage_name)
+@contextmanager
+def resident_stage(stage, name):
+    # Only the denoiser being sampled occupies VRAM. The other stages stay in RAM.
+    cards = len(PHYSICAL_GPUS)
+    handles = []
+    blocks_per_device = [0] * cards
+    try:
         for child_name, child in stage.named_children():
             if child_name != 'blocks':
                 child.to('cuda:0')
         for index, block in enumerate(stage.blocks):
-            place(block, torch.device(f'cuda:{min(index // 8, 3)}'),
-                  f'{stage_name}.blocks.{index}')
-        place(stage.out_layer, torch.device('cuda:0'), f'{stage_name}.out_layer')
-    distribution = Counter()
-    for parameter in model.parameters():
-        distribution[str(parameter.device)] += parameter.numel() * parameter.element_size()
-    event('model_split', parameter_mib={k: round(v / 2**20, 2) for k, v in distribution.items()},
-          blocks_per_stage=[8, 8, 8, 6], memory=memory())
+            gpu = index * cards // len(stage.blocks)
+            handles.append(place(block, torch.device(f'cuda:{gpu}'), f'{name}.blocks.{index}'))
+            blocks_per_device[gpu] += 1
+        handles.append(place(stage.out_layer, torch.device('cuda:0'), f'{name}.out_layer'))
+        event('model_split', stage=name, blocks_per_device=blocks_per_device, memory=memory())
+        yield stage
+    finally:
+        for handle in handles:
+            handle.remove()
+        stage.cpu()
+        torch.cuda.empty_cache()
 
 
 def load_vae(cls, filename, device):
@@ -132,6 +139,11 @@ def encode_image(path):
 
 
 def sample(stage, noise, cond, params, name, concat_cond=None):
+    with resident_stage(stage, name):
+        return sample_resident(stage, noise, cond, params, name, concat_cond)
+
+
+def sample_resident(stage, noise, cond, params, name, concat_cond=None):
     sample_start = time.perf_counter()
     x = noise.float()
     times = np.linspace(1, 0, params['steps'] + 1)
@@ -168,7 +180,7 @@ def sample(stage, noise, cond, params, name, concat_cond=None):
                 pred = (a * x_feats - x0) / b
         result = x_feats - float(t - previous) * pred
         x = x.replace(result) if isinstance(x, SparseTensor) else result
-        for device in range(4):
+        for device in range(len(PHYSICAL_GPUS)):
             torch.cuda.synchronize(device)
         event('sampling_step', stage=name, step=index + 1, total=params['steps'], memory=memory())
     event('sampling_complete', stage=name, seconds=round(time.perf_counter() - sample_start, 3))
@@ -182,15 +194,20 @@ def denormalize(slat, normalization):
 
 
 def run(spec):
-    global ROOT, WEIGHTS, START
+    global ROOT, WEIGHTS, START, PHYSICAL_GPUS
     ROOT = Path(spec['output_dir'])
     WEIGHTS = Path(spec['model_root']) / 'generator'
     START = time.perf_counter()
     args = SimpleNamespace(resolution=int(spec.get('resolution',512)),image=spec['image'],seed=int(spec.get('seed',42)),resume=False)
     out = ROOT
     out.mkdir(parents=True,exist_ok=True)
-    assert torch.cuda.device_count()==4
-    event('environment',torch=torch.__version__,devices=[torch.cuda.get_device_name(i) for i in range(4)],resolution=args.resolution)
+    PHYSICAL_GPUS = spec['physical_gpus']
+    if len(PHYSICAL_GPUS) < 2 or torch.cuda.device_count() != len(PHYSICAL_GPUS):
+        raise RuntimeError('TRELLIS requires at least two reserved CUDA GPUs visible to the worker.')
+    texture_gpu = min(2, len(PHYSICAL_GPUS) - 1)
+    texture_device = torch.device(f'cuda:{texture_gpu}')
+    event('environment', torch=torch.__version__, devices=[torch.cuda.get_device_name(i)
+          for i in range(len(PHYSICAL_GPUS))], physical_gpus=PHYSICAL_GPUS, resolution=args.resolution)
     config = json.loads((WEIGHTS / 'pipeline.json').read_text())['args']
     torch.manual_seed(args.seed)
     with torch.inference_mode():
@@ -201,8 +218,7 @@ def run(spec):
         del state
         model.eval()
         event('diffusion_loaded', missing=list(result.missing_keys), unexpected=list(result.unexpected_keys))
-        split(model)
-        for i in range(4):
+        for i in range(len(PHYSICAL_GPUS)):
             with torch.cuda.device(i):
                 torch.cuda.empty_cache()
             torch.cuda.reset_peak_memory_stats(i)
@@ -245,12 +261,9 @@ def run(spec):
         physical_shape = denormalize(shape, config['shape_slat_normalization'])
         physical_tex = denormalize(texture, config['tex_slat_normalization'])
         # Generation has finished; release DiT weights before the high-resolution decoders.
-        for handle in HANDLES:
-            handle.remove()
-        model.cpu()
         del model, conditions, shape, texture
         gc.collect()
-        for i in range(4):
+        for i in range(len(PHYSICAL_GPUS)):
             with torch.cuda.device(i):
                 torch.cuda.empty_cache()
         event('decode_start', memory=memory())
@@ -264,9 +277,9 @@ def run(spec):
         del shape_vae
         with torch.cuda.device(1):
             torch.cuda.empty_cache()
-        tex_vae = load_vae(TextureVae, 'trellis_2_texture_vae_bf16.safetensors', 'cuda:2')
-        subs = [move(sub, torch.device('cuda:2')) for sub in subs]
-        voxel = tex_vae.decode_tex_slat(move(physical_tex, torch.device('cuda:2')).to(dtype=DTYPE), subs)
+        tex_vae = load_vae(TextureVae, 'trellis_2_texture_vae_bf16.safetensors', texture_device)
+        subs = [move(sub, texture_device) for sub in subs]
+        voxel = tex_vae.decode_tex_slat(move(physical_tex, texture_device).to(dtype=DTYPE), subs)
         voxel_coords = voxel.coords[:, 1:].cpu().numpy()
         attrs = voxel.feats.float().cpu().numpy()
         np.savez_compressed(out / 'pbr-voxels.npz', coords=voxel_coords, attributes=attrs, resolution=args.resolution)
