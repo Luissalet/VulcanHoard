@@ -8,6 +8,8 @@ import numpy as np
 from mathutils import Vector
 from mathutils.geometry import tessellate_polygon
 
+from seams import connect_ends, cycles
+
 
 def read_array(collection, property_name, width, dtype=np.float32):
     data = np.empty(len(collection) * width, dtype=dtype)
@@ -53,6 +55,14 @@ class Source:
 
     def select(self, criteria, available):
         mask = available.copy()
+        requested = criteria.get("face_ranges")
+        if requested:
+            if requested[-1][1] >= len(mask):
+                raise ValueError("A face range exceeds the source mesh. / Un tramo de caras rebasa la malla de origen.")
+            explicit = np.zeros_like(mask)
+            for start, end in requested:
+                explicit[start:end + 1] = True
+            mask &= explicit
         if criteria["lower"] is not None:
             mask &= np.all(self.centres >= criteria["lower"], axis=1)
         if criteria["upper"] is not None:
@@ -98,18 +108,48 @@ class Source:
                     heappush(queue, (total, neighbour))
         return selected[sorted(distances)]
 
-    def piece(self, name, selected, repair_original):
+    def piece(self, name, selected, repair_original, opposite_edges=None):
         source_faces = self.faces[selected]
         edge_ids, first, counts = np.unique(self.keys[selected], return_index=True, return_counts=True)
         eligible = counts == 1
         if not repair_original:
             eligible &= ~np.isin(edge_ids, self.preexisting)
+        repairs = []
+        occupied = np.zeros(len(edge_ids), dtype=bool)
+        for opposite, other_keys in (opposite_edges or {}).items():
+            cut = (counts == 1) & np.isin(edge_ids, other_keys)
+            if not cut.any():
+                raise ValueError(f"No open cut edges between {name!r} and {opposite!r}.")
+            if np.any(occupied & cut):
+                raise ValueError(f"Repair boundaries overlap at {name!r}.")
+            edges = np.column_stack(np.divmod(edge_ids[cut], self.stride))
+            repairs.append((opposite, cut, edges))
+            occupied |= cut
+        eligible &= ~occupied
         corner_indices = first[eligible]
         face_ids, edges = np.divmod(corner_indices, 3)
         # Reverse the source-facing edge so the cap has the opposite winding on the seam.
         closure = list(zip(source_faces[face_ids, (edges + 1) % 3], source_faces[face_ids, edges]))
         caps = cap_loops(closure, self.vertices)
         caps, inserted = separate_cap_diagonals(caps, edge_ids, self.stride)
+        cap_batches = [caps]
+        output_start = len(selected) + len(caps)
+        repair_facts = {}
+        for opposite, cut, seam_edges in repairs:
+            rings, supplemental = self.repair_seam(
+                edge_ids, counts, first, source_faces, cut, seam_edges, occupied | eligible
+            )
+            occupied[supplemental] = True
+            start = output_start
+            for ring in rings:
+                patch, new_vertices = fill_ring(ring, self.vertices, edge_ids)
+                patch[patch >= self.stride] += len(inserted)
+                inserted.extend(new_vertices)
+                cap_batches.append(patch)
+                output_start += len(patch)
+            repair_facts[opposite] = (edge_ids[cut], edge_ids[supplemental],
+                                      preexisting_counts(counts[supplemental]), [start, output_start - 1])
+        caps = np.concatenate(cap_batches)
         joined = np.concatenate((source_faces, caps))
         used, compact = np.unique(joined, return_inverse=True)
         vertices = with_interpolated(self.vertices, inserted)
@@ -142,9 +182,65 @@ class Source:
         start, end = np.divmod(boundary, stride)
         original_edges = (end < self.stride) & np.isin(start * self.stride + end, self.preexisting)
         open_cut = np.count_nonzero(~original_edges)
+        separation = {}
+        for opposite, (cut, supplemental, use_counts, output_range) in repair_facts.items():
+            vertices_from, vertices_to = np.divmod(cut, self.stride)
+            seam_keys = vertices_from * stride + vertices_to
+            final_counts = uses[np.searchsorted(keys, seam_keys)]
+            if np.any(final_counts != 2):
+                failures = preexisting_counts(final_counts[final_counts != 2])
+                raise ValueError(f"The repair of {name!r} against {opposite!r} has unexpected edge incidence: {failures}.")
+            separation[opposite] = {
+                "open_before": len(cut), "open_after": int(np.count_nonzero(final_counts == 1)),
+                "cut_source_edges": np.column_stack((vertices_from, vertices_to)).tolist(),
+                "route_source_edges": np.column_stack(np.divmod(supplemental, self.stride)).tolist(),
+                "route_prior_uses": use_counts,
+                "output_face_range": output_range,
+            }
         return mesh, {"lineage": "source_faces", "source_faces": len(selected), "cap_faces": cap_count,
                       "boundary_edges": len(boundary), "open_cut_edges": int(open_cut),
-                      "nonmanifold_edges": int(np.count_nonzero(uses > 2))}
+                      "nonmanifold_edges": int(np.count_nonzero(uses > 2))}, separation
+
+    def repair_seam(self, edge_ids, counts, first, faces, cut, seam_edges, occupied):
+        # Restrict rerouting to the neighbourhood of this separation. All original
+        # triangles, including those along the routes, remain in source order.
+        points = self.vertices[seam_edges.ravel()]
+        margin = max(float(np.max(np.ptp(points, axis=0))) * 0.10, 1e-6)
+        local = np.all((self.vertices >= points.min(axis=0) - margin)
+                       & (self.vertices <= points.max(axis=0) + margin), axis=1)
+        a, b = np.divmod(edge_ids, self.stride)
+        allowed = ~occupied & local[a] & local[b]
+        candidate_edges = np.column_stack((a[allowed], b[allowed]))
+        routes = connect_ends(seam_edges, zip(map(tuple, candidate_edges), counts[allowed]), self.vertices)
+        route_ids = np.asarray([a * self.stride + b for a, b in routes], dtype=np.int64)
+        supplemental = np.searchsorted(edge_ids, route_ids)
+        face_indices, sides = np.divmod(first[cut], 3)
+        forward = set(zip(faces[face_indices, sides], faces[face_indices, (sides + 1) % 3]))
+        backward = {(b, a) for a, b in forward}
+        rings = []
+        for ring in cycles([*map(tuple, seam_edges), *routes]):
+            directed = set(zip(ring, ring[1:] + ring[:1]))
+            if len(directed & forward) > len(directed & backward):
+                ring.reverse()
+            rings.append(ring)
+        return rings, supplemental
+
+
+def preexisting_counts(uses):
+    return {str(int(count)): int(total) for count, total in zip(*np.unique(uses, return_counts=True))}
+
+
+def fill_ring(ring, points, source_keys):
+    stride = len(points)
+    following = ring[1:] + ring[:1]
+    filled = tessellate_polygon([[Vector(points[i]) for i in ring]])
+    if len(filled) == len(ring) - 2:
+        triangles = np.asarray([tuple(ring[i] for i in tri) for tri in filled], dtype=np.int32)
+        keys, counts = np.unique(edge_keys(triangles, stride), return_counts=True)
+        expected = sorted(min(a, b) * stride + max(a, b) for a, b in zip(ring, following))
+        if np.array_equal(keys[counts == 1], expected):
+            return separate_cap_diagonals(triangles, source_keys, stride)
+    return np.asarray([(a, b, stride) for a, b in zip(ring, following)], dtype=np.int32), [tuple(ring)]
 
 
 def make_mesh(name, vertices, faces):
@@ -186,7 +282,10 @@ def separate_cap_diagonals(caps, source_keys, stride):
     # a private midpoint so adding the cap cannot put four faces on the same edge.
     keys = edge_keys(caps, stride)
     unique, uses = np.unique(keys, return_counts=True)
-    shared = unique[(uses > 1) & np.isin(unique, source_keys)]
+    diagonals = unique[uses > 1]
+    spots = np.searchsorted(source_keys, diagonals)
+    inside = spots < len(source_keys)
+    shared = diagonals[inside][source_keys[spots[inside]] == diagonals[inside]]
     if not len(shared):
         return caps, []
     sources = [tuple(map(int, divmod(key, stride))) for key in shared]

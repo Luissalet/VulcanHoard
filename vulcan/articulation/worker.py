@@ -128,14 +128,17 @@ def cameras(scene, recipe, source):
         data = bpy.data.cameras.new(spec["name"])
         obj = bpy.data.objects.new(spec["name"], data)
         scene.collection.objects.link(obj)
-        obj.location = focus + direction * scale * 3
+        target = Vector(spec["focus"]) if spec.get("focus") is not None else focus
+        span = spec.get("view_scale") or scale
+        obj.location = target + direction * span * 3
         obj.rotation_euler = (-direction).to_track_quat("-Z", "Y").to_euler()
         data.type = "ORTHO"
-        data.ortho_scale = scale
-        data.clip_end = max(100, scale * 8)
+        data.ortho_scale = span
+        data.clip_end = max(100, span * 8)
         result[spec["name"]] = obj
     return result, {"focus": list(focus), "orthographic_span": scale,
-                    "views": {name: {"location": list(obj.location), "matrix": [list(row) for row in obj.matrix_world]}
+                    "views": {name: {"location": list(obj.location), "matrix": [list(row) for row in obj.matrix_world],
+                                     "orthographic_span": obj.data.ortho_scale}
                               for name, obj in result.items()}}
 
 
@@ -174,6 +177,14 @@ def validate(recipe):
             visited.add(cursor)
             cursor = bones[cursor]
     visible = {"body"} | {part["name"] for part in recipe["parts"] + recipe["panels"] if not part.get("discard")}
+    retained = {"body"} | {part["name"] for part in recipe["parts"] if not part["discard"]}
+    repaired = set()
+    for pair in recipe.get("seam_repairs", ()):
+        seam = frozenset(pair)
+        if len(seam) != 2 or not seam <= retained or seam in repaired:
+            raise ValueError("Each repaired seam must name two distinct retained source pieces once. / Cada encastre debe indicar dos piezas de origen conservadas una sola vez.")
+        repaired.add(seam)
+    camera_names = {camera["name"] for camera in recipe["cameras"]} or {"front", "back"}
     bindings = [recipe["body_bone"]] + [part["bone"] for part in recipe["parts"] + recipe["panels"]]
     if any(bone not in bones for bone in bindings if bone is not None):
         raise ValueError("Every piece binding must name a bone in this recipe.")
@@ -181,6 +192,8 @@ def validate(recipe):
         hidden = set(pose["hide"])
         if set(pose["rotations"]) - bones.keys() or not hidden < visible:
             raise ValueError("A pose must use known bones and hide only named pieces, leaving a visible piece.")
+        if pose.get("cameras") is not None and not set(pose["cameras"]) <= camera_names:
+            raise ValueError("A pose must use cameras from this recipe. / La pose debe usar cámaras de esta receta.")
 
 
 def main(source_path, recipe, output, digest):
@@ -215,21 +228,37 @@ def main(source_path, recipe, output, digest):
     parts_collection = collection(scene, "Articulated pieces")
     source = Source(original)
     objects, pieces, lineage = {}, {}, {}
+    selections = {}
     remaining = np.ones(len(source.faces), dtype=np.bool_)
-    for part in recipe["parts"] + [{"name": "body", "bone": recipe["body_bone"], "pivot": None}]:
+    source_parts = recipe["parts"] + [{"name": "body", "bone": recipe["body_bone"], "pivot": None}]
+    for part in source_parts:
         name = part["name"]
         chosen = source.select(part["select"], remaining) if "select" in part else np.flatnonzero(remaining)
         if not len(chosen):
             raise ValueError(f"Selection {name!r} contains no available faces.")
         remaining[chosen] = False
+        selections[name] = chosen
+    opposites = {name: {} for name in selections}
+    for first, second in recipe.get("seam_repairs", ()):
+        opposites[first][second] = np.unique(source.keys[selections[second]])
+        opposites[second][first] = np.unique(source.keys[selections[first]])
+    for part in source_parts:
+        name = part["name"]
+        chosen = selections[name]
         lineage[name] = {"ranges": ranges(chosen), "source_faces": len(chosen)}
         if part.get("discard"):
             pieces[name] = {"lineage": "discarded", "source_faces": len(chosen)}
             continue
-        mesh, metrics = source.piece(name, chosen, recipe["repair_original"])
+        mesh, metrics, repairs = source.piece(name, chosen, recipe["repair_original"], opposites[name])
         attach(mesh, name, part["pivot"], objects, parts_collection, part["bone"], "source_faces")
         pieces[name] = {**metrics, "bone": part["bone"], "pivot": part["pivot"]}
         lineage[name]["cap_output_range"] = [len(chosen), len(mesh.polygons) - 1] if metrics["cap_faces"] else None
+        if repairs:
+            lineage[name]["seam_repairs"] = repairs
+            pieces[name]["seam_repairs"] = {
+                other: {key: report[key] for key in ("open_before", "open_after", "route_prior_uses")}
+                for other, report in repairs.items()
+            }
     for panel in recipe["panels"]:
         name = panel["name"]
         mesh = panel_mesh(panel)
@@ -272,7 +301,9 @@ def main(source_path, recipe, output, digest):
     exports = {"scene": "editable.blend", "rigged": "rigged.glb", "lineage": "lineage.json", "recipe": "recipe.json"}
     for pose in recipe["poses"]:
         set_pose(rig, objects, pose)
-        previews += render(scene, output, views, pose["name"], "VERTEX")
+        requested = pose.get("cameras")
+        pose_views = views if requested is None else {name: views[name] for name in requested}
+        previews += render(scene, output, pose_views, pose["name"], "VERTEX")
         if pose["export"]:
             file = f"pose-{pose['name']}.glb"
             frozen_pose(output / file, objects, parts_collection)

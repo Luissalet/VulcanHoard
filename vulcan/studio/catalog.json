@@ -16900,7 +16900,7 @@
     "module": "library",
     "native_name": "articulation_build",
     "name": "articulation_build",
-    "description": "Split and rig an inferred mesh. Selección, corte, reparación y articulación.\nSelect by region, plane, colour or seed; cap boundaries, discard debris and rig separate pieces. Creates a new editable package with source face provenance, GLB, frozen poses and optional same-camera previews. Use articulation_undo to revert. Selecciona, separa y repara superficies, retira restos y articula las piezas con huesos.",
+    "description": "Split and rig an inferred mesh. Selección, corte, reparación y articulación.\nSelect by region, plane, colour or seed; cap boundaries, repair named seams, discard debris and rig separate pieces. Creates a new editable package with source face provenance, GLB, frozen poses and optional same-camera previews. Use articulation_undo to revert. Selecciona por región, plano, color, semilla o caras de origen. Repara encastres, retira restos y articula piezas con huesos.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -16999,6 +16999,46 @@
               ],
               "title": "Direction",
               "type": "array"
+            },
+            "focus": {
+              "anyOf": [
+                {
+                  "maxItems": 3,
+                  "minItems": 3,
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Optional camera target in source space. / Punto de mira en el espacio de origen.",
+              "title": "Focus"
+            },
+            "view_scale": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Optional orthographic span in metres. / Anchura ortográfica en metros.",
+              "title": "View Scale"
             }
           },
           "required": [
@@ -17321,6 +17361,24 @@
               "description": "World Z rotation around the scene origin.",
               "title": "Turn Degrees",
               "type": "number"
+            },
+            "cameras": {
+              "anyOf": [
+                {
+                  "items": {
+                    "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,47}$",
+                    "type": "string"
+                  },
+                  "maxItems": 8,
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Preview from these cameras. / Usa estas cámaras para la vista previa.",
+              "title": "Cameras"
             }
           },
           "required": [
@@ -17447,6 +17505,27 @@
                 }
               ],
               "default": null
+            },
+            "face_ranges": {
+              "description": "Inclusive source face ranges from this GLB revision. / Tramos inclusivos de caras de esta revisión del GLB.",
+              "items": {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                ],
+                "type": "array"
+              },
+              "maxItems": 32768,
+              "title": "Face Ranges",
+              "type": "array"
             }
           },
           "title": "Selection",
@@ -17528,6 +17607,27 @@
           "description": "Also attempt to close pre-existing boundary loops.",
           "title": "Repair Original",
           "type": "boolean"
+        },
+        "seam_repairs": {
+          "description": "Repair local separation edges between pairs of retained pieces. / Repara los bordes de separación entre pares de piezas conservadas.",
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,47}$",
+                "type": "string"
+              },
+              {
+                "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,47}$",
+                "type": "string"
+              }
+            ],
+            "type": "array"
+          },
+          "maxItems": 32,
+          "title": "Seam Repairs",
+          "type": "array"
         },
         "poses": {
           "items": {

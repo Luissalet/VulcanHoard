@@ -12,6 +12,7 @@ PackageId = Annotated[str, Field(pattern=r"^[0-9a-f]{32}$")]
 RGB = tuple[Annotated[FiniteFloat, Field(ge=0, le=1)], Annotated[FiniteFloat, Field(ge=0, le=1)],
             Annotated[FiniteFloat, Field(ge=0, le=1)]]
 Positive = Annotated[FiniteFloat, Field(gt=0)]
+FaceIndex = Annotated[int, Field(ge=0)]
 View = Annotated[str, Field(pattern=r"^[A-Za-z][A-Za-z0-9_-]{0,100}\.png$")]
 
 
@@ -40,15 +41,24 @@ class Selection(Args):
     planes: list[Plane] = Field(default_factory=list, max_length=8)
     colour: Colour | None = None
     seed: Seed | None = None
+    face_ranges: list[tuple[FaceIndex, FaceIndex]] = Field(
+        default_factory=list, max_length=32768,
+        description="Inclusive source face ranges from this GLB revision. / Tramos inclusivos de caras de esta revisión del GLB.",
+    )
 
     @model_validator(mode="after")
     def check(self):
-        if not any((self.lower, self.upper, self.planes, self.colour, self.seed)):
-            raise ValueError("Provide a region, plane, colour or seed. / Indica una región, un plano, un color o una semilla.")
+        if not any((self.lower, self.upper, self.planes, self.colour, self.seed, self.face_ranges)):
+            raise ValueError("Provide a region, plane, colour, seed or face range. / Indica una región, un plano, un color, una semilla o un tramo de caras.")
         if self.lower and self.upper and any(low > high for low, high in zip(self.lower, self.upper)):
             raise ValueError("Region bounds are reversed. / Los límites de la región están invertidos.")
         if any(not any(plane.normal) for plane in self.planes):
             raise ValueError("A plane normal cannot be zero. / La normal del plano no puede ser cero.")
+        previous = -1
+        for start, end in self.face_ranges:
+            if not previous < start <= end:
+                raise ValueError("Face ranges must be disjoint and sorted. / Los tramos de caras deben estar ordenados y no solaparse.")
+            previous = end
         return self
 
 
@@ -83,11 +93,14 @@ class Pose(Args):
     export: bool = True
     hide: list[Name] = Field(default_factory=list, description="Pieces excluded from this pose and its frozen export.")
     turn_degrees: FiniteFloat = Field(0, description="World Z rotation around the scene origin.")
+    cameras: list[Name] | None = Field(None, max_length=8, description="Preview from these cameras. / Usa estas cámaras para la vista previa.")
 
 
 class Camera(Args):
     name: Name
     direction: Vec = Field(description="World offset from the common focus, looking towards the subject.")
+    focus: Vec | None = Field(None, description="Optional camera target in source space. / Punto de mira en el espacio de origen.")
+    view_scale: Positive | None = Field(None, description="Optional orthographic span in metres. / Anchura ortográfica en metros.")
 
 
 class Build(Args):
@@ -99,12 +112,20 @@ class Build(Args):
     bones: list[Bone] = Field(default_factory=list, max_length=32)
     body_bone: Name | None = None
     repair_original: bool = Field(False, description="Also attempt to close pre-existing boundary loops.")
+    seam_repairs: list[tuple[Name, Name]] = Field(default_factory=list, max_length=32,
+        description="Repair local separation edges between pairs of retained pieces. / Repara los bordes de separación entre pares de piezas conservadas.")
     poses: list[Pose] = Field(default_factory=list, max_length=8)
     cameras: list[Camera] = Field(default_factory=list, max_length=8)
     focus: Vec | None = None
     view_scale: Positive | None = Field(None, description="Orthographic span, in metres.")
     view_size: int = Field(480, ge=256, le=1024)
     selection_views: bool = True
+
+    @model_validator(mode="after")
+    def check_face_revision(self):
+        if not self.source_sha256 and any(part.select.face_ranges for part in self.parts):
+            raise ValueError("Face ranges require source_sha256. / Los tramos de caras requieren source_sha256.")
+        return self
 
 
 class Lookup(Args):
@@ -137,9 +158,9 @@ def undo(services, args):
 
 TOOLS = [
     Tool("articulation_build", "Split and rig an inferred mesh. Selección, corte, reparación y articulación.\nSelect by region, plane, colour or seed; cap boundaries, "
-         "discard debris and rig separate pieces. Creates a new editable package with source face provenance, GLB, "
+         "repair named seams, discard debris and rig separate pieces. Creates a new editable package with source face provenance, GLB, "
          "frozen poses and optional same-camera previews. Use articulation_undo to revert. "
-         "Selecciona, separa y repara superficies, retira restos y articula las piezas con huesos.",
+         "Selecciona por región, plano, color, semilla o caras de origen. Repara encastres, retira restos y articula piezas con huesos.",
          Build, ann(draft_safe=True), build, timeout_s=600, capped=False),
     Tool("articulation_get", "Read an articulation package. Consulta de articulación.\nReturns its revision, measurements and files. "
          "Consulta la procedencia, las medidas y los archivos de la articulación.", Lookup, ann(True), get, capped=False),
