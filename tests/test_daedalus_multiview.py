@@ -97,3 +97,26 @@ def test_multiview_backbone_subpackages_are_discovered_for_installation():
     source=root/'vulcan/studio_native/daedalus/daedalus/geometry/multiview_model'
     required={'.'.join(path.parent.relative_to(root).parts) for path in source.rglob('*.py')}
     assert required <= packages
+
+
+def test_persistent_multiview_runtime_is_available_without_worktree_environment(tmp_path,monkeypatch):
+    import os
+    from vulcan.studio_native.daedalus.daedalus import config
+
+    source=tmp_path/'checkout'/'vulcan'/'studio_native'/'daedalus'
+    engines=tmp_path/'engines'
+    suffix='Scripts/python.exe' if os.name=='nt' else 'bin/python'
+    persistent=engines/'daedalus-multiview'/suffix
+    persistent.parent.mkdir(parents=True)
+    persistent.touch()
+    monkeypatch.setattr(config,'ROOT',source)
+    monkeypatch.setattr(config,'RUNTIMES',engines)
+    monkeypatch.delenv('DAEDALUS_MULTIVIEW_PYTHON',raising=False)
+    data=tmp_path/'data'
+    assert config.Config(data).multiview_python==str(persistent)
+    selected=tmp_path/'configured-python'
+    selected.touch()
+    (data/'settings.json').write_text(json.dumps({'multiview_python':str(selected)}),encoding='utf-8')
+    assert config.Config(data).multiview_python==str(selected)
+    monkeypatch.setenv('DAEDALUS_MULTIVIEW_PYTHON',str(persistent))
+    assert config.Config(data).multiview_python==str(persistent)

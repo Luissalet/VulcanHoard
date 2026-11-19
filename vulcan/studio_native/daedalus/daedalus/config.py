@@ -4,6 +4,14 @@ import subprocess
 from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[1]
+RUNTIMES=(Path('E:/Development/Tools/engines') if os.name=='nt'
+          else Path.home()/'.local/share/daedalus/engines')
+
+
+def runtime_python(environment):
+    executable=environment/('Scripts/python.exe' if os.name=='nt' else 'bin/python')
+    return str(executable) if executable.is_file() else None
+
 
 class Config:
     def __init__(self,data_dir=None):
@@ -17,13 +25,12 @@ class Config:
         settings=json.loads(settings_path.read_text()) if settings_path.exists() else {}
         default=Path('E:/Development/AI Models/daedalus') if os.name=='nt' else Path.home()/'.local/share/daedalus/models'
         self.models=Path(os.environ.get('DAEDALUS_MODEL_DIR') or settings.get('model_dir') or default).resolve()
-        self.python=os.environ.get('DAEDALUS_ENGINE_PYTHON')
+        repo=ROOT.parents[2]
+        self.python=os.environ.get('DAEDALUS_ENGINE_PYTHON') or runtime_python(repo/'.engine-venv')
         self.draft_python=os.environ.get('DAEDALUS_DRAFT_PYTHON') or settings.get('draft_python') or self.python
-        self.multiview_python=os.environ.get('DAEDALUS_MULTIVIEW_PYTHON') or settings.get('multiview_python')
-        if not self.multiview_python:
-            runtime=ROOT.parents[2]/'.multiview-venv'/('Scripts/python.exe' if os.name=='nt' else 'bin/python')
-            if runtime.is_file():
-                self.multiview_python=str(runtime)
+        self.multiview_python=(os.environ.get('DAEDALUS_MULTIVIEW_PYTHON') or settings.get('multiview_python')
+                               or runtime_python(RUNTIMES/'daedalus-multiview')
+                               or runtime_python(repo/'.multiview-venv'))
         self.port=int(os.environ.get('DAEDALUS_PORT','8830'))
 
     @staticmethod
