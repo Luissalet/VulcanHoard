@@ -3,6 +3,7 @@
 Tools on top of the model library: lighter LOD variants, a multi-view look for assistants, opening models in a
 slicer, a dense-mesh viewer mode, AI texturing by view projection and octahedral impostors for the many-model 3D table. Each one
 has a UI control, a REST route and an MCP tool.
+The library also exposes [mesh articulation](ARTICULATION.md) through MCP, with separate pieces and source-linked poses.
 
 ## Simplify / LOD variants
 
