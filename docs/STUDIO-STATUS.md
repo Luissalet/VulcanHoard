@@ -28,6 +28,6 @@ Independent CAS review; smoke verification of the final installed package and co
 
 The UI detector ran once in degraded regex mode because optional parser dependencies were unavailable. It reported no findings but did not evaluate computed contrast or selector matching. Browser checks provide the visual evidence; this is not a full accessibility certification.
 
-The separate software-studio merger must continue to describe Theseus as incomplete and paused by Luis for usage quota. This integration does not resume that development.
+The separate software-studio merger must continue to describe Theseus as incomplete and paused by the project owner pending renewed usage quota. This integration does not resume that development.
 
 CAS2 review reproduced a second, delegated FileResponse open surviving cancellation after the read lease was released. CAS3 reuses the exact verified descriptor through the FileResponse range hook; no delegated pathname reopen occurs. Off-thread read/seek tasks are joined through repeated cancellation before releasing the descriptor. Twenty-two focal artifact/native-flow/lifecycle tests pass, including held read/seek, multipart ranges,416,HEAD and cancellation/error cleanup. The Starlette minimum is1.9 (the tested hook); the requirements pins now match the already-tested FastAPI0.146.0/Starlette1.9.0 environment instead of older source pins. This is not another full-suite run. Installed CAS2 theme CAD was confirmed visually, with all modules OFF before graceful QA shutdown; CAS3 changes no UI assets.
