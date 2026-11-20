@@ -1,7 +1,7 @@
 """Listing photos of a library model rendered by Blender in the background (headless): the model on a floor with a soft
 shadow, an orbit camera fitted to its size and studio light, from named angles, in Workbench (fast), EEVEE or Cycles (CPU).
 Photos are cached in ``<data dir>/renders/`` by file content and parameters, with a contact sheet of all the angles.
-Blender is found with VULCAN_BLENDER, then the newest ``Blender Foundation/Blender X.Y`` install, then PATH."""
+Blender is found with VULCAN_BLENDER, VULCAN_BLENDER_VERSION, then the newest ``Blender Foundation/Blender X.Y`` install, then PATH."""
 
 from __future__ import annotations
 
@@ -45,6 +45,10 @@ def blender_candidates() -> list[str]:
     installs: list[Path] = []
     for base in filter(None, bases):
         installs += [p for p in Path(base, "Blender Foundation").glob("Blender*/blender.exe") if p.is_file()]
+    version = os.environ.get("VULCAN_BLENDER_VERSION", "").strip()
+    if version:
+        return list(dict.fromkeys(found + [str(p) for p in installs if
+            ".".join(map(str, _version_of(p))) == version]))
     found += [str(p) for p in sorted(installs, key=_version_of, reverse=True)]
     on_path = shutil.which("blender")
     if on_path:
@@ -60,9 +64,16 @@ def find_blender() -> str | None:
 def blender_status() -> dict:
     path = find_blender()
     version = ".".join(map(str, _version_of(Path(path)))) if path and _version_of(Path(path)) != (0, 0) else None
-    return {"available": bool(path), "path": path, "version": version, "candidates": blender_candidates(),
-            "engines": list(ENGINES), "views": list(VIEWS), "default_views": list(DEFAULT_VIEWS),
-            "note": None if path else "Blender not found: install it or set VULCAN_BLENDER to blender.exe."}
+    requested = os.environ.get("VULCAN_BLENDER_VERSION", "").strip()
+    note = None
+    if not path and requested:
+        note = (f"Blender {requested} unavailable. Set VULCAN_BLENDER to the executable. / "
+                f"Blender {requested} no está disponible. Indica el ejecutable en VULCAN_BLENDER.")
+    elif not path:
+        note = "Blender not found: install it or set VULCAN_BLENDER to blender.exe."
+    return {"available": bool(path), "path": path, "version": version, "requested_version": requested or None,
+            "candidates": blender_candidates(), "engines": list(ENGINES), "views": list(VIEWS),
+            "default_views": list(DEFAULT_VIEWS), "note": note}
 
 
 def parse_color(value, default: str) -> tuple[float, float, float]:

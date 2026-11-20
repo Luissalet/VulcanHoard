@@ -38,6 +38,14 @@ Assets animados para entregar (Hangar E18, #2203): página «Animaciones» (ruta
 
 ## Bloqueo de primitivas
 
+En Windows, `VULCAN_BLENDER_VERSION=4.3` fija la versión de Blender para los
+procesos en segundo plano. Si esa versión falta, el estado del motor informa
+del fallo y no elige otra. `VULCAN_BLENDER` permite indicar el ejecutable
+directamente y tiene prioridad. Sin esos ajustes, Vulcan descubre la versión
+más reciente o usa la que esté en PATH. `model_render_status` muestra la versión
+encontrada y la solicitada.
+
+
 `blocking_build` crea una toma en CPU con piezas separadas, articulación rígida y dos manos. Admite claves propias, hoja, tubo y escalera opcionales y cuatro gestos de mapa preparados: desenrollar, enderezar, pasar de mano y girar al dorso. El pase va de izquierda a derecha desde el punto de vista del personaje y admite el sentido inverso mediante `pass_direction`. Devuelve la escena editable, el GLB animado y mapas de color, profundidad y normales por clave con cámara común. Cada clave incluye profundidad sin hoja ni tubo, capas RGBA y máscaras aisladas y visibles, un mapa de IDs, orden de oclusión y puntos de agarre de mano y dedos. Estas salidas se pueden registrar como piezas de una orden. `blocking_get` consulta el resultado y `blocking_undo` lo retira o restaura. Véase [Bloqueo de primitivas](docs/blocking.md).
 
 ## Skills for the agents that connect

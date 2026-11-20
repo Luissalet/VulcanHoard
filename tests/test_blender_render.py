@@ -122,3 +122,22 @@ def test_real_workbench_render(box_model):
         assert photo.size == (256, 256)
         colours = photo.convert("RGB").getcolors(256 * 256)
         assert len(colours) > 50  # shaded model on a floor, not a blank frame
+
+
+def test_blender_version_pin_does_not_fall_back_to_latest(monkeypatch, tmp_path):
+    monkeypatch.delenv("VULCAN_BLENDER", raising=False)
+    monkeypatch.setenv("ProgramFiles", str(tmp_path))
+    monkeypatch.delenv("ProgramFiles(x86)", raising=False)
+    installs = tmp_path / "Blender Foundation"
+    for version in ("4.3", "5.2"):
+        exe = installs / f"Blender {version}" / "blender.exe"
+        exe.parent.mkdir(parents=True)
+        exe.touch()
+    monkeypatch.setenv("VULCAN_BLENDER_VERSION", "4.3")
+    assert blender_render.blender_status()["version"] == "4.3"
+    monkeypatch.setenv("VULCAN_BLENDER_VERSION", "4.5")
+    assert blender_render.find_blender() is None
+    assert blender_render.blender_status()["requested_version"] == "4.5"
+    explicit = installs / "Blender 5.2" / "blender.exe"
+    monkeypatch.setenv("VULCAN_BLENDER", str(explicit))
+    assert blender_render.find_blender() == str(explicit)
