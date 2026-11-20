@@ -167,7 +167,8 @@ def _receipt(package: Path) -> dict:
             }
     first = result["keyframes"][0]["maps"]
     result["anchors"] = {"blocking": result["files"]["mesh"], "parts": str(metadata),
-                         "blocking_color": first["color"], "depth": first["depth"], "normals": first["normals"]}
+                         "blocking_color": first["color"],
+                         **{label: first[label] for label in ("depth", "normals") if label in first}}
     result["undo"] = {"tool": "blocking_undo", "arguments": {"id": result["id"]}}
     return result
 

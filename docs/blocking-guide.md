@@ -1,17 +1,19 @@
 # Blocking video guide / Vídeo guía del bloqueo
 
-Build a blocking with `blocking_build`, then call `blocking_guide` with its
-`id`. The tool returns an H.264 MP4 at the same frame rate and with the same
-camera as the blocking. It evaluates the scene on the CPU at every frame,
-including the final key. The receipt gives the animated duration and, separately,
-the MP4 duration including the last frame. Import the returned `path` as a video
-asset and use its ID as the shot's control asset. To withdraw or restore the
-export, use its returned `undo` call.
+Build a take with `blocking_build` or `blocking_pass`, then pass its `id` to
+`blocking_guide`. The H.264 MP4 uses the take's camera and frame rate. It
+uses the CPU by default and samples through the last key. The receipt gives
+the animated and MP4 durations. Set `include_end:false` to match the animated
+duration exactly. For a detailed take, `gpu` selects a CUDA device by index
+and reserves 4 GiB of VRAM in the Hub. Import the returned `path` as a video
+asset and use its ID as the shot's control asset. The returned `undo` call
+withdraws or restores the export.
 
-Crea el bloqueo con `blocking_build` y llama a `blocking_guide` con su
-`id`. La herramienta devuelve un MP4 H.264 con la misma cámara y frecuencia
-que el bloqueo. Evalúa la escena en CPU en cada fotograma, incluida la última
-clave. El recibo indica la duración animada y también la duración del MP4 con
-el último fotograma. Importa el `path` devuelto como vídeo y usa su ID como
-recurso de control del plano. Para retirar o restaurar la exportación, usa
-la llamada `undo` devuelta.
+Crea la toma con `blocking_build` o `blocking_pass` y pasa su `id` a
+`blocking_guide`. El MP4 H.264 usa la cámara y la frecuencia de la toma.
+Usa la CPU por defecto y toma muestras hasta la última clave. El recibo
+indica la duración animada y la del MP4. Usa `include_end:false` para que
+ambas coincidan. En una toma detallada, `gpu` elige un dispositivo CUDA
+por índice y reserva 4 GiB de VRAM en el Hub. Importa el `path` devuelto
+como vídeo y usa su ID como recurso de control del plano. La llamada
+`undo` retira o restaura la exportación.

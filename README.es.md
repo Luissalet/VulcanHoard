@@ -18,6 +18,7 @@ La biblioteca se queda en la máquina: SQLite con FTS5 y miniaturas WebP, sin cu
 
 - Articulación de mallas inferidas por MCP con marcas de contacto vinculadas al origen desde el visor, primeros planos comparables, reparación local de encastres, piezas reconstruidas por separado, paneles con una esquina cortada a partir de un expediente de revisión fija y exportación articulada de juego con límite de triángulos.
 - [Bloqueo de primitivas](docs/blocking.md) por MCP. Crea una toma editable con dos manos sencillas y accesorios opcionales, exporta un GLB articulado y obtiene mapas de la misma cámara, capas transparentes y contactos de agarre por clave.
+- [Pase de hoja en modelos detallados](docs/blocking-pass.md) por MCP, con articulaciones para ambas manos, medida de los agarres, poses congeladas y guías de vídeo.
 - Las carpetas raíz las eliges tú, con globs de inclusión y exclusión, política de miniaturas por raíz y tamaño mínimo de archivo. Los escaneos son incrementales (tamaño y fecha, luego SHA-256), usan un pool de procesos, muestran progreso y tiempo estimado y vigilan los cambios en las carpetas.
 - Geometría con `trimesh`: triángulos, caja envolvente en mm, volumen, superficie, estanqueidad, número de cuerpos y estimación de unidades. GLB y glTF se miden como escenas; FBX pasa por Blender si está instalado.
 - Miniaturas en Python puro (numpy y Pillow, sin GPU ni OpenGL) y un visor three.js con órbita y rejilla de cama de impresión.

@@ -24,8 +24,8 @@ def test_blocking_guide_preserves_last_key_and_can_be_restored(tmp_path, monkeyp
 
     def run(command, **kwargs):
         if command[0] == "blender":
-            for i in range(13):
-                (command[-1] / f"frame-{i:03d}.png").touch()
+            for i in range(command[-1]):
+                (command[-2] / f"frame-{i:03d}.png").touch()
         else:
             assert command[command.index("-framerate") + 1] == 24
             assert command[command.index("-frames:v") + 1] == 13
@@ -35,7 +35,7 @@ def test_blocking_guide_preserves_last_key_and_can_be_restored(tmp_path, monkeyp
     monkeypatch.setattr(blocking_guide.proc, "run", run)
     take_path = blocking._root(services) / block_id
     take_path.mkdir(parents=True)
-    guide = blocking_guide.export(services, blocking.Lookup(id=block_id))
+    guide = blocking_guide.export(services, blocking_guide.Guide(id=block_id))
     assert guide["keyframes"] == take["keyframes"]
     assert guide["blocking_id"] == block_id
     assert guide["duration_s"] == 0.5
@@ -61,7 +61,7 @@ def test_blender_guide_matches_the_blocking_timing(tmp_path):
     services = SimpleNamespace(config=SimpleNamespace(data_dir=tmp_path))
     poses = [key.model_copy(update={"frame": key.frame // 4}) for key in blocking.preset("pass")]
     take = blocking.build(services, blocking.Build(gesture="custom", size=128, poses=poses))
-    guide = blocking_guide.export(services, blocking.Lookup(id=take["id"]))
+    guide = blocking_guide.export(services, blocking_guide.Guide(id=take["id"]))
     output = proc.run(ffprobe.command("-v", "error", "-count_frames", "-select_streams", "v:0",
                                      "-show_entries", "stream=nb_read_frames,avg_frame_rate,width,height",
                                      "-of", "json", guide["path"]), timeout=10, check=True)
