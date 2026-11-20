@@ -1,3 +1,4 @@
+import { tr } from './i18n';
 import { useEffect, useState } from 'react';
 import { Sparkle } from '@phosphor-icons/react';
 import { api } from './types';
@@ -30,7 +31,7 @@ export default function CommandEditor({
     if (!instruction.trim()) return;
     setError('');
     setMessage('');
-    onBusy('Interpretando tu cambio…');
+    onBusy(tr('Interpretando tu cambio…', 'Interpreting your change…'));
     try {
       const result = await api<{
         project: Project;
@@ -50,10 +51,13 @@ export default function CommandEditor({
   }
   return (
     <section className="inspector-section">
-      <h2>Describe el cambio</h2>
+      <h2>{tr('Describe el cambio', 'Describe the change')}</h2>
       <p className="muted small">
-        Usa los nombres de las superficies o los números de grupo.{' '}
-        {selected.length ? 'Hay una zona seleccionada.' : ''}
+        {tr(
+          'Usa los nombres de las superficies o los números de grupo.',
+          'Use surface names or group numbers.',
+        )}{' '}
+        {selected.length ? tr('Hay una zona seleccionada.', 'A region is selected.') : ''}
       </p>
       <form
         onSubmit={(e) => {
@@ -62,13 +66,16 @@ export default function CommandEditor({
         }}
       >
         <label className="field-select">
-          Tu indicación
+          {tr('Tu indicación', 'Your instruction')}
           <textarea
             rows={3}
             value={instruction}
             disabled={disabled}
             onChange={(e) => setInstruction(e.target.value)}
-            placeholder="Los ojos más hundidos. El grupo 3 a la misma altura que el 5."
+            placeholder={tr(
+              'Los ojos más hundidos. El grupo 3 a la misma altura que el 5.',
+              'Recess the eyes further. Set group 3 to the same height as group 5.',
+            )}
           />
         </label>
         <button
@@ -76,7 +83,7 @@ export default function CommandEditor({
           disabled={disabled || !model || !instruction.trim()}
         >
           <Sparkle size={16} />
-          Aplicar indicación
+          {tr('Aplicar indicación', 'Apply instruction')}
         </button>
       </form>
       {message && (
@@ -91,8 +98,10 @@ export default function CommandEditor({
       )}
 
       <p className="muted micro">
-        Igualar alturas mantiene los grupos separados. Unir los convierte en un grupo; separar
-        libera sus miembros para editarlos.
+        {tr(
+          'Igualar alturas mantiene los grupos separados. Unir los convierte en un grupo; separar libera sus miembros para editarlos.',
+          'Matching heights keeps groups separate. Merging combines them. Splitting frees their members for editing.',
+        )}
       </p>
     </section>
   );

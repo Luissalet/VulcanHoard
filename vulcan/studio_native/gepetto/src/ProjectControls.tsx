@@ -1,3 +1,4 @@
+import { tr } from './i18n';
 import { useEffect, useState } from 'react';
 import { ArrowCounterClockwise, ArrowClockwise, FloppyDisk } from '@phosphor-icons/react';
 import { api } from './types';
@@ -44,7 +45,8 @@ export default function ProjectControls({
     onError('');
     try {
       const current = await beforeAction();
-      if (current.id !== project.id) throw new Error('El proyecto activo ha cambiado.');
+      if (current.id !== project.id)
+        throw new Error(tr('El proyecto activo ha cambiado.', 'The active project has changed.'));
       const payload =
         route === 'contrast'
           ? { ...(data as { factor: number }), revision: current.revision }
@@ -54,7 +56,7 @@ export default function ProjectControls({
         body: JSON.stringify(payload),
       });
       onProject(p);
-      if (route === 'save') setSaved('Versión guardada');
+      if (route === 'save') setSaved(tr('Versión guardada', 'Version saved'));
       if (route === 'contrast') setFactor(1);
     } catch (e) {
       onError((e as Error).message);
@@ -86,12 +88,15 @@ export default function ProjectControls({
     return () => window.removeEventListener('keydown', handler);
   });
   return (
-    <section className="project-controls" aria-label="Guardar y recuperar proyecto">
+    <section
+      className="project-controls"
+      aria-label={tr('Guardar y recuperar proyecto', 'Save and restore project')}
+    >
       <div className="project-control-row">
         <button
           className="icon-button"
-          aria-label="Deshacer"
-          title="Deshacer · Ctrl Z"
+          aria-label={tr('Deshacer', 'Undo')}
+          title={tr('Deshacer · Ctrl Z', 'Undo · Ctrl Z')}
           disabled={disabled || busy || !state.canUndo}
           onClick={() => void action('restore', { direction: 'undo' })}
         >
@@ -99,18 +104,18 @@ export default function ProjectControls({
         </button>
         <button
           className="icon-button"
-          aria-label="Rehacer"
-          title="Rehacer · Ctrl Y"
+          aria-label={tr('Rehacer', 'Redo')}
+          title={tr('Rehacer · Ctrl Y', 'Redo · Ctrl Y')}
           disabled={disabled || busy || !state.canRedo}
           onClick={() => void action('restore', { direction: 'redo' })}
         >
           <ArrowClockwise size={18} />
         </button>
         <details>
-          <summary>Guardar y versiones</summary>
+          <summary>{tr('Guardar y versiones', 'Save and versions')}</summary>
           <div className="project-save">
             <label className="field-select">
-              Nombre del proyecto
+              {tr('Nombre del proyecto', 'Project name')}
               <input value={name} onChange={(e) => setName(e.target.value)} maxLength={120} />
             </label>
             <button
@@ -119,11 +124,13 @@ export default function ProjectControls({
               onClick={() => void action('save', { name })}
             >
               <FloppyDisk size={16} />
-              Guardar versión
+              {tr('Guardar versión', 'Save version')}
             </button>
-            <span role="status">{saved || 'Los cambios se guardan automáticamente.'}</span>
+            <span role="status">
+              {saved || tr('Los cambios se guardan automáticamente.', 'Changes are saved automatically.')}
+            </span>
             <label className="field-select">
-              Recuperar una versión
+              {tr('Recuperar una versión', 'Restore a version')}
               <select
                 value=""
                 disabled={disabled || busy}
@@ -131,7 +138,7 @@ export default function ProjectControls({
                   if (e.target.value) void action('restore', { checkpoint: e.target.value });
                 }}
               >
-                <option value="">Selecciona una versión guardada</option>
+                <option value="">{tr('Selecciona una versión guardada', 'Select a saved version')}</option>
                 {state.checkpoints.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
@@ -142,16 +149,18 @@ export default function ProjectControls({
           </div>
         </details>
         <details>
-          <summary>Contraste del relieve</summary>
+          <summary>{tr('Contraste del relieve', 'Relief contrast')}</summary>
           <div className="project-save">
             <p>
-              Separa o acerca las alturas de todas las texturas, manteniendo su orden y la
-              referencia 128.
+              {tr(
+                'Separa o acerca las alturas de todas las texturas, manteniendo su orden y la referencia 128.',
+                'Spread or compress heights across textures while preserving their order and the reference value of 128.',
+              )}
             </p>
             <label className="field-select">
-              Contraste · {factor.toFixed(2)}×
+              {tr('Contraste', 'Contrast')} · {factor.toFixed(2)}×
               <input
-                aria-label="Contraste del relieve"
+                aria-label={tr('Contraste del relieve', 'Relief contrast')}
                 type="range"
                 min=".5"
                 max="2"
@@ -167,10 +176,13 @@ export default function ProjectControls({
               }
               onClick={() => void action('contrast', { factor, revision: project.revision })}
             >
-              Aplicar a las alturas
+              {tr('Aplicar a las alturas', 'Apply to heights')}
             </button>
             <p className="muted small">
-              Después pulsa «Comprobar mis cambios» para ver el efecto real. Puedes deshacerlo.
+              {tr(
+                'Después pulsa «Comprobar mis cambios» para ver el efecto real. Puedes deshacerlo.',
+                'Select “Check my changes” to see the effect. You can undo the adjustment.',
+              )}
             </p>
           </div>
         </details>

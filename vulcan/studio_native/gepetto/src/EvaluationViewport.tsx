@@ -1,3 +1,4 @@
+import { tr } from './i18n';
 import { useState } from 'react';
 import type { Project } from './types';
 export default function EvaluationViewport({ project }: { project: Project }) {
@@ -17,79 +18,91 @@ export default function EvaluationViewport({ project }: { project: Project }) {
       <div className="comparison-toolbar">
         {e.hasFinished && (
           <label>
-            Resultado{' '}
+            {tr('Resultado', 'Result')}{' '}
             <select
-              aria-label="Etapa del resultado"
+              aria-label={tr('Etapa del resultado', 'Result stage')}
               value={finished ? 'finished' : 'editable'}
               onChange={(e) => setFinished(e.target.value === 'finished')}
             >
-              <option value="finished">Unión final</option>
-              <option value="editable">Relieve editable</option>
+              <option value="finished">{tr('Unión final', 'Final union')}</option>
+              <option value="editable">{tr('Relieve editable', 'Editable relief')}</option>
             </select>
           </label>
         )}
         <label>
-          Comparar con{' '}
+          {tr('Comparar con', 'Compare with')}{' '}
           <select
-            aria-label="Referencia de comparación"
+            aria-label={tr('Referencia de comparación', 'Comparison reference')}
             value={reference}
             onChange={(e) => setReference(e.target.value)}
           >
-            <option value="control">Relieve uniforme</option>
-            <option value="original">Textura original</option>
+            <option value="control">{tr('Relieve uniforme', 'Uniform relief')}</option>
+            <option value="original">{tr('Textura original', 'Original texture')}</option>
           </select>
         </label>
         <select
-          aria-label="Ángulo del relieve"
+          aria-label={tr('Ángulo del relieve', 'Relief view angle')}
           value={angle}
           onChange={(e) => setView(e.target.value)}
         >
-          <option value="front">Frontal</option>
-          <option value="three-quarter">Tres cuartos</option>
-          <option value="back">Espalda</option>
-          {!ready && e.hasDetails && <option value="detail-front">Primer plano</option>}
+          <option value="front">{tr('Frontal', 'Front')}</option>
+          <option value="three-quarter">{tr('Tres cuartos', 'Three-quarter view')}</option>
+          <option value="back">{tr('Espalda', 'Back')}</option>
+          {!ready && e.hasDetails && <option value="detail-front">{tr('Primer plano', 'Close-up')}</option>}
           {!ready && e.hasDetails && !!e.targetMaterials?.length && (
-            <option value="detail-back">Espalda en detalle</option>
+            <option value="detail-back">{tr('Espalda en detalle', 'Back close-up')}</option>
           )}
         </select>
       </div>
       <div className="compare-images">
-        <img src={`${base}${resultLabel}-${angle}.png`} alt="Relieve calculado por Figure Tools" />
+        <img
+          src={`${base}${resultLabel}-${angle}.png`}
+          alt={tr('Relieve calculado por Figure Tools', 'Relief calculated by Figure Tools')}
+        />
         <img
           style={{ clipPath: `inset(0 ${100 - split}% 0 0)` }}
           src={`${base}${referenceLabel}-${angle}.png`}
           alt={
-            reference === 'control' ? 'Modelo con altura uniforme' : 'Modelo con textura original'
+            reference === 'control'
+              ? tr('Modelo con altura uniforme', 'Model with uniform height')
+              : tr('Modelo con textura original', 'Model with original texture')
           }
         />
         <div className="comparison-divider" style={{ left: `${split}%` }} />
-        <span className="comparison-left">{reference === 'control' ? 'Uniforme' : 'Original'}</span>
-        <span className="comparison-right">Relieve actual</span>
+        <span className="comparison-left">
+          {reference === 'control' ? tr('Uniforme', 'Uniform') : tr('Original', 'Original')}
+        </span>
+        <span className="comparison-right">{tr('Relieve actual', 'Current relief')}</span>
       </div>
       <label className="comparison-slider">
-        Antes
+        {tr('Antes', 'Before')}
         <input
           type="range"
           min="0"
           max="100"
           value={split}
           onChange={(e) => setSplit(+e.target.value)}
-          aria-label="Comparar antes y después"
+          aria-label={tr('Comparar antes y después', 'Compare before and after')}
         />
-        Después
+        {tr('Después', 'After')}
       </label>
       {e.hasFinished && e.revision === project.revision && (
         <div className="operation-actions">
           <a className="button secondary" href={`${base}figure-ready.stl`}>
-            Descargar STL unido
+            {tr('Descargar STL unido', 'Download merged STL')}
           </a>
           <a className="text-button" href={`${base}finished.blend`}>
-            Abrir escena final
+            {tr('Abrir escena final', 'Open final scene')}
           </a>
         </div>
       )}
       {e.revision !== project.revision && (
-        <p className="comparison-pending">Cambios pendientes: pulsa «Comprobar mis cambios».</p>
+        <p className="comparison-pending">
+          {tr(
+            'Cambios pendientes: pulsa «Comprobar mis cambios».',
+            'Changes pending. Select “Check my changes”.',
+          )}
+        </p>
       )}
     </div>
   );

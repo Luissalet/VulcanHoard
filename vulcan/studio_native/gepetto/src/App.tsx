@@ -1,3 +1,5 @@
+import { locale, tr } from './i18n';
+import { serverMessage } from './serverMessages';
 import { useEffect, useRef, useState } from 'react';
 import {
   Cube,
@@ -108,7 +110,13 @@ function UVCanvas({
       }
     };
     im.onerror = () => {
-      if (alive) setError('No se pudo cargar la textura. Vuelve a seleccionarla.');
+      if (alive)
+        setError(
+          tr(
+            'No se pudo cargar la textura. Vuelve a seleccionarla.',
+            'Could not load the texture. Select it again.',
+          ),
+        );
     };
     return () => {
       alive = false;
@@ -121,7 +129,10 @@ function UVCanvas({
       ) : (
         <canvas
           ref={canvas}
-          aria-label={`Textura UV ${asset.name}. Selecciona también las zonas desde el panel lateral.`}
+          aria-label={tr(
+            `Textura UV ${asset.name}. Selecciona también las zonas desde el panel lateral.`,
+            `UV texture ${asset.name}. You can also select regions from the side panel.`,
+          )}
           onClick={(e) => {
             const b = e.currentTarget.getBoundingClientRect();
             onPick((e.clientX - b.left) / b.width, (e.clientY - b.top) / b.height);
@@ -149,7 +160,7 @@ export default function App() {
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   const [toast, setToast] = useState('');
-  const [status, setStatus] = useState('Modelo + texturas UV');
+  const [status, setStatus] = useState(tr('Modelo + texturas UV', 'Model + UV textures'));
   const [models, setModels] = useState<{ name: string; vision: boolean }[]>([]);
   const [model, setModel] = useState('');
   const [online, setOnline] = useState(false);
@@ -291,9 +302,9 @@ export default function App() {
           accept(p);
           setTab('reasoning');
           if (p.evaluation) setSurface('figure');
-          setToast(data.message);
+          setToast(serverMessage(data.message));
         }
-        if (data.status === 'error') setError(data.message);
+        if (data.status === 'error') setError(serverMessage(data.message));
       } catch (e) {
         if (alive) {
           setError((e as Error).message);
@@ -320,7 +331,12 @@ export default function App() {
   async function importFiles(files: File[]) {
     const blends = files.filter((f) => /\.blend$/i.test(f.name));
     if (blends.length > 1) {
-      setError('Elige un solo .blend. Se abrirá la escena con sus texturas aplicadas.');
+      setError(
+        tr(
+          'Elige un solo .blend. Se abrirá la escena con sus texturas aplicadas.',
+          'Choose one .blend file. The scene will open with its textures applied.',
+        ),
+      );
       return;
     }
     const supported = blends.length
@@ -332,14 +348,20 @@ export default function App() {
         );
     if (!supported.length) {
       setError(
-        'Importa DAE o GLB junto con sus texturas PNG, JPG, WebP o TGA. Para evaluar con Figure Tools, añade también una copia .blend con texturas empaquetadas o rutas absolutas.',
+        tr(
+          'Importa DAE o GLB junto con sus texturas PNG, JPG, WebP o TGA. Para evaluar con Figure Tools, añade también una copia .blend con texturas empaquetadas o rutas absolutas.',
+          'Import a DAE or GLB with its PNG, JPG, WebP or TGA textures. To evaluate with Figure Tools, add a .blend copy with packed textures or absolute paths.',
+        ),
       );
       return;
     }
     await run(
       blends.length
-        ? 'Abriendo escena Blender y texturas aplicadas…'
-        : `Importando ${supported.length} archivos…`,
+        ? tr(
+            'Abriendo escena Blender y texturas aplicadas…',
+            'Opening Blender scene with textures applied…',
+          )
+        : tr(`Importando ${supported.length} archivos…`, `Importing ${supported.length} files…`),
       async () => {
         let p = latest.current;
         if (!p) {
@@ -358,24 +380,30 @@ export default function App() {
           },
         );
         accept(result.project);
-        if (result.errors.length) setError(result.errors.join(' · '));
+        if (result.errors.length) setError(result.errors.map(serverMessage).join(' · '));
         setSurface(result.project.models.length ? 'model' : 'uv');
         setMode('original');
         setToast(
           blends.length
-            ? `Escena Blender abierta · ${result.project.assets.length} texturas a resolución original`
-            : `${result.project.assets.length} texturas en el proyecto`,
+            ? tr(
+                `Escena Blender abierta · ${result.project.assets.length} texturas a resolución original`,
+                `Blender scene opened · ${result.project.assets.length} textures at original resolution`,
+              )
+            : tr(
+                `${result.project.assets.length} texturas en el proyecto`,
+                `${result.project.assets.length} textures in the project`,
+              ),
         );
         await refreshProjects();
       },
     );
   }
   async function newProject() {
-    await run('Creando proyecto vacío…', async () => {
+    await run(tr('Creando proyecto vacío…', 'Creating an empty project…'), async () => {
       await pendingEdit.current;
       const p = await api<Project>('/projects', {
         method: 'POST',
-        body: JSON.stringify({ name: 'Sin título' }),
+        body: JSON.stringify({ name: tr('Sin título', 'Untitled') }),
       });
       accept(p);
       setActiveId(null);
@@ -389,8 +417,13 @@ export default function App() {
       setWire(false);
       setStrength(1);
       setProjectFilter('');
-      setStatus('Abre un proyecto Blender para empezar.');
-      setToast('Proyecto vacío. El anterior sigue en Proyectos guardados.');
+      setStatus(tr('Abre un proyecto Blender para empezar.', 'Open a Blender project to get started.'));
+      setToast(
+        tr(
+          'Proyecto vacío. El anterior sigue en Proyectos guardados.',
+          'Empty project created. The previous one is in Saved projects.',
+        ),
+      );
       await refreshProjects();
     });
   }
@@ -400,7 +433,7 @@ export default function App() {
       setPortableForm(true);
       return;
     }
-    await run('Abriendo proyecto portable…', async () => {
+    await run(tr('Abriendo proyecto portable…', 'Opening portable project…'), async () => {
       const selectedPath = path || (await window.sculptorsHoardDesktop!.pickPortable!(folder));
       if (!selectedPath) return;
       await pendingEdit.current;
@@ -417,7 +450,12 @@ export default function App() {
       setTab('regions');
       setPortableForm(false);
       setProjectFilter('');
-      setToast('Proyecto abierto para revisar. El original se conserva.');
+      setToast(
+        tr(
+          'Proyecto abierto para revisar. El original se conserva.',
+          'Project opened for review. The original has been kept.',
+        ),
+      );
       await refreshProjects();
     });
   }
@@ -429,7 +467,7 @@ export default function App() {
       setPortableForm(true);
       return;
     }
-    await run('Guardando proyecto .gepettos…', async () => {
+    await run(tr('Guardando proyecto .gepettos…', 'Saving .gepettos project…'), async () => {
       const selectedPath = path || (await window.sculptorsHoardDesktop!.savePortable!());
       if (!selectedPath) return;
       await pendingEdit.current;
@@ -438,7 +476,12 @@ export default function App() {
         body: JSON.stringify({ path: selectedPath }),
       });
       setPortableForm(false);
-      setToast('Archivo .gepettos guardado. Listo para abrir y revisar.');
+      setToast(
+        tr(
+          'Archivo .gepettos guardado. Listo para abrir y revisar.',
+          '.gepettos file saved and ready to open for review.',
+        ),
+      );
     });
   }
   async function openBlender() {
@@ -446,35 +489,43 @@ export default function App() {
       blendInput.current?.click();
       return;
     }
-    await run('Abriendo escena Blender y texturas aplicadas…', async () => {
-      const path = await window.sculptorsHoardDesktop!.pickBlend();
-      if (!path) return;
-      let p = latest.current;
-      if (!p)
-        p = await api<Project>('/projects', {
+    await run(
+      tr('Abriendo escena Blender y texturas aplicadas…', 'Opening Blender scene with textures applied…'),
+      async () => {
+        const path = await window.sculptorsHoardDesktop!.pickBlend();
+        if (!path) return;
+        let p = latest.current;
+        if (!p)
+          p = await api<Project>('/projects', {
+            method: 'POST',
+            body: JSON.stringify({
+              name: path
+                .replaceAll('\\', '/')
+                .split('/')
+                .pop()!
+                .replace(/\.blend$/i, ''),
+            }),
+          });
+        const result = await api<Project>(`/projects/${p.id}/import-blender-path`, {
           method: 'POST',
-          body: JSON.stringify({
-            name: path
-              .replaceAll('\\', '/')
-              .split('/')
-              .pop()!
-              .replace(/\.blend$/i, ''),
-          }),
+          body: JSON.stringify({ path }),
         });
-      const result = await api<Project>(`/projects/${p.id}/import-blender-path`, {
-        method: 'POST',
-        body: JSON.stringify({ path }),
-      });
-      accept(result);
-      setSurface('model');
-      setMode('original');
-      setToast(`Escena Blender abierta · ${result.assets.length} texturas a resolución original`);
-      await refreshProjects();
-    });
+        accept(result);
+        setSurface('model');
+        setMode('original');
+        setToast(
+          tr(
+            `Escena Blender abierta · ${result.assets.length} texturas a resolución original`,
+            `Blender scene opened · ${result.assets.length} textures at original resolution`,
+          ),
+        );
+        await refreshProjects();
+      },
+    );
   }
   async function prepareAll() {
     if (!project) return;
-    await run('Preparando regiones…', async () => {
+    await run(tr('Preparando regiones…', 'Preparing regions…'), async () => {
       let p = project;
       for (let i = 0; i < p.assets.length; i++) {
         const a = p.assets[i];
@@ -488,12 +539,17 @@ export default function App() {
       }
       setMode('ids');
       setTab('regions');
-      setToast('Regiones listas. Ahora la IA puede relacionarlas con el modelo.');
+      setToast(
+        tr(
+          'Regiones listas. Ahora la IA puede relacionarlas con el modelo.',
+          'Regions ready for the AI to match to the model.',
+        ),
+      );
     });
   }
   async function prepareActive() {
     if (!project || !active) return;
-    await run('Detectando regiones…', async () => {
+    await run(tr('Detectando regiones…', 'Detecting regions…'), async () => {
       accept(
         await api<Project>(`/projects/${project.id}/assets/${active.id}/segment`, {
           method: 'POST',
@@ -517,7 +573,7 @@ export default function App() {
     }
     try {
       const r = await fetch(`/api/projects/${p.id}/assets/${aid}/mask?v=${a.version}`);
-      if (!r.ok) throw new Error('No se pudo leer la máscara.');
+      if (!r.ok) throw new Error(tr('No se pudo leer la máscara.', 'Could not read the mask.'));
       const data = new Int16Array(await r.arrayBuffer());
       const x = Math.min(a.workWidth - 1, Math.max(0, Math.floor(u * a.workWidth))),
         y = Math.min(a.workHeight - 1, Math.max(0, Math.floor(v * a.workHeight)));
@@ -553,42 +609,56 @@ export default function App() {
       savedProject.current = p;
       accept(fresh);
     });
-    await run('Guardando cambio…', async () => {
+    await run(tr('Guardando cambio…', 'Saving change…'), async () => {
       await pendingEdit.current;
     });
   }
 
   async function analyze() {
     if (!project) return;
-    await run('Capturando vistas y correspondencias UV…', async () => {
-      const capture = await viewer.current!.capture();
-      const result = await api<Job>(`/projects/${project.id}/analyze`, {
-        method: 'POST',
-        body: JSON.stringify({ model, ...capture }),
-      });
-      setJob(result);
-      setTab('reasoning');
-    });
+    await run(
+      tr('Capturando vistas y correspondencias UV…', 'Capturing views and UV correspondences…'),
+      async () => {
+        const capture = await viewer.current!.capture();
+        const result = await api<Job>(`/projects/${project.id}/analyze`, {
+          method: 'POST',
+          body: JSON.stringify({ model, ...capture }),
+        });
+        setJob(result);
+        setTab('reasoning');
+      },
+    );
   }
   async function exportProject() {
     if (!project) return;
-    await run('Reconstruyendo bordes y exportando a resolución original…', async () => {
-      const response = await fetch(
-        `/api/projects/${project.id}/${project.evaluation ? 'evaluated-export' : 'export'}`,
-      );
-      if (!response.ok) {
-        const e = await response.json();
-        throw new Error(e.detail);
-      }
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${project.name.replace(/[^\w -]/g, '')}-heightmaps.zip`;
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 30000);
-      setToast('Exportación completa: mapas, paleta y decisiones.');
-    });
+    await run(
+      tr(
+        'Reconstruyendo bordes y exportando a resolución original…',
+        'Rebuilding edges and exporting at original resolution…',
+      ),
+      async () => {
+        const response = await fetch(
+          `/api/projects/${project.id}/${project.evaluation ? 'evaluated-export' : 'export'}`,
+        );
+        if (!response.ok) {
+          const e = await response.json();
+          throw new Error(e.detail);
+        }
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${project.name.replace(/[^\w -]/g, '')}-heightmaps.zip`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 30000);
+        setToast(
+          tr(
+            'Exportación completa: mapas, paleta y decisiones.',
+            'Export complete. Maps, palette and decisions saved.',
+          ),
+        );
+      },
+    );
   }
   function nameFor(key: string) {
     const [aid, rid] = key.split(':');
@@ -641,33 +711,44 @@ export default function App() {
         }}
       />
       <header className="topbar with-pose-navigation">
-        <a className="brand" href="/" aria-label="Figuras y relieves">
+        <a className="brand" href="/" aria-label={tr('Figuras y relieves', 'Figures and reliefs')}>
           <span className="brand-symbol">
             <img src="/fusion-static/icon-192.png" alt="" width={30} height={30} />
           </span>
           <strong>
-            figuras y <span>relieves</span>
+            {tr('figuras y', 'figures and')} <span>{tr('relieves', 'reliefs')}</span>
           </strong>
         </a>
         <div className="project-breadcrumb">
-          <span>Taller</span>
+          <span>{tr('Taller', 'Workshop')}</span>
           <CaretRight size={12} />
-          <strong>{project?.name || 'Nuevo proyecto'}</strong>
+          <strong>{project?.name || tr('Nuevo proyecto', 'New project')}</strong>
         </div>
         <div className="top-actions">
           <button className="button secondary" aria-pressed={posePanel} onClick={() => { setPoseVisited(true); setPosePanel(!posePanel); setControl(false); }}>
-            Posar desde imagen
+            {tr('Posar desde imagen', 'Pose from image')}
           </button>
-          <button className="button secondary" onClick={() => { setControl(!control); setPosePanel(false); }}>
-            {control ? 'Volver al taller' : 'Equipo y lotes'}
+          <button
+            className="button secondary"
+            onClick={() => {
+              setControl(!control);
+              setPosePanel(false);
+            }}
+          >
+            {control
+              ? tr('Volver al taller', 'Back to workshop')
+              : tr('Equipo y lotes', 'System and batches')}
           </button>
           <span className="local-label">
             <span className={online ? 'status-dot' : 'status-dot offline'} />
-            IA global · {online ? 'configurada en Faustus' : 'no disponible'}
+            {tr('IA global', 'Global AI')} ·{' '}
+            {online
+              ? tr('configurada en Faustus', 'configured in Faustus')
+              : tr('no disponible', 'unavailable')}
           </span>
           <button
             className="button plain mobile-rail"
-            aria-label="Mostrar biblioteca"
+            aria-label={tr('Mostrar biblioteca', 'Show library')}
             onClick={() => setRail(!rail)}
           >
             <SidebarSimple size={20} />
@@ -678,7 +759,7 @@ export default function App() {
             onClick={() => void exportProject()}
           >
             <DownloadSimple size={16} />
-            <span>Exportar mapas</span>
+            <span>{tr('Exportar mapas', 'Export maps')}</span>
           </button>
         </div>
       </header>
@@ -693,7 +774,7 @@ export default function App() {
           models={models}
           onRefresh={refreshModels}
           onOpen={(id) =>
-            void run('Abriendo resultado…', async () => {
+            void run(tr('Abriendo resultado…', 'Opening result…'), async () => {
               accept(await api<Project>(`/projects/${id}`));
               setControl(false);
               await refreshProjects();
@@ -704,19 +785,22 @@ export default function App() {
       <div className="workspace" style={{ display: control || posePanel ? 'none' : undefined }}>
         <aside className={`library ${rail ? 'visible' : ''}`}>
           <div className="panel-heading">
-            <h2>Biblioteca</h2>
+            <h2>{tr('Biblioteca', 'Library')}</h2>
           </div>
           <button
             className="button secondary wide"
             disabled={working}
             onClick={() => void newProject()}
           >
-            <Plus size={18} /> Nuevo proyecto
+            <Plus size={18} /> {tr('Nuevo proyecto', 'New project')}
           </button>
           <button className="import-button" disabled={working} onClick={() => void openBlender()}>
             <FolderOpen size={20} />
             <span>
-              Abrir proyecto Blender<small>Modelo, ropa y texturas aplicadas</small>
+              {tr('Abrir proyecto Blender', 'Open Blender project')}
+              <small>
+                {tr('Modelo, ropa y texturas aplicadas', 'Model, clothing and applied textures')}
+              </small>
             </span>
             <Plus size={15} />
           </button>
@@ -725,21 +809,21 @@ export default function App() {
             disabled={working}
             onClick={() => void openPortable()}
           >
-            <FolderOpen size={14} /> Abrir .gepettos
+            <FolderOpen size={14} /> {tr('Abrir .gepettos', 'Open .gepettos')}
           </button>
           <button
             className="text-button file-import"
             disabled={working}
             onClick={() => void openPortable(undefined, true)}
           >
-            <FolderOpen size={14} /> Abrir carpeta portable
+            <FolderOpen size={14} /> {tr('Abrir carpeta portable', 'Open portable folder')}
           </button>
           <button
             className="text-button file-import"
             disabled={working || !project}
             onClick={() => void savePortable()}
           >
-            <FloppyDisk size={14} /> Guardar .gepettos
+            <FloppyDisk size={14} /> {tr('Guardar .gepettos', 'Save .gepettos')}
           </button>
           {portableForm && (
             <form
@@ -751,22 +835,30 @@ export default function App() {
               }}
             >
               <label htmlFor="portable-path">
-                {portableSave ? 'Nuevo archivo .gepettos' : 'Archivo o carpeta del proyecto'}
+                {portableSave
+                  ? tr('Nuevo archivo .gepettos', 'New .gepettos file')
+                  : tr('Archivo o carpeta del proyecto', 'Project file or folder')}
               </label>
               <input
                 id="portable-path"
                 value={portablePath}
                 autoFocus
                 required
-                placeholder="E:\\Figuras\\Proyecto.gepettos"
+                placeholder={tr('E:\\\\Figuras\\\\Proyecto.gepettos', 'E:\\Figures\\Project.gepettos')}
                 onChange={(event) => setPortablePath(event.target.value)}
                 aria-describedby="portable-help"
                 disabled={working}
               />
               <small id="portable-help">
                 {portableSave
-                  ? 'Pega una ruta absoluta nueva. Los archivos existentes no se sobrescriben.'
-                  : 'Pega la ruta de un archivo .gepettos o de una carpeta que contiene project.json.'}
+                  ? tr(
+                      'Pega una ruta absoluta nueva. Los archivos existentes no se sobrescriben.',
+                      'Paste a new absolute path. Existing files are kept.',
+                    )
+                  : tr(
+                      'Pega la ruta de un archivo .gepettos o de una carpeta que contiene project.json.',
+                      'Paste the path to a .gepettos file or a folder containing project.json.',
+                    )}
               </small>
               <div>
                 <button
@@ -774,7 +866,7 @@ export default function App() {
                   type="submit"
                   disabled={working || !portablePath.trim()}
                 >
-                  {portableSave ? 'Guardar' : 'Abrir'}
+                  {portableSave ? tr('Guardar', 'Save') : tr('Abrir', 'Open')}
                 </button>
                 <button
                   className="text-button"
@@ -782,7 +874,7 @@ export default function App() {
                   disabled={working}
                   onClick={() => setPortableForm(false)}
                 >
-                  Cancelar
+                  {tr('Cancelar', 'Cancel')}
                 </button>
               </div>
             </form>
@@ -792,7 +884,7 @@ export default function App() {
             disabled={working}
             onClick={() => folderInput.current?.click()}
           >
-            <FolderOpen size={14} /> Importar carpeta de texturas
+            <FolderOpen size={14} /> {tr('Importar carpeta de texturas', 'Import texture folder')}
           </button>
           <button
             className="text-button file-import"
@@ -800,12 +892,12 @@ export default function App() {
             onClick={() => input.current?.click()}
           >
             <UploadSimple size={14} />
-            Añadir DAE o texturas
+            {tr('Añadir DAE o texturas', 'Add DAE or textures')}
           </button>
           {project && (
             <>
               <div className="group-heading">
-                Modelo <span>{project.models.length}</span>
+                {tr('Modelo', 'Model')} <span>{project.models.length}</span>
               </div>
               <div className="model-files">
                 {project.models.length ? (
@@ -820,19 +912,22 @@ export default function App() {
                         {/^(SculptHoard|Sculptor’s Hoard|Sculptors-Hoard)-preview\.glb$/.test(
                           m.name,
                         )
-                          ? 'Vista previa del modelo'
+                          ? tr('Vista previa del modelo', 'Model preview')
                           : m.name}
                       </span>
                     </button>
                   ))
                 ) : (
                   <p className="muted small">
-                    Abre un proyecto Blender para ver el modelo y su ropa.
+                    {tr(
+                      'Abre un proyecto Blender para ver el modelo y su ropa.',
+                      'Open a Blender project to see the model and its clothing.',
+                    )}
                   </p>
                 )}
               </div>
               <div className="group-heading">
-                Texturas <span>{project.assets.length}</span>
+                {tr('Texturas', 'Textures')} <span>{project.assets.length}</span>
               </div>
               <div className="asset-list">
                 {project.assets.map((a) => (
@@ -864,11 +959,11 @@ export default function App() {
             </>
           )}
           <div className="library-bottom">
-            <div className="group-heading">Proyectos guardados</div>
+            <div className="group-heading">{tr('Proyectos guardados', 'Saved projects')}</div>
             <input
               className="project-search"
-              aria-label="Buscar proyecto"
-              placeholder="Buscar proyecto…"
+              aria-label={tr('Buscar proyecto', 'Find a project')}
+              placeholder={tr('Buscar proyecto…', 'Find a project…')}
               value={projectFilter}
               onChange={(e) => setProjectFilter(e.target.value)}
             />
@@ -880,7 +975,7 @@ export default function App() {
                   key={p.id}
                   disabled={working}
                   onClick={() =>
-                    void run('Abriendo proyecto…', async () => {
+                    void run(tr('Abriendo proyecto…', 'Opening project…'), async () => {
                       accept(await api<Project>(`/projects/${p.id}`));
                       setSelected(null);
                       setJob(null);
@@ -893,14 +988,19 @@ export default function App() {
                 </button>
               ))}
             {!projects.length && (
-              <p className="muted small">Tus proyectos se guardan en este equipo.</p>
+              <p className="muted small">
+                {tr(
+                  'Tus proyectos se guardan en este equipo.',
+                  'Your projects are saved on this computer.',
+                )}
+              </p>
             )}
             <div className="privacy-note">
               <FloppyDisk size={14} />
               <span>
-                Originales intactos.
+                {tr('Originales intactos.', 'Originals preserved.')}
                 <br />
-                Trabajo guardado localmente.
+                {tr('Trabajo guardado localmente.', 'Work saved locally.')}
               </span>
             </div>
           </div>
@@ -908,11 +1008,21 @@ export default function App() {
         <main className="main-workspace">
           <div className="document-heading">
             <div>
-              <h1>{active ? active.name.replace(/\.[^.]+$/, '') : project?.name || 'Nuevo proyecto'}</h1>
+              <h1>
+                {active
+                  ? active.name.replace(/\.[^.]+$/, '')
+                  : project?.name || tr('Nuevo proyecto', 'New project')}
+              </h1>
               <p>
                 {active
-                  ? `${active.width.toLocaleString('es')} × ${active.height.toLocaleString('es')} px · resolución original conservada`
-                  : 'Abre un modelo con sus texturas para empezar.'}
+                  ? tr(
+                      `${active.width.toLocaleString(locale)} × ${active.height.toLocaleString(locale)} px · resolución original conservada`,
+                      `${active.width.toLocaleString(locale)} × ${active.height.toLocaleString(locale)} px · original resolution preserved`,
+                    )
+                  : tr(
+                      'Abre un modelo con sus texturas para empezar.',
+                      'Open a model with its textures to get started.',
+                    )}
               </p>
             </div>
             {project && (
@@ -920,7 +1030,8 @@ export default function App() {
                 project={project}
                 beforeAction={async () => {
                   await pendingEdit.current;
-                  if (!latest.current) throw new Error('Abre un proyecto para continuar.');
+                  if (!latest.current)
+                    throw new Error(tr('Abre un proyecto para continuar.', 'Open a project to continue.'));
                   return latest.current;
                 }}
                 disabled={working}
@@ -938,10 +1049,12 @@ export default function App() {
                 {(
                   [
                     ['model', 'Modelo 3D', Cube],
-                    ['uv', 'Textura UV', GridFour],
+                    ['uv', tr('Textura UV', 'UV texture'), GridFour],
                     [
                       project?.evaluation ? 'figure' : 'relief',
-                      project?.evaluation ? 'Relieve real' : 'Muestra',
+                      project?.evaluation
+                        ? tr('Relieve real', 'Calculated relief')
+                        : tr('Muestra', 'Preview'),
                       Waveform,
                     ],
                   ] as const
@@ -961,8 +1074,8 @@ export default function App() {
               <div className="canvas-tools">
                 <button
                   className={`icon-button dark-button ${wire ? 'on' : ''}`}
-                  title="Ver triangulación UV"
-                  aria-label="Ver triangulación UV"
+                  title={tr('Ver triangulación UV', 'Show UV triangulation')}
+                  aria-label={tr('Ver triangulación UV', 'Show UV triangulation')}
                   disabled={surface !== 'uv'}
                   onClick={() => setWire(!wire)}
                 >
@@ -970,8 +1083,8 @@ export default function App() {
                 </button>
                 <button
                   className="icon-button dark-button"
-                  title="Encuadrar modelo"
-                  aria-label="Encuadrar modelo"
+                  title={tr('Encuadrar modelo', 'Frame model')}
+                  aria-label={tr('Encuadrar modelo', 'Frame model')}
                   onClick={() => viewer.current?.reset()}
                 >
                   <ArrowsOut size={18} />
@@ -1011,90 +1124,101 @@ export default function App() {
               {(!project || (surface === 'model' && !project.models.length)) && (
                 <div className="empty-stage">
                   <Cube size={62} weight="thin" />
-                  <h2>Añade el modelo y sus texturas.</h2>
-                  <p>La IA conectará lo que ve con sus regiones UV.</p>
+                  <h2>{tr('Añade el modelo y sus texturas.', 'Add the model and its textures.')}</h2>
+                  <p>
+                    {tr(
+                      'La IA conectará lo que ve con sus regiones UV.',
+                      'The AI will match what it sees to the UV regions.',
+                    )}
+                  </p>
                   <button
                     className="button primary"
                     disabled={working}
                     onClick={() => input.current?.click()}
                   >
                     <UploadSimple size={17} />
-                    Abrir modelo y texturas
+                    {tr('Abrir modelo y texturas', 'Open model and textures')}
                   </button>
                   <button
                     className="demo-link"
                     disabled={working}
                     onClick={() =>
-                      void run('Abriendo ejemplo privado…', async () => {
+                      void run(tr('Abriendo ejemplo privado…', 'Opening example…'), async () => {
                         accept(await api<Project>('/demo', { method: 'POST' }));
                         await refreshProjects();
                         setSurface('model');
                       })
                     }
                   >
-                    Probar con Frank <ArrowRight size={14} />
+                    {tr('Abrir ejemplo', 'Open example')} <ArrowRight size={14} />
                   </button>
-                  <span className="format-hint">DAE / GLB + PNG · texturas hasta 8K</span>
+                  <span className="format-hint">
+                    {tr('DAE / GLB + PNG · texturas hasta 8K', 'DAE / GLB + PNG · textures up to 8K')}
+                  </span>
                 </div>
               )}
-              {project &&
-                surface !== 'figure' &&
-                (surface !== 'model' || project.models.length > 0) && (
-                  <>
-                    <div className="view-label">
-                      {surface === 'uv'
-                        ? 'UV / 2D'
-                        : surface === 'relief'
-                          ? 'MUESTRA DE RELIEVE'
-                          : 'PERSPECTIVA'}
-                      <span>
-                        {surface === 'relief'
-                          ? 'Vista aproximada sobre una placa'
-                          : mode === 'original'
-                            ? 'Textura original'
-                            : mode === 'ids'
-                              ? 'Regiones identificadas'
-                              : mode === 'height'
-                                ? 'Alturas normalizadas'
-                                : 'Paleta de relieve'}
-                      </span>
-                    </div>
-                    <div className="stage-footer">
-                      <span>
-                        {surface === 'model'
-                          ? 'Arrastrar para girar · rueda para acercar · clic para seleccionar'
-                          : surface === 'uv'
-                            ? 'Selecciona una zona de la textura'
-                            : 'Previsualización local; calibra el resultado en Figure Tools'}
-                      </span>
-                      <span className="axis-label">{surface === 'uv' ? 'U / V' : 'X Y Z'}</span>
-                    </div>
-                  </>
-                )}
+              {project && surface !== 'figure' && (surface !== 'model' || project.models.length > 0) && (
+                <>
+                  <div className="view-label">
+                    {surface === 'uv'
+                      ? 'UV / 2D'
+                      : surface === 'relief'
+                        ? tr('MUESTRA DE RELIEVE', 'RELIEF SAMPLE')
+                        : tr('PERSPECTIVA', 'PERSPECTIVE')}
+                    <span>
+                      {surface === 'relief'
+                        ? tr('Vista aproximada sobre una placa', 'Approximate preview on a plate')
+                        : mode === 'original'
+                          ? tr('Textura original', 'Original texture')
+                          : mode === 'ids'
+                            ? tr('Regiones identificadas', 'Detected regions')
+                            : mode === 'height'
+                              ? tr('Alturas normalizadas', 'Normalised heights')
+                              : tr('Paleta de relieve', 'Relief palette')}
+                    </span>
+                  </div>
+                  <div className="stage-footer">
+                    <span>
+                      {surface === 'model'
+                        ? tr(
+                            'Arrastrar para girar · rueda para acercar · clic para seleccionar',
+                            'Drag to rotate · scroll to zoom · click to select',
+                          )
+                        : surface === 'uv'
+                          ? tr('Selecciona una zona de la textura', 'Select a region of the texture')
+                          : tr(
+                              'Previsualización local; calibra el resultado en Figure Tools',
+                              'Local preview. Calibrate the result in Figure Tools.',
+                            )}
+                    </span>
+                    <span className="axis-label">{surface === 'uv' ? 'U / V' : 'X Y Z'}</span>
+                  </div>
+                </>
+              )}
             </div>
             <div className="view-controls">
               <div className="view-mode">
                 <Eye size={15} />
                 <select
-                  aria-label="Contenido de la vista"
+                  aria-label={tr('Contenido de la vista', 'View content')}
                   value={mode}
                   onChange={(e) => setMode(e.target.value as ImageMode)}
                 >
-                  <option value="original">Original</option>
+                  <option value="original">{tr('Original', 'Original')}</option>
                   <option value="ids" disabled={!count}>
-                    Zonas numeradas
+                    {tr('Zonas numeradas', 'Numbered regions')}
                   </option>
                   <option value="color" disabled={!count}>
-                    Colores de relieve
+                    {tr('Colores de relieve', 'Relief colours')}
                   </option>
                   <option value="height" disabled={!count}>
-                    Mapa de alturas
+                    {tr('Mapa de alturas', 'Height map')}
                   </option>
                 </select>
               </div>
               {surface === 'relief' ? (
                 <label className="strength-label">
-                  Intensidad visual
+                  {tr('Intensidad visual', 'Preview strength')}
                   <input
                     type="range"
                     min="0"
@@ -1112,24 +1236,28 @@ export default function App() {
           </div>
           <div className="workflow-strip">
             <div className={project ? 'complete' : ''}>
-              <span>{project ? <Check size={12} /> : 1}</span>Importar
+              <span>{project ? <Check size={12} /> : 1}</span>
+              {tr('Importar', 'Import')}
             </div>
             <div className={count ? 'complete' : ''}>
-              <span>{count ? <Check size={12} /> : 2}</span>Preparar UV
+              <span>{count ? <Check size={12} /> : 2}</span>
+              {tr('Preparar UV', 'Prepare UVs')}
             </div>
             <div className={project?.proposal ? 'complete' : ''}>
-              <span>{project?.proposal ? <Check size={12} /> : 3}</span>Entender capas
+              <span>{project?.proposal ? <Check size={12} /> : 3}</span>
+              {tr('Entender capas', 'Interpret layers')}
             </div>
             <div className={project?.approved ? 'complete' : ''}>
-              <span>{project?.approved ? <Check size={12} /> : 4}</span>Revisar y exportar
+              <span>{project?.approved ? <Check size={12} /> : 4}</span>
+              {tr('Revisar y exportar', 'Review and export')}
             </div>
           </div>
           {error && (
             <div className="error-banner" role="alert">
               <WarningCircle size={18} />
               <span>{error}</span>
-              <button onClick={() => setError('')} aria-label="Cerrar error">
-                Cerrar
+              <button onClick={() => setError('')} aria-label={tr('Cerrar error', 'Dismiss error')}>
+                {tr('Cerrar', 'Dismiss')}
               </button>
             </div>
           )}
@@ -1137,14 +1265,14 @@ export default function App() {
         <aside className="inspector">
           <div className="inspector-tabs">
             <button className={tab === 'regions' ? 'active' : ''} onClick={() => setTab('regions')}>
-              Superficies <span>{count || '—'}</span>
+              {tr('Superficies', 'Surfaces')} <span>{count || '—'}</span>
             </button>
             <button
               className={tab === 'reasoning' ? 'active' : ''}
               onClick={() => setTab('reasoning')}
             >
               <Sparkle size={15} />
-              Interpretación
+              {tr('Interpretación', 'Interpretation')}
             </button>
           </div>
           <div className="inspector-content">
@@ -1172,12 +1300,15 @@ export default function App() {
             {tab === 'regions' ? (
               <>
                 <section className="inspector-section">
-                  <h2>Preparar regiones</h2>
+                  <h2>{tr('Preparar regiones', 'Prepare regions')}</h2>
                   <p className="muted small">
-                    Primero localizamos los contornos. La altura la decide el contexto del modelo.
+                    {tr(
+                      'Primero localizamos los contornos. La altura la decide el contexto del modelo.',
+                      "First we find the outlines. Heights depend on the model's geometry.",
+                    )}
                   </p>
                   <label className="field-row">
-                    Colores candidatos <span>{clusters}</span>
+                    {tr('Colores candidatos', 'Candidate colours')} <span>{clusters}</span>
                     <input
                       type="range"
                       min="2"
@@ -1188,16 +1319,16 @@ export default function App() {
                     />
                   </label>
                   <label className="field-select">
-                    Detalle de análisis
+                    {tr('Detalle de análisis', 'Analysis detail')}
                     <select
                       value={resolution}
                       onChange={(e) => setResolution(+e.target.value)}
                       disabled={working}
                     >
-                      <option value="512">Rápido · 512 px</option>
-                      <option value="768">Equilibrado · 768 px</option>
-                      <option value="1024">Fino · 1024 px</option>
-                      <option value="1536">Muy fino · 1536 px</option>
+                      <option value="512">{tr('Rápido · 512 px', 'Fast · 512 px')}</option>
+                      <option value="768">{tr('Equilibrado · 768 px', 'Balanced · 768 px')}</option>
+                      <option value="1024">{tr('Fino · 1024 px', 'Fine · 1024 px')}</option>
+                      <option value="1536">{tr('Muy fino · 1536 px', 'Very fine · 1536 px')}</option>
                     </select>
                   </label>
                   <div className="split-actions">
@@ -1207,12 +1338,17 @@ export default function App() {
                       onClick={() => void prepareAll()}
                     >
                       <Stack size={16} />
-                      {ready ? 'Preparar pendientes' : 'Preparar texturas'}
+                      {ready
+                        ? tr('Preparar pendientes', 'Prepare remaining textures')
+                        : tr('Preparar texturas', 'Prepare textures')}
                     </button>
                     <button
                       className="icon-button outline"
-                      aria-label="Recalcular textura activa"
-                      title="Recalcular textura activa (restablece sus ajustes)"
+                      aria-label={tr('Recalcular textura activa', 'Recalculate active texture')}
+                      title={tr(
+                        'Recalcular textura activa (restablece sus ajustes)',
+                        'Recalculate active texture and reset its settings',
+                      )}
                       disabled={!active || working}
                       onClick={() => void prepareActive()}
                     >
@@ -1221,23 +1357,28 @@ export default function App() {
                   </div>
                   {active?.processingMs !== null && active?.processingMs !== undefined && (
                     <div className="timing">
-                      {(active.processingMs / 1000).toFixed(2)} s · análisis de {active.workWidth} ×{' '}
+                      {(active.processingMs / 1000).toFixed(2)}{' '}
+                      s · {tr('análisis de', 'analysed at')} {active.workWidth} ×{' '}
                       {active.workHeight}
                     </div>
                   )}
                 </section>
                 <section className="inspector-section regions-section">
                   <div className="section-title">
-                    <h2>{active ? 'Zonas de esta textura' : 'Tus superficies'}</h2>
+                    <h2>
+                      {active
+                        ? tr('Zonas de esta textura', 'Regions in this texture')
+                        : tr('Tus superficies', 'Your surfaces')}
+                    </h2>
                     <span>{active?.regions.length ?? 0}</span>
                   </div>
                   {!active?.regions.length ? (
                     <div className="empty-regions">
                       <Stack size={30} weight="thin" />
                       <p>
-                        Las zonas aparecerán aquí.
+                        {tr('Las zonas aparecerán aquí.', 'Regions will appear here.')}
                         <br />
-                        Todas comienzan a la misma altura.
+                        {tr('Todas comienzan a la misma altura.', 'They all start at the same height.')}
                       </p>
                     </div>
                   ) : (
@@ -1258,12 +1399,12 @@ export default function App() {
                             {r.name}
                             <small>
                               {r.confidence === null
-                                ? 'Altura editable'
+                                ? tr('Altura editable', 'Editable height')
                                 : r.geometry === 'modeled'
-                                  ? 'Volumen en geometría'
+                                  ? tr('Volumen en geometría', 'Modelled volume')
                                   : r.geometry === 'painted'
-                                    ? 'Detalle de textura'
-                                    : 'Revisar interpretación'}
+                                    ? tr('Detalle de textura', 'Texture detail')
+                                    : tr('Revisar interpretación', 'Review interpretation')}
                             </small>
                           </span>
                           <span className="height-number">{r.height}</span>
@@ -1274,9 +1415,9 @@ export default function App() {
                 </section>
                 {region && (
                   <section ref={editor} className="inspector-section region-editor">
-                    <h2>Editar superficie</h2>
+                    <h2>{tr('Editar superficie', 'Edit surface')}</h2>
                     <label className="field-select">
-                      Nombre
+                      {tr('Nombre', 'Name')}
                       <input
                         value={region.name}
                         onChange={(e) => updateRegion({ name: e.target.value })}
@@ -1286,7 +1427,7 @@ export default function App() {
                     </label>
                     {region.displacementColor && (
                       <label className="field-select">
-                        Color de relieve
+                        {tr('Color de relieve', 'Relief colour')}
                         <input
                           type="color"
                           value={
@@ -1306,13 +1447,15 @@ export default function App() {
                           onBlur={() => void saveRegion()}
                         />
                         <small>
-                          Este color controla el relieve en Blender. La altura numérica es solo una
-                          referencia.
+                          {tr(
+                            'Este color controla el relieve en Blender. La altura numérica es solo una referencia.',
+                            'This colour controls the relief in Blender. The numerical height is a reference.',
+                          )}
                         </small>
                       </label>
                     )}
                     <label className="field-row">
-                      Altura relativa <span>{region.height} / 255</span>
+                      {tr('Altura relativa', 'Relative height')} <span>{region.height} / 255</span>
                       <input
                         type="range"
                         min="0"
@@ -1328,15 +1471,19 @@ export default function App() {
                       />
                     </label>
                     <div className="height-scale">
-                      <span>Hundido</span>
-                      <span>Referencia 128</span>
-                      <span>Elevado</span>
+                      <span>{tr('Hundido', 'Recessed')}</span>
+                      <span>{tr('Referencia 128', 'Reference 128')}</span>
+                      <span>{tr('Elevado', 'Raised')}</span>
                     </div>
                     <p className="region-reason">{region.reason}</p>
                     {region.confidence !== null && (
                       <p className="muted micro">
-                        Confianza declarada por el modelo: {Math.round(region.confidence * 100)} %.
-                        No es una probabilidad calibrada.
+                        {tr('Confianza declarada por el modelo:', 'Confidence reported by the model:')}{' '}
+                        {Math.round(region.confidence * 100)}{' '}
+                        {tr(
+                          ' %. No es una probabilidad calibrada.',
+                          ' %. This is an uncalibrated estimate.',
+                        )}
                       </p>
                     )}
                   </section>
@@ -1346,21 +1493,25 @@ export default function App() {
               <>
                 <section className="inspector-section">
                   <div className="section-title">
-                    <h2>Entender la figura</h2>
+                    <h2>{tr('Entender la figura', 'Interpret figure')}</h2>
                     <Sparkle size={18} />
                   </div>
                   <p className="muted small">
-                    La IA observa el modelo desde ambos lados, sus materiales y las regiones UV
-                    numeradas.
+                    {tr(
+                      'La IA observa el modelo desde ambos lados, sus materiales y las regiones UV numeradas.',
+                      'The AI examines the model from both sides, its materials and the numbered UV regions.',
+                    )}
                   </p>
                   <label className="field-select">
-                    Modelo de visión local
+                    {tr('Modelo de visión local', 'Local vision model')}
                     <select
                       value={model}
                       onChange={(e) => setModel(e.target.value)}
                       disabled={working}
                     >
-                      {!models.length && <option value="">Sin modelos disponibles</option>}
+                      {!models.length && (
+                        <option value="">{tr('Sin modelos disponibles', 'No models available')}</option>
+                      )}
                       {models
                         .filter((m) => m.vision)
                         .map((m) => (
@@ -1376,23 +1527,30 @@ export default function App() {
                     onClick={() => void analyze()}
                   >
                     <Sparkle size={17} />
-                    Analizar modelo + UV
+                    {tr('Analizar modelo + UV', 'Analyse model + UVs')}
                   </button>
                   {!online && (
                     <button className="text-button" onClick={() => void refreshModels()}>
-                      Volver a consultar el modelo global
+                      {tr('Volver a consultar el modelo global', 'Check the global model again')}
                     </button>
                   )}
                   {!project?.models.length && (
-                    <p className="small muted">Necesita un modelo DAE o GLB con UV.</p>
+                    <p className="small muted">
+                      {tr('Necesita un modelo DAE o GLB con UV.', 'Requires a DAE or GLB model with UVs.')}
+                    </p>
                   )}
                 </section>
                 {job && ['running', 'queued'].includes(job.status) && (
                   <section className="inspector-section analysis-progress">
                     <SpinnerGap size={24} className="spin" />
-                    <h3>Observando superficies</h3>
-                    <p>{job.message}</p>
-                    <span>El tiempo depende del modelo y la GPU.</span>
+                    <h3>{tr('Observando superficies', 'Examining surfaces')}</h3>
+                    <p>{serverMessage(job.message)}</p>
+                    <span>
+                      {tr(
+                        'El tiempo depende del modelo y la GPU.',
+                        'The time depends on the model and GPU.',
+                      )}
+                    </span>
                   </section>
                 )}
                 {project?.evaluation?.sceneUnderstanding && (
@@ -1402,13 +1560,13 @@ export default function App() {
                   <>
                     <section className="inspector-section">
                       <div className="section-title">
-                        <h2>Lectura del modelo</h2>
+                        <h2>{tr('Lectura del modelo', 'Model interpretation')}</h2>
                         <span className="proposal-state">
                           {project.proposal.status === 'applied'
-                            ? 'Aplicada'
+                            ? tr('Aplicada', 'Applied')
                             : project.proposal.status === 'stale'
-                              ? 'Desactualizada'
-                              : 'Propuesta'}
+                              ? tr('Desactualizada', 'Out of date')
+                              : tr('Propuesta', 'Proposal')}
                         </span>
                       </div>
                       <p className="analysis-summary">{project.proposal.summary}</p>
@@ -1417,9 +1575,12 @@ export default function App() {
                       </p>
                     </section>
                     <section className="inspector-section">
-                      <h2>Relaciones de relieve</h2>
+                      <h2>{tr('Relaciones de relieve', 'Relief relationships')}</h2>
                       <p className="muted small">
-                        Activa solo las capas que necesitan volumen adicional sobre la malla.
+                        {tr(
+                          'Activa solo las capas que necesitan volumen adicional sobre la malla.',
+                          'Enable the layers that need extra volume above the mesh.',
+                        )}
                       </p>
                       {relations.length ? (
                         relations.map((r, i) => (
@@ -1440,7 +1601,7 @@ export default function App() {
                               <strong>{nameFor(r.upper)}</strong>
                               <span className="relation-over">
                                 <LinkSimple size={12} />
-                                sobre {nameFor(r.lower)}
+                                {tr('sobre', 'over')} {nameFor(r.lower)}
                               </span>
                               <small>{r.reason}</small>
                             </span>
@@ -1448,15 +1609,17 @@ export default function App() {
                         ))
                       ) : (
                         <p className="empty-relations">
-                          No se han propuesto capas superpuestas. Puedes ajustar alturas
-                          manualmente.
+                          {tr(
+                            'No se han propuesto capas superpuestas. Puedes ajustar alturas manualmente.',
+                            'No overlapping layers were proposed. You can adjust heights manually.',
+                          )}
                         </p>
                       )}
                       <button
                         className="button secondary wide"
                         disabled={working || project.proposal.status === 'stale'}
                         onClick={() =>
-                          void run('Aplicando relaciones…', async () => {
+                          void run(tr('Aplicando relaciones…', 'Applying relationships…'), async () => {
                             accept(
                               await api<Project>(`/projects/${project.id}/apply`, {
                                 method: 'POST',
@@ -1464,17 +1627,22 @@ export default function App() {
                               }),
                             );
                             setMode('color');
-                            setToast('Relaciones aplicadas. Revisa el relieve y ajusta las zonas.');
+                            setToast(
+                              tr(
+                                'Relaciones aplicadas. Revisa el relieve y ajusta las zonas.',
+                                'Relationships applied. Review the relief and adjust the regions.',
+                              ),
+                            );
                           })
                         }
                       >
                         <Check size={16} />
-                        Aplicar propuesta revisada
+                        {tr('Aplicar propuesta revisada', 'Apply reviewed proposal')}
                       </button>
                     </section>
                     {!!project.proposal.warnings.length && (
                       <section className="inspector-section">
-                        <h2>Para revisar</h2>
+                        <h2>{tr('Para revisar', 'To review')}</h2>
                         {project.proposal.warnings.map((w, i) => (
                           <p className="review-warning" key={i}>
                             <WarningCircle size={15} />
@@ -1489,16 +1657,23 @@ export default function App() {
                   !project?.evaluation?.sceneUnderstanding && (
                     <section className="inspector-section reasoning-empty">
                       <div className="layer-example">
-                        <span>Hebilla</span>
-                        <span>Cinturón</span>
-                        <span>Pantalón</span>
+                        <span>{tr('Hebilla', 'Buckle')}</span>
+                        <span>{tr('Cinturón', 'Belt')}</span>
+                        <span>{tr('Pantalón', 'Trousers')}</span>
                       </div>
-                      <h3>El porqué de cada altura.</h3>
+                      <h3>{tr('El porqué de cada altura.', 'How heights are assigned')}</h3>
                       <p>
-                        Una hebilla puede ir sobre un cinturón. Si ese volumen ya existe en la
-                        malla, no hace falta duplicarlo.
+                        {tr(
+                          'Una hebilla puede ir sobre un cinturón. Si ese volumen ya existe en la malla, no hace falta duplicarlo.',
+                          'A buckle can sit over a belt. Existing volume in the mesh needs no added relief.',
+                        )}
                       </p>
-                      <small>Ejemplo de relación, no análisis de tu figura.</small>
+                      <small>
+                        {tr(
+                          'Ejemplo de relación, no análisis de tu figura.',
+                          'Example of a relationship for illustration.',
+                        )}
+                      </small>
                     </section>
                   )
                 )}
@@ -1510,18 +1685,32 @@ export default function App() {
               className={`button ${project?.approved ? 'approved' : 'secondary'} wide`}
               disabled={!count || working}
               onClick={() =>
-                void run('Guardando ejemplo revisado…', async () => {
+                void run(tr('Guardando ejemplo revisado…', 'Saving reviewed example…'), async () => {
                   accept(
-                    await api<Project>(`/projects/${project!.id}/approve`, { method: 'POST' }),
+                    await api<Project>(`/projects/${project!.id}/approve`, {
+                      method: 'POST',
+                    }),
                   );
-                  setToast('Correcciones guardadas como ejemplo para futuros análisis.');
+                  setToast(
+                    tr(
+                      'Correcciones guardadas como ejemplo para futuros análisis.',
+                      'Corrections saved as an example for future analyses.',
+                    ),
+                  );
                 })
               }
             >
               <Check size={17} />
-              {project?.approved ? 'Revisión guardada' : 'Guardar como revisado'}
+              {project?.approved
+                ? tr('Revisión guardada', 'Review saved')
+                : tr('Guardar como revisado', 'Save as reviewed')}
             </button>
-            <p>Las correcciones crean tu biblioteca de ejemplos.</p>
+            <p>
+              {tr(
+                'Las correcciones crean tu biblioteca de ejemplos.',
+                'Saved corrections become examples for later analyses.',
+              )}
+            </p>
           </div>
         </aside>
       </div>
@@ -1535,18 +1724,24 @@ export default function App() {
           ) : job && ['queued', 'running'].includes(job.status) ? (
             <>
               <Sparkle size={13} />
-              Análisis de visión en curso
+              {tr('Análisis de visión en curso', 'Vision analysis in progress')}
             </>
           ) : (
             <>
               <span className="status-dot" />
-              Taller listo
+              {tr('Taller listo', 'Workshop ready')}
             </>
           )}
         </span>
         <span>
-          {count ? `${count} zonas · ${ready} texturas preparadas` : 'Procesamiento local'}
-          <span className="footer-separator">/</span>Salida a resolución original
+          {count
+            ? tr(
+                `${count} zonas · ${ready} texturas preparadas`,
+                `${count} regions · ${ready} textures prepared`,
+              )
+            : tr('Procesamiento local', 'Local processing')}
+          <span className="footer-separator">/</span>
+          {tr('Salida a resolución original', 'Output at original resolution')}
         </span>
       </footer>
       {toast && (
