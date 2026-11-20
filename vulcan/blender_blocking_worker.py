@@ -384,11 +384,11 @@ def overlaps(depths):
     pairs = []
     for (a, a_depth), (b, b_depth) in combinations(depths.items(), 2):
         shared = (a_depth != 0) & (b_depth != 0)
-        count = np.count_nonzero(shared)
+        count = int(np.count_nonzero(shared))
         if count:
             first, second = a_depth[shared], b_depth[shared]
-            a_front = np.count_nonzero(first > second)
-            b_front = np.count_nonzero(second > first)
+            a_front = int(np.count_nonzero(first > second))
+            b_front = int(np.count_nonzero(second > first))
             pairs.append({"a": a, "b": b, "a_in_front": a_front, "b_in_front": b_front,
                           "ties": count - a_front - b_front})
     return pairs
