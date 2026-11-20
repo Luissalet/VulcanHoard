@@ -10,6 +10,76 @@ from vulcan.agent_tools import call_tool
 from vulcan.articulation.seams import connect_ends, cycles
 from vulcan.articulation.tools import Build
 from vulcan.blender_render import find_blender
+from vulcan.hoard_link.agentkit import AppError
+
+
+def dossier_panel(tmp_path, fields):
+    ref = "hoard://writer/codex/map"
+    dossier = tmp_path / "dossier.json"
+    original = json.dumps({"objects": [{"ref": ref, "fields": fields}]}, ensure_ascii=False)
+    dossier.write_bytes(original.encode("utf-8"))
+    return {
+        "name": "map", "thickness": 0.004, "rgb": [0.5, 0.5, 0.5],
+        "reference": "Dossier map", "pivot": [0, 0, 0],
+        "dossier_object": {
+            "path": str(dossier), "ref": ref, "revision": sha256(dossier.read_bytes()).hexdigest(),
+            "right": [1, 0, 0], "up": [0, 0, 1], "scale": 0.5, "grip_uv": [0, 0.5],
+        },
+    }
+
+
+@pytest.mark.skipif(find_blender() is None, reason="Blender is not installed")
+@pytest.mark.parametrize(("fields", "dimensions", "corner", "silhouette"), [
+    ({"Tamaño": "Unos 60 × 45 cm desplegado, plegado en cuatro",
+      "Defecto": "Le falta la esquina inferior derecha, rasgada en diagonal", "Material": "Pergamino"},
+     (0.6, 0.45), "bottom-right",
+     [(0, -0.1125), (0, 0.1125), (0.3, 0.1125), (0.3, -0.07875), (0.26625, -0.1125)]),
+    ({"Size": "400 x 700 mm unfolded", "Defect": "Upper left corner diagonally cut", "Material": "Parchment"},
+     (0.4, 0.7), "top-left",
+     [(0, -0.175), (0, 0.145), (0.03, 0.175), (0.2, 0.175), (0.2, -0.175)]),
+])
+def test_pinned_dossier_geometry_is_used_in_the_export(services, tmp_path, fields, dimensions, corner, silhouette):
+    source = tmp_path / "source.glb"
+    trimesh.creation.box().export(source)
+    panel = dossier_panel(tmp_path, fields)
+    result = call_tool(services, "articulation_build", {
+        "source": str(source), "panels": [panel], "selection_views": False,
+        "poses": [{"name": "frozen", "cameras": []}],
+    })
+    origin = result["parts"]["map"]["source_object"]
+    assert origin["dimensions_m"] == pytest.approx(dimensions)
+    assert origin["corner"] == corner
+    assert origin["scale"] == 0.5 and origin["grip"] == [0, 0, 0]
+    assert origin["revision"] == panel["dossier_object"]["revision"]
+    assert origin["finish"] == fields["Material"]
+    scene = trimesh.load(result["files"]["frozen"], force="scene")
+    transform, geometry = scene.graph["map_pose"]
+    vertices = trimesh.transform_points(scene.geometry[geometry].vertices, transform)
+    assert {tuple(point) for point in np.round(vertices[:, :2], 6)} == set(silhouette)
+    assert set(np.round(vertices[:, 2], 6)) == {-0.002, 0.002}
+
+
+@pytest.mark.parametrize(("problem", "code", "message"), [
+    ("changed revision", "conflict", "Dossier revision changed"),
+    ("changed reference", "invalid", "object reference"),
+    ("unrecognised corner", "invalid", "Defect"),
+    ("ambiguous dimensions", "invalid", "Size"),
+])
+def test_invalid_dossier_geometry_is_rejected_before_build(services, tmp_path, problem, code, message):
+    fields = {"Size": "60 x 45 cm", "Defect": "Lower right corner torn diagonally", "Material": "Parchment"}
+    if problem == "unrecognised corner":
+        fields["Defect"] = "A fold at the lower right corner"
+    if problem == "ambiguous dimensions":
+        fields["Size"] = "60 x 45 cm unfolded, 30 x 20 cm folded"
+    panel = dossier_panel(tmp_path, fields)
+    if problem == "changed revision":
+        Path(panel["dossier_object"]["path"]).write_text("{}", encoding="utf-8")
+    if problem == "changed reference":
+        panel["dossier_object"]["ref"] += "-missing"
+    with pytest.raises(AppError, match=message) as exc:
+        call_tool(services, "articulation_build", {"source": "unused.glb", "panels": [panel]})
+    assert exc.value.code == code
+    assert not (services.config.data_dir / "articulation").exists()
 
 
 @pytest.mark.skipif(find_blender() is None, reason="Blender is not installed")

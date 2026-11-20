@@ -79,15 +79,38 @@ class ObjectReference(Args):
     finish: str = Field(min_length=1, max_length=500)
 
 
+Unit = Annotated[FiniteFloat, Field(ge=0, le=1)]
+
+
+class DossierObject(Args):
+    path: str = Field(description="Absolute dossier JSON path. / Ruta absoluta al JSON del expediente.")
+    ref: str = Field(min_length=1, max_length=500, description="Object ref in the dossier. / Referencia del objeto en el expediente.")
+    revision: Digest = Field(description="SHA-256 of the dossier file. / SHA-256 del fichero del expediente.")
+    right: Vec = Field(description="Panel's rightward axis in source space. / Eje hacia la derecha del panel en el espacio de origen.")
+    up: Vec = Field(description="Panel's upward axis in source space. / Eje hacia arriba del panel en el espacio de origen.")
+    scale: Positive = Field(description="Uniform scene scale, 1 for real size. / Escala uniforme de escena, 1 para tamaño real.")
+    grip_uv: tuple[Unit, Unit] = Field(description="Grip within the full rectangle, from bottom left (0,0). / Agarre en el rectángulo completo, desde abajo a la izquierda (0,0).")
+
+
 class Panel(Args):
     name: Name
-    outline: list[Vec] = Field(min_length=3, max_length=128, description="Ordered planar outline in source space.")
+    outline: list[Vec] | None = Field(None, min_length=3, max_length=128, description="Ordered planar outline in source space. / Contorno plano ordenado en el espacio de origen.")
     thickness: Positive
     rgb: RGB
     reference: str = Field(min_length=1, max_length=500, description="Reference identifying the added geometry.")
     bone: Name | None = None
     pivot: Vec | None = None
     source_object: ObjectReference | None = Field(None, description="Pinned dossier object and finish. / Objeto fijado del expediente y acabado.")
+    dossier_object: DossierObject | None = Field(None, description="Build a clipped rectangle from a pinned dossier. / Construye un rectángulo con una esquina cortada desde el expediente fijado.")
+
+    @model_validator(mode="after")
+    def check_geometry(self):
+        if self.dossier_object:
+            if self.outline is not None or self.source_object is not None or self.pivot is None:
+                raise ValueError("dossier_object requires pivot and takes the place of outline and source_object. / dossier_object requiere pivot y sustituye a outline y source_object.")
+        elif self.outline is None:
+            raise ValueError("Provide outline or dossier_object. / Indica outline o dossier_object.")
+        return self
 
 
 class Reconstruction(Args):
@@ -205,8 +228,8 @@ def pick(services, args):
 TOOLS = [
     Tool("articulation_build", "Split and rig an inferred mesh. Selección, corte, reparación y articulación.\nSelect by region, plane, colour or seed; cap boundaries, "
          "repair named seams, discard debris and rig separate pieces. Creates a new editable package with source face provenance, GLB, "
-         "frozen poses and optional same-camera previews. Use articulation_undo to revert. "
-         "Selecciona por región, plano, color, semilla o caras de origen. Repara encastres, retira restos y articula piezas con huesos.",
+         "frozen poses and optional same-camera previews. Build a clipped panel from a pinned dossier. Use articulation_undo to revert. "
+         "Selecciona por región, plano, color, semilla o caras de origen. Repara encastres, articula piezas y construye paneles desde un expediente fijado.",
          Build, ann(draft_safe=True), build, timeout_s=600, capped=False),
     Tool("articulation_get", "Read an articulation package. Consulta de articulación.\nReturns its revision, measurements and files. "
          "Consulta la procedencia, las medidas y los archivos de la articulación.", Lookup, ann(True), get, capped=False),

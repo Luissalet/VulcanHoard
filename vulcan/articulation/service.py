@@ -13,6 +13,7 @@ from ..asset_inspection import read_gltf, sha256_of
 from ..blender_render import find_blender
 from ..hoard_link import proc
 from ..hoard_link.agentkit import AppError
+from .dossier import resolve_panel
 
 WORKER = Path(__file__).with_name("worker.py")
 PICK_WORKER = Path(__file__).with_name("pick_worker.py")
@@ -61,6 +62,7 @@ def run_worker(worker, args, receipt, timeout):
 
 
 def build(data_dir, recipe):
+    panels = [resolve_panel(panel) if panel.get("dossier_object") else panel for panel in recipe["panels"]]
     package_id = uuid4().hex
     root = data_dir / "articulation"
     root.mkdir(parents=True, exist_ok=True)
@@ -75,10 +77,10 @@ def build(data_dir, recipe):
         for piece in recipe.get("reconstructions", ()):
             copy_revision(piece["path"], pieces / (piece["name"] + ".glb"), piece["sha256"])
         recipe_file = work / "recipe.json"
-        recipe_file.write_text(json.dumps(recipe, ensure_ascii=False), encoding="utf-8")
+        recipe_file.write_text(json.dumps({**recipe, "panels": panels}, ensure_ascii=False), encoding="utf-8")
         receipt = output / "receipt.json"
         run_worker(WORKER, (source, recipe_file, output, digest), receipt, timeout=540)
-        shutil.copyfile(recipe_file, output / "recipe.json")
+        (output / "recipe.json").write_text(json.dumps(recipe, ensure_ascii=False), encoding="utf-8")
         result = json.loads(receipt.read_text(encoding="utf-8"))
         if "game" in result:
             measure_game(output / result["files"]["game"], result["game"])

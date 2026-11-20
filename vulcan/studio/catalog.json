@@ -16915,7 +16915,7 @@
     "module": "library",
     "native_name": "articulation_build",
     "name": "articulation_build",
-    "description": "Split and rig an inferred mesh. Selección, corte, reparación y articulación.\nSelect by region, plane, colour or seed; cap boundaries, repair named seams, discard debris and rig separate pieces. Creates a new editable package with source face provenance, GLB, frozen poses and optional same-camera previews. Use articulation_undo to revert. Selecciona por región, plano, color, semilla o caras de origen. Repara encastres, retira restos y articula piezas con huesos.",
+    "description": "Split and rig an inferred mesh. Selección, corte, reparación y articulación.\nSelect by region, plane, colour or seed; cap boundaries, repair named seams, discard debris and rig separate pieces. Creates a new editable package with source face provenance, GLB, frozen poses and optional same-camera previews. Build a clipped panel from a pinned dossier. Use articulation_undo to revert. Selecciona por región, plano, color, semilla o caras de origen. Repara encastres, articula piezas y construye paneles desde un expediente fijado.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -17103,6 +17103,101 @@
           "title": "Colour",
           "type": "object"
         },
+        "DossierObject": {
+          "additionalProperties": false,
+          "properties": {
+            "path": {
+              "description": "Absolute dossier JSON path. / Ruta absoluta al JSON del expediente.",
+              "title": "Path",
+              "type": "string"
+            },
+            "ref": {
+              "description": "Object ref in the dossier. / Referencia del objeto en el expediente.",
+              "maxLength": 500,
+              "minLength": 1,
+              "title": "Ref",
+              "type": "string"
+            },
+            "revision": {
+              "description": "SHA-256 of the dossier file. / SHA-256 del fichero del expediente.",
+              "pattern": "^[0-9a-fA-F]{64}$",
+              "title": "Revision",
+              "type": "string"
+            },
+            "right": {
+              "description": "Panel's rightward axis in source space. / Eje hacia la derecha del panel en el espacio de origen.",
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "title": "Right",
+              "type": "array"
+            },
+            "up": {
+              "description": "Panel's upward axis in source space. / Eje hacia arriba del panel en el espacio de origen.",
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "title": "Up",
+              "type": "array"
+            },
+            "scale": {
+              "description": "Uniform scene scale, 1 for real size. / Escala uniforme de escena, 1 para tamaño real.",
+              "exclusiveMinimum": 0,
+              "title": "Scale",
+              "type": "number"
+            },
+            "grip_uv": {
+              "description": "Grip within the full rectangle, from bottom left (0,0). / Agarre en el rectángulo completo, desde abajo a la izquierda (0,0).",
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                }
+              ],
+              "title": "Grip Uv",
+              "type": "array"
+            }
+          },
+          "required": [
+            "path",
+            "ref",
+            "revision",
+            "right",
+            "up",
+            "scale",
+            "grip_uv"
+          ],
+          "title": "DossierObject",
+          "type": "object"
+        },
         "ObjectReference": {
           "additionalProperties": false,
           "properties": {
@@ -17158,27 +17253,35 @@
               "type": "string"
             },
             "outline": {
-              "description": "Ordered planar outline in source space.",
-              "items": {
-                "maxItems": 3,
-                "minItems": 3,
-                "prefixItems": [
-                  {
-                    "type": "number"
+              "anyOf": [
+                {
+                  "items": {
+                    "maxItems": 3,
+                    "minItems": 3,
+                    "prefixItems": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "number"
+                      }
+                    ],
+                    "type": "array"
                   },
-                  {
-                    "type": "number"
-                  },
-                  {
-                    "type": "number"
-                  }
-                ],
-                "type": "array"
-              },
-              "maxItems": 128,
-              "minItems": 3,
-              "title": "Outline",
-              "type": "array"
+                  "maxItems": 128,
+                  "minItems": 3,
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Ordered planar outline in source space. / Contorno plano ordenado en el espacio de origen.",
+              "title": "Outline"
             },
             "thickness": {
               "exclusiveMinimum": 0,
@@ -17264,11 +17367,22 @@
               ],
               "default": null,
               "description": "Pinned dossier object and finish. / Objeto fijado del expediente y acabado."
+            },
+            "dossier_object": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/DossierObject"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Build a clipped rectangle from a pinned dossier. / Construye un rectángulo con una esquina cortada desde el expediente fijado."
             }
           },
           "required": [
             "name",
-            "outline",
             "thickness",
             "rgb",
             "reference"
