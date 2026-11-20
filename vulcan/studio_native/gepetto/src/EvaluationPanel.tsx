@@ -1,3 +1,4 @@
+import { tr } from './i18n';
 import { useState } from 'react';
 import { Cube, DownloadSimple } from '@phosphor-icons/react';
 import { api } from './types';
@@ -50,15 +51,24 @@ export default function EvaluationPanel({
   }
   return (
     <section className="inspector-section">
-      <h2>Comprobar en Figure Tools</h2>
+      <h2>{tr('Comprobar en Figure Tools', 'Check in Figure Tools')}</h2>
       <p className="muted small">
-        Hornea las UV, calcula el desplazamiento en Blender y deja que la IA vea el resultado.
+        {tr(
+          'Hornea las UV, calcula el desplazamiento en Blender y deja que la IA vea el resultado.',
+          'Bake UVs, calculate displacement in Blender and let the AI inspect the result.',
+        )}
       </p>
       {!project.blenderSource ? (
         <p className="review-warning">
           {window.sculptorsHoardDesktop
-            ? 'Abre el proyecto Blender desde la biblioteca para cargar sus texturas aplicadas.'
-            : 'Abre un .blend con las texturas empaquetadas o con rutas absolutas.'}
+            ? tr(
+                'Abre el proyecto Blender desde la biblioteca para cargar sus texturas aplicadas.',
+                'Open the Blender project from the library to load its applied textures.',
+              )
+            : tr(
+                'Abre un .blend con las texturas empaquetadas o con rutas absolutas.',
+                'Open a .blend file with packed textures or absolute paths.',
+              )}
         </p>
       ) : (
         <p className="small">{project.blenderSource.name}</p>
@@ -71,21 +81,24 @@ export default function EvaluationPanel({
       {!evaluation && (
         <>
           <label className="field-select">
-            Procesar solo estos materiales
+            {tr('Procesar solo estos materiales', 'Process only these materials')}
             <input
               value={target}
               onChange={(e) => setTarget(e.target.value)}
-              placeholder="Vacío: todos. Para la ropa: mTops"
+              placeholder={tr(
+                'Vacío: todos. Para la ropa: mTops',
+                'Blank for all materials. For clothing, use mTops.',
+              )}
               disabled={disabled}
             />
           </label>
           {!target && (
             <label className="field-select">
-              Materiales que quieres separar
+              {tr('Materiales que quieres separar', 'Materials to separate')}
               <input
                 value={separate}
                 onChange={(e) => setSeparate(e.target.value)}
-                placeholder="Por ejemplo: mTops"
+                placeholder={tr('Por ejemplo: mTops', 'For example, mTops')}
                 disabled={disabled}
               />
             </label>
@@ -98,23 +111,28 @@ export default function EvaluationPanel({
         onClick={() => void evaluate()}
       >
         <Cube size={16} />
-        {evaluation ? 'Comprobar mis cambios' : 'Generar y comprobar relieve'}
+        {evaluation
+          ? tr('Comprobar mis cambios', 'Check my changes')
+          : tr('Generar y comprobar relieve', 'Generate and check relief')}
       </button>
       {evaluation && (
         <>
           <p className="small" role="status">
             {evaluation.revision !== project.revision
-              ? 'Hay cambios pendientes de calcular.'
-              : 'Resultado calculado · pendiente de tu revisión.'}
+              ? tr('Hay cambios pendientes de calcular.', 'Changes are waiting to be calculated.')
+              : tr(
+                  'Resultado calculado · pendiente de tu revisión.',
+                  'Result calculated · ready for your review.',
+                )}
           </p>
           <details className="evaluation-details">
-            <summary>Comparación y revisión de la IA</summary>
+            <summary>{tr('Comparación y revisión de la IA', 'Comparison and AI review')}</summary>
             <div className="evaluation-images">
               {[
-                ['original-front.png', 'Original'],
-                ['control-front.png', 'Relieve uniforme'],
-                [`iteration-${evaluation.final}-front.png`, 'Relieve actual'],
-                [`iteration-${evaluation.final}-three-quarter.png`, 'Otra vista'],
+                ['original-front.png', tr('Original', 'Original')],
+                ['control-front.png', tr('Relieve uniforme', 'Uniform relief')],
+                [`iteration-${evaluation.final}-front.png`, tr('Relieve actual', 'Current relief')],
+                [`iteration-${evaluation.final}-three-quarter.png`, tr('Otra vista', 'Another view')],
               ].map(([file, label]) => (
                 <figure key={file}>
                   <a
@@ -144,7 +162,7 @@ export default function EvaluationPanel({
               href={`/api/projects/${project.id}/evaluated-export`}
             >
               <DownloadSimple size={16} />
-              Mapas para Figure Tools
+              {tr('Mapas para Figure Tools', 'Maps for Figure Tools')}
             </a>
           )}
         </>

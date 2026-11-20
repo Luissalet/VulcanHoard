@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { tr } from './i18n';
+import { useEffect, useRef, useState } from 'react';
 import {
   ArrowLeft,
   DownloadSimple,
@@ -8,6 +9,7 @@ import {
 } from '@phosphor-icons/react';
 import { api } from './types';
 import type { Project } from './types';
+import { serverMessage } from './serverMessages';
 import './reference-pose.css';
 
 type Capabilities = {
@@ -28,11 +30,11 @@ type PoseRun = {
   error?: string;
 };
 const labels = {
-  queued: 'En espera',
-  running: 'Generando pose',
-  succeeded: 'Propuesta lista',
-  failed: 'No se pudo generar la pose',
-  cancelled: 'Generación cancelada',
+  queued: tr('En espera', 'Queued'),
+  running: tr('Generando pose', 'Generating pose'),
+  succeeded: tr('Propuesta lista', 'Proposal ready'),
+  failed: tr('No se pudo generar la pose', 'Could not generate pose'),
+  cancelled: tr('Generación cancelada', 'Generation cancelled'),
 };
 const fileUrl = (run: PoseRun, file: string) =>
   `/api/pose-runs/${encodeURIComponent(run.id)}/files/${file}`;
@@ -48,6 +50,7 @@ export default function ReferencePosePanel({
   const [source, setSource] = useState(project?.blenderSource ? 'project' : 'path');
   const [blendPath, setBlendPath] = useState('');
   const [reference, setReference] = useState<File | null>(null);
+  const referenceInput = useRef<HTMLInputElement>(null);
   const [referenceUrl, setReferenceUrl] = useState('');
   const [runs, setRuns] = useState<PoseRun[]>([]);
   const [run, setRun] = useState<PoseRun | null>(null);
@@ -101,7 +104,12 @@ export default function ReferencePosePanel({
           }
         })
         .catch((e: Error) => {
-          if (alive) setError(`No se pudo actualizar el estado: ${e.message}`);
+          if (alive) {
+            const message = e.message;
+            setError(
+              tr(`No se pudo actualizar el estado: ${message}`, `Could not refresh the status: ${message}`),
+            );
+          }
         });
     }, 2000);
     return () => {
@@ -156,13 +164,18 @@ export default function ReferencePosePanel({
     <main className="reference-pose">
       <div className="pose-heading">
         <div>
-          <h1>Posar desde imagen</h1>
-          <p>Una referencia, una propuesta de pose para revisar en Blender.</p>
+          <h1>{tr('Posar desde imagen', 'Pose from image')}</h1>
+          <p>
+            {tr(
+              'Crea una pose a partir de una referencia y revísala en Blender.',
+              'Create a pose from a reference and review it in Blender.',
+            )}
+          </p>
         </div>
         {onClose && (
           <button className="button secondary" onClick={onClose}>
             <ArrowLeft size={16} />
-            Volver al taller
+            {tr('Volver al taller', 'Back to workshop')}
           </button>
         )}
       </div>
@@ -175,10 +188,10 @@ export default function ReferencePosePanel({
           }}
         >
           <fieldset disabled={locked}>
-            <legend>Personaje</legend>
+            <legend>{tr('Personaje', 'Character')}</legend>
             {project?.blenderSource && (
               <label className="pose-field">
-                Origen
+                {tr('Origen', 'Source')}
                 <select
                   value={source}
                   onChange={(event) => {
@@ -186,8 +199,10 @@ export default function ReferencePosePanel({
                     setRun(null);
                   }}
                 >
-                  <option value="project">Proyecto actual · {project.name}</option>
-                  <option value="path">Otro archivo de Blender</option>
+                  <option value="project">
+                    {tr('Proyecto actual', 'Current project')} · {project.name}
+                  </option>
+                  <option value="path">{tr('Otro archivo de Blender', 'Another Blender file')}</option>
                 </select>
               </label>
             )}
@@ -195,11 +210,11 @@ export default function ReferencePosePanel({
               <p className="pose-source">{project.blenderSource.name}</p>
             ) : (
               <label className="pose-field">
-                Archivo de Blender
+                {tr('Archivo de Blender', 'Blender file')}
                 <div className="pose-path">
                   <input
                     required
-                    placeholder="C:\Personajes\personaje.blend"
+                    placeholder={tr('C:\\Personajes\\personaje.blend', 'C:\\Characters\\character.blend')}
                     value={blendPath}
                     onChange={(event) => {
                       setBlendPath(event.target.value);
@@ -210,7 +225,7 @@ export default function ReferencePosePanel({
                     <button
                       className="button secondary"
                       type="button"
-                      aria-label="Elegir archivo de Blender"
+                      aria-label={tr('Elegir archivo de Blender', 'Choose Blender file')}
                       onClick={async () => {
                         try {
                           const path = await window.sculptorsHoardDesktop?.pickBlend();
@@ -231,19 +246,22 @@ export default function ReferencePosePanel({
             )}
           </fieldset>
           <fieldset disabled={locked}>
-            <legend>Imagen de referencia</legend>
+            <legend>{tr('Imagen de referencia', 'Reference image')}</legend>
             <p className="pose-hint">
-              Sin imagen adjunta, se usa <strong>card.png</strong> de la carpeta del personaje.
+              {tr('Sin imagen adjunta, se usa', 'When no image is attached, the tool uses')}{' '}
+              <strong>card.png</strong> {tr('de la carpeta del personaje.', 'from the character’s folder.')}
             </p>
             <label className="pose-upload">
-              Elegir imagen
               <input
+                ref={referenceInput}
                 type="file"
+                aria-label={tr('Elegir imagen', 'Choose image')}
                 accept="image/png,image/jpeg,image/webp"
                 onChange={(event) => {
-                  const file = event.target.files?.[0];
+                  const file = event.currentTarget.files?.[0];
                   if (file && !['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
-                    setError('Elige una imagen PNG, JPG o WebP.');
+                    event.currentTarget.value = '';
+                    setError(tr('Elige una imagen PNG, JPG o WebP.', 'Choose a PNG, JPG or WebP image.'));
                     return;
                   }
                   setReference(file ?? null);
@@ -251,42 +269,62 @@ export default function ReferencePosePanel({
                   setError('');
                 }}
               />
+              <span className="pose-upload-button" aria-hidden="true">
+                {tr('Elegir imagen', 'Choose image')}
+              </span>
+              <span className="pose-upload-name" aria-hidden="true">
+                {reference?.name ?? tr('Ningún archivo seleccionado', 'No file selected')}
+              </span>
             </label>
             {reference && (
               <div className="pose-file">
-                <span>{reference.name}</span>
                 <button
                   className="button plain"
                   type="button"
                   onClick={() => {
+                    if (referenceInput.current) referenceInput.current.value = '';
                     setReference(null);
                     setRun(null);
                   }}
                 >
-                  Usar card.png
+                  {tr('Usar card.png', 'Use card.png')}
                 </button>
               </div>
             )}
           </fieldset>
           <fieldset disabled={locked}>
-            <legend>Interpretar la referencia</legend>
+            <legend>{tr('Interpretar la referencia', 'Interpret reference')}</legend>
             <label className="pose-field">
-              Modelo
-              <input value={capabilities?.global_model || 'Modelo global no disponible'} readOnly />
+              {tr('Modelo', 'Model')}
+              <input
+                value={
+                  capabilities?.global_model ||
+                  tr('Modelo global no disponible', 'Global model unavailable')
+                }
+                readOnly
+              />
             </label>
             <p className="pose-hint">
-              Utiliza el modelo global configurado en Faustus. La interpretación de referencias
-              requiere que ese modelo admita imágenes.
+              {tr(
+                'Utiliza el modelo global configurado en Faustus. La interpretación de referencias requiere que ese modelo admita imágenes.',
+                'Uses the global model configured in Faustus. The model must support image input.',
+              )}
             </p>
           </fieldset>
           {capabilities && !capabilities.blender && (
             <p className="pose-error" role="alert">
-              No se encuentra Blender. Configúralo antes de generar una pose.
+              {tr(
+                'No se encuentra Blender. Configúralo antes de generar una pose.',
+                'Blender was not found. Configure it before generating a pose.',
+              )}
             </p>
           )}
           {capabilities && !capabilities.global_available && (
             <p className="pose-error" role="alert">
-              El modelo global no anuncia visión disponible. Revisa su configuración en Faustus.
+              {tr(
+                'El modelo global no anuncia visión disponible. Revisa su configuración en Faustus.',
+                'The global model does not report vision support. Check its configuration in Faustus.',
+              )}
             </p>
           )}
           {error && (
@@ -298,37 +336,39 @@ export default function ReferencePosePanel({
             {locked ? (
               <>
                 <SpinnerGap className="pose-spinner" size={17} />
-                {active ? 'Generando pose…' : 'Preparando…'}
+                {active ? tr('Generando pose…', 'Generating pose…') : tr('Preparando…', 'Preparing…')}
               </>
             ) : run?.status === 'failed' || run?.status === 'cancelled' ? (
-              'Volver a generar'
+              tr('Volver a generar', 'Generate again')
             ) : (
-              'Generar pose'
+              tr('Generar pose', 'Generate pose')
             )}
           </button>
           <p className="pose-hint">
-            Se crea una copia. El original se conserva. Compatible por ahora con rigs de Animal
-            Crossing: New Horizons; ajusta cadera, cuello, hombros y codos.
+            {tr(
+              'Se crea una copia y se conserva el original. El esqueleto debe incluir Spine_1, Neck, Arm_1_L/R y Arm_2_L/R para ajustar la cadera, el cuello, los hombros y los codos.',
+              'Creates a copy and keeps the original. The rig needs Spine_1, Neck, Arm_1_L/R and Arm_2_L/R to adjust the hips, neck, shoulders and elbows.',
+            )}
           </p>
         </form>
-        <section className="pose-review" aria-label="Comparación de pose">
+        <section className="pose-review" aria-label={tr('Comparación de pose', 'Pose comparison')}>
           <div className="pose-review-heading">
-            <h2>{run ? run.character || 'Revisión de la pose' : 'Revisión de la pose'}</h2>
+            <h2>{run?.character || tr('Revisión de la pose', 'Pose review')}</h2>
             {runs.length > 0 && (
               <label className="pose-history">
-                Propuestas
+                {tr('Propuestas', 'Proposals')}
                 <select
-                  aria-label="Elegir propuesta anterior"
+                  aria-label={tr('Elegir propuesta anterior', 'Choose a previous proposal')}
                   disabled={locked}
                   value={run?.id ?? ''}
                   onChange={(event) =>
                     setRun(runs.find((item) => item.id === event.target.value) ?? null)
                   }
                 >
-                  <option value="">Nueva propuesta</option>
+                  <option value="">{tr('Nueva propuesta', 'New proposal')}</option>
                   {runs.map((item) => (
                     <option key={item.id} value={item.id}>
-                      {item.character || 'Personaje'} · {labels[item.status]}
+                      {item.character || tr('Personaje', 'Character')} · {labels[item.status]}
                     </option>
                   ))}
                 </select>
@@ -338,29 +378,42 @@ export default function ReferencePosePanel({
           <div className="pose-comparison">
             <figure>
               <figcaption>
-                Referencia<span>{run?.reference_name || reference?.name || 'card.png'}</span>
+                {tr('Referencia', 'Reference')}
+                <span>{run?.reference_name || reference?.name || 'card.png'}</span>
               </figcaption>
               <div className="pose-image">
                 {shownReference ? (
-                  <img src={shownReference} alt="Imagen de referencia para la pose" />
+                  <img
+                    src={shownReference}
+                    alt={tr('Imagen de referencia para la pose', 'Pose reference image')}
+                  />
                 ) : (
                   <div className="pose-empty">
                     <ImageSquare size={34} />
-                    <p>La referencia aparecerá aquí.</p>
-                    <span>Adjunta una imagen o genera con card.png.</span>
+                    <p>{tr('La referencia aparecerá aquí.', 'The reference will appear here.')}</p>
+                    <span>
+                      {tr(
+                        'Adjunta una imagen o genera con card.png.',
+                        'Attach an image or generate a pose with card.png.',
+                      )}
+                    </span>
                   </div>
                 )}
               </div>
             </figure>
             <figure>
               <figcaption>
-                Propuesta<span>{run ? labels[run.status] : 'Pendiente'}</span>
+                {tr('Propuesta', 'Proposal')}
+                <span>{run ? labels[run.status] : tr('Pendiente', 'Pending')}</span>
               </figcaption>
               <div className="pose-image">
                 {run?.has_preview ? (
                   <img
                     src={fileUrl(run, 'preview.png')}
-                    alt={`Propuesta de pose para ${run.character}`}
+                    alt={tr(
+                      `Propuesta de pose para ${run.character}`,
+                      `Pose proposal for ${run.character}`,
+                    )}
                   />
                 ) : (
                   <div className="pose-empty">
@@ -371,13 +424,19 @@ export default function ReferencePosePanel({
                     )}
                     <p>
                       {active
-                        ? 'Buscando la pose de la referencia…'
-                        : 'Tu propuesta aparecerá aquí.'}
+                        ? tr('Buscando la pose de la referencia…', 'Finding the reference pose…')
+                        : tr('Tu propuesta aparecerá aquí.', 'Your proposal will appear here.')}
                     </p>
                     <span>
                       {active
-                        ? 'Puedes volver al taller mientras se genera.'
-                        : 'Compara la silueta y revisa las articulaciones.'}
+                        ? tr(
+                            'Puedes volver al taller mientras se genera.',
+                            'You can return to the workshop while the pose is generated.',
+                          )
+                        : tr(
+                            'Compara la silueta y revisa las articulaciones.',
+                            'Compare the silhouette and check the joints.',
+                          )}
                     </span>
                   </div>
                 )}
@@ -392,7 +451,7 @@ export default function ReferencePosePanel({
             >
               <div>
                 <strong>{labels[run.status]}</strong>
-                <p>{run.error || run.message}</p>
+                <p>{serverMessage(run.error || run.message)}</p>
               </div>
               {active && (
                 <button
@@ -400,13 +459,13 @@ export default function ReferencePosePanel({
                   disabled={pending}
                   onClick={() => void cancel()}
                 >
-                  Cancelar
+                  {tr('Cancelar', 'Cancel')}
                 </button>
               )}
               {run.has_blend && (
                 <a className="button primary" href={fileUrl(run, 'posed.blend')} download>
                   <DownloadSimple size={17} />
-                  Descargar .blend
+                  {tr('Descargar .blend', 'Download .blend')}
                 </a>
               )}
             </div>

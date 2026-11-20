@@ -67,24 +67,40 @@
 }
 .pose-upload {
   display: flex;
-  flex-direction: column;
+  position: relative;
+  align-items: center;
   gap: 8px;
   font-size: 12px;
   margin-top: 14px;
 }
 .pose-upload input {
+  position: absolute;
+  inset: 0;
   width: 100%;
-  font-size: 12px;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
 }
-.pose-upload input::file-selector-button {
-  font: inherit;
+.pose-upload-button {
+  flex: 0 0 auto;
   border: 1px solid var(--line);
   border-radius: 5px;
   background: var(--surface);
   color: var(--hoard-text);
   padding: 8px 10px;
-  margin-right: 8px;
-  cursor: pointer;
+}
+.pose-upload input:focus-visible + .pose-upload-button {
+  outline: 2px solid var(--hoard-accent);
+  outline-offset: 2px;
+}
+.pose-upload input:disabled {
+  cursor: default;
+}
+.pose-upload input:disabled ~ span {
+  opacity: 0.6;
+}
+.pose-upload-name {
+  overflow-wrap: anywhere;
 }
 .pose-file {
   margin-top: 8px;

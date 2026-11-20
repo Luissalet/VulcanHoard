@@ -1,3 +1,4 @@
+import { tr } from './i18n';
 import { useEffect, useImperativeHandle, useRef, forwardRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -314,7 +315,12 @@ export default forwardRef<ViewportHandle, Props>(function Viewport(props, ref) {
     async capture() {
       const e = engine.current;
       if (!e || !e.loaded || !current.current.project?.models.length)
-        throw new Error('Carga un modelo 3D y espera a que termine de abrirse.');
+        throw new Error(
+          tr(
+            'Carga un modelo 3D y espera a que termine de abrirse.',
+            'Load a 3D model and wait for it to finish opening.',
+          ),
+        );
       const oldPosition = e.camera.position.clone(),
         oldTarget = e.controls.target.clone();
       const oldAspect = e.camera.aspect;
@@ -336,8 +342,8 @@ export default forwardRef<ViewportHandle, Props>(function Viewport(props, ref) {
         for (const mode of ['original', 'ids'] as ImageMode[]) {
           await setMaterials(mode);
           for (const [label, angle] of [
-            ['Frente', 0],
-            ['Dorso', Math.PI],
+            [tr('Frente', 'Front'), 0],
+            [tr('Dorso', 'Back'), Math.PI],
           ] as const) {
             e.camera.position.set(
               Math.sin(angle + 0.22) * e.size * 1.8,
@@ -347,7 +353,7 @@ export default forwardRef<ViewportHandle, Props>(function Viewport(props, ref) {
             e.camera.lookAt(0, 0, 0);
             e.renderer.render(e.scene, e.camera);
             views.push({
-              label: `${label} / ${mode === 'original' ? 'textura original' : 'regiones numeradas'}`,
+              label: `${label} / ${mode === 'original' ? tr('textura original', 'original texture') : tr('regiones numeradas', 'numbered regions')}`,
               image: e.renderer.domElement.toDataURL('image/png'),
             });
           }
@@ -381,7 +387,12 @@ export default forwardRef<ViewportHandle, Props>(function Viewport(props, ref) {
         preserveDrawingBuffer: true,
       });
     } catch {
-      props.onStatus('WebGL no está disponible. Puedes usar el editor UV.');
+      props.onStatus(
+        tr(
+          'WebGL no está disponible. Puedes usar el editor UV.',
+          'WebGL is unavailable. You can use the UV editor.',
+        ),
+      );
       return;
     }
     renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
@@ -508,11 +519,16 @@ export default forwardRef<ViewportHandle, Props>(function Viewport(props, ref) {
     e.root.clear();
     e.root.position.set(0, 0, 0);
     if (!p?.models.length) {
-      current.current.onStatus('Abre un proyecto Blender para ver su modelo y texturas aplicadas.');
+      current.current.onStatus(
+        tr(
+          'Abre un proyecto Blender para ver su modelo y texturas aplicadas.',
+          'Open a Blender project to see its model and applied textures.',
+        ),
+      );
       e.render();
       return;
     }
-    current.current.onStatus('Abriendo modelo…');
+    current.current.onStatus(tr('Abriendo modelo…', 'Opening model…'));
     const manager = new THREE.LoadingManager();
     const pending = new Map<string, THREE.Texture>();
     // A missing file must not become an uninitialized alpha texture: alphaTest
@@ -628,12 +644,18 @@ export default forwardRef<ViewportHandle, Props>(function Viewport(props, ref) {
       const missing = rows.filter((m) => !m.texture).length;
       current.current.onStatus(
         missing
-          ? `${rows.length} superficies visibles · ${missing} sin textura vinculada. Importa la carpeta del modelo con sus imágenes.`
-          : `${rows.length} superficies · UV vinculadas`,
+          ? tr(
+              `${rows.length} superficies visibles · ${missing} sin textura vinculada. Importa la carpeta del modelo con sus imágenes.`,
+              `${rows.length} visible surfaces · ${missing} without a linked texture. Import the model folder with its images.`,
+            )
+          : tr(`${rows.length} superficies · UV vinculadas`, `${rows.length} surfaces · UVs linked`),
       );
     }
     load().catch((err) => {
-      if (!cancelled) current.current.onStatus(`No se pudo abrir el modelo: ${err.message}`);
+      if (!cancelled)
+        current.current.onStatus(
+          tr(`No se pudo abrir el modelo: ${err.message}`, `Could not open the model: ${err.message}`),
+        );
     });
     return () => {
       cancelled = true;
@@ -713,7 +735,10 @@ export default forwardRef<ViewportHandle, Props>(function Viewport(props, ref) {
     <div
       ref={container}
       className="webgl"
-      aria-label="Visor 3D. Arrastra para girar, rueda para acercar y pulsa una superficie para seleccionarla."
+      aria-label={tr(
+        'Visor 3D. Arrastra para girar, rueda para acercar y pulsa una superficie para seleccionarla.',
+        '3D viewer. Drag to rotate, scroll to zoom and click a surface to select it.',
+      )}
     />
   );
 });

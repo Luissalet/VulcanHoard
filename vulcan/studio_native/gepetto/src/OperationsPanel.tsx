@@ -1,5 +1,7 @@
+import { tr } from './i18n';
 import { useEffect, useState } from 'react';
 import { api } from './types';
+import { serverMessage } from './serverMessages';
 type GPU = {
   index: string;
   name: string;
@@ -37,12 +39,12 @@ type Item = {
 };
 type Queue = { paused: boolean; items: Item[] };
 const labels: Record<string, string> = {
-  queued: 'En espera',
-  running: 'Procesando',
-  done: 'Listo para revisar',
-  error: 'Error',
-  interrupted: 'Interrumpido',
-  cancelled: 'Cancelado',
+  queued: tr('En espera', 'Queued'),
+  running: tr('Procesando', 'Processing'),
+  done: tr('Listo para revisar', 'Ready for review'),
+  error: tr('Error', 'Error'),
+  interrupted: tr('Interrumpido', 'Interrupted'),
+  cancelled: tr('Cancelado', 'Cancelled'),
 };
 export default function OperationsPanel({
   model,
@@ -91,7 +93,11 @@ export default function OperationsPanel({
       try {
         if (alive) await refresh();
       } catch (e) {
-        if (alive) setError('No se pudo actualizar el estado. ' + (e as Error).message);
+        if (alive)
+          setError(
+            tr('No se pudo actualizar el estado. ', 'Could not refresh the status. ') +
+              (e as Error).message,
+          );
       }
     };
     void poll();
@@ -120,20 +126,25 @@ export default function OperationsPanel({
   return (
     <main className="operations-panel">
       <div className="operations-heading">
-        <h1>Equipo y producción</h1>
-        <p>Memoria real, modelos locales y una cola que conserva el trabajo terminado.</p>
+        <h1>{tr('Equipo y producción', 'System and production')}</h1>
+        <p>
+          {tr(
+            'Memoria real, modelos locales y una cola que conserva el trabajo terminado.',
+            'Memory usage, available models and batch jobs.',
+          )}
+        </p>
       </div>
       {error && (
         <p className="error-banner" role="alert">
           {error}
-          <button onClick={() => setError('')}>Cerrar</button>
+          <button onClick={() => setError('')}>{tr('Cerrar', 'Dismiss')}</button>
         </p>
       )}
       <div className="operations-layout">
         <section className="operations-machine">
-          <h2>Modelo de visión</h2>
+          <h2>{tr('Modelo de visión', 'Vision model')}</h2>
           <label className="field-select">
-            Modelo activo para nuevos trabajos
+            {tr('Modelo activo para nuevos trabajos', 'Active model for new jobs')}
             <select value={model} onChange={(e) => onModel(e.target.value)} disabled={!!blocked}>
               {models
                 .filter((m) => m.vision)
@@ -144,23 +155,50 @@ export default function OperationsPanel({
           </label>
           <p role="status">
             {!runtime
-              ? 'Leyendo el estado…'
+              ? tr('Leyendo el estado…', 'Reading status…')
               : !runtime.online
-                ? 'El servicio global no está disponible.'
+                ? tr('El servicio global no está disponible.', 'The global service is unavailable.')
                 : !model || !models.some((m) => m.name === model && m.vision)
-                  ? 'Consultando modelos de visión. Puedes actualizar la lista si no aparece ninguno.'
+                  ? tr(
+                      'Consultando modelos de visión. Puedes actualizar la lista si no aparece ninguno.',
+                      'Checking vision models. Refresh the list if it is empty.',
+                    )
                   : loaded
-                    ? 'El modelo seleccionado está cargado en memoria.'
-                    : 'La disponibilidad se comprobará al iniciar el trabajo; no se carga otro modelo.'}
+                    ? tr(
+                        'El modelo seleccionado está cargado en memoria.',
+                        'The selected model is loaded in memory.',
+                      )
+                    : tr(
+                        'La disponibilidad se comprobará al iniciar el trabajo; no se carga otro modelo.',
+                        'Model availability is checked when the job starts. The selection is kept.',
+                      )}
           </p>
           <div className="operation-actions">
-            <a className="button primary" href="http://127.0.0.1:7000/settings" target="_blank" rel="noreferrer">Administrar modelo global en Faustus</a>
-            <button className="text-button" disabled={pending} onClick={() => void onRefresh().catch((e) => setError(e.message))}>Actualizar modelos</button>
+            <a
+              className="button primary"
+              href="http://127.0.0.1:7000/settings"
+              target="_blank"
+              rel="noreferrer"
+            >
+              {tr('Administrar modelo global en Faustus', 'Manage the global model in Faustus')}
+            </a>
+            <button
+              className="text-button"
+              disabled={pending}
+              onClick={() => void onRefresh().catch((e) => setError(e.message))}
+            >
+              {tr('Actualizar modelos', 'Refresh models')}
+            </button>
           </div>
-          <p>El modelo de interpretación se configura en Faustus. Este estudio no carga ni descarga LLMs locales.</p>
+          <p>
+            {tr(
+              'El modelo de interpretación se configura en Faustus. Este estudio no carga ni descarga LLMs locales.',
+              'The interpretation model is configured in Faustus. This studio does not load or download local LLMs.',
+            )}
+          </p>
           {!!runtime?.loaded.length && (
             <div className="loaded-models">
-              <h3>Modelos en memoria</h3>
+              <h3>{tr('Modelos en memoria', 'Models in memory')}</h3>
               {runtime.loaded.map((m) => (
                 <div key={m.name}>
                   <span>{m.name}</span>
@@ -169,9 +207,12 @@ export default function OperationsPanel({
               ))}
             </div>
           )}
-          <h2>Tarjetas gráficas</h2>
+          <h2>{tr('Tarjetas gráficas', 'Graphics cards')}</h2>
           <p className="muted small">
-            Uso de todo el equipo, incluidas otras aplicaciones. Actualización cada 4 segundos.
+            {tr(
+              'Uso de todo el equipo, incluidas otras aplicaciones. Actualización cada 4 segundos.',
+              'Usage across the computer, including other applications. Updates every 4 seconds.',
+            )}
           </p>
           {runtime?.gpuError && <p role="alert">{runtime.gpuError}</p>}
           {runtime?.gpus.map((g) => (
@@ -179,19 +220,23 @@ export default function OperationsPanel({
               <h3>{g.name}</h3>
               <div className="gpu-reading">
                 <strong>
-                  {g.usedMiB === null ? 'Sin lectura' : (g.usedMiB / 1024).toFixed(1)} /{' '}
+                  {g.usedMiB === null ? tr('Sin lectura', 'No reading') : (g.usedMiB / 1024).toFixed(1)} /{' '}
                   {g.totalMiB === null ? '—' : (g.totalMiB / 1024).toFixed(1)} GB
                 </strong>
                 <span>
-                  {g.utilization ?? '—'} % uso · {g.temperature ?? '—'} °C
+                  {g.utilization ?? '—'}% {tr('uso', 'used')} · {g.temperature ?? '—'} °C
                 </span>
               </div>
               <progress
                 max={g.totalMiB || 1}
                 value={g.usedMiB ?? 0}
-                aria-label={`Memoria de ${g.name}`}
+                aria-label={tr(`Memoria de ${g.name}`, `${g.name} memory`)}
               />
-              <svg viewBox="0 0 320 56" role="img" aria-label={`Historial de VRAM de ${g.name}`}>
+              <svg
+                viewBox="0 0 320 56"
+                role="img"
+                aria-label={tr(`Historial de VRAM de ${g.name}`, `${g.name} VRAM history`)}
+              >
                 <polyline
                   fill="none"
                   stroke="currentColor"
@@ -209,7 +254,7 @@ export default function OperationsPanel({
         </section>
         <section className="operations-queue">
           <div className="queue-heading">
-            <h2>Procesar figuras</h2>
+            <h2>{tr('Procesar figuras', 'Process figures')}</h2>
             <button
               className="button secondary"
               disabled={pending}
@@ -217,21 +262,26 @@ export default function OperationsPanel({
                 void action('/batch/control', { action: queue.paused ? 'resume' : 'pause' })
               }
             >
-              {queue.paused ? 'Iniciar cola' : 'Pausar cola'}
+              {queue.paused ? tr('Iniciar cola', 'Start queue') : tr('Pausar cola', 'Pause queue')}
             </button>
           </div>
           <p>
-            {queue.paused ? 'La cola está pausada.' : 'Se procesa una figura cada vez.'} Pausar deja
-            terminar la figura actual. Los resultados quedan pendientes de revisión.
+            {queue.paused
+              ? tr('La cola está pausada.', 'The queue is paused.')
+              : tr('Se procesa una figura cada vez.', 'Figures are processed one at a time.')}{' '}
+            {tr(
+              ' Pausar deja terminar la figura actual. Los resultados quedan pendientes de revisión.',
+              ' Pausing lets the current figure finish. Results await review.',
+            )}
           </p>
           <details open={!queue.items.length}>
-            <summary>Añadir figuras desde una carpeta</summary>
+            <summary>{tr('Añadir figuras desde una carpeta', 'Add figures from a folder')}</summary>
             <div className="directory-row">
               <label className="field-select">
-                Carpeta con escenas Blender
+                {tr('Carpeta con escenas Blender', 'Folder containing Blender scenes')}
                 <input
                   value={directory}
-                  placeholder="Ruta a tu carpeta de figuras"
+                  placeholder={tr('Ruta a tu carpeta de figuras', 'Path to your figures folder')}
                   onChange={(e) => {
                     const value = e.target.value;
                     setDirectory(value);
@@ -258,7 +308,10 @@ export default function OperationsPanel({
                     setChosen([]);
                     if (r.truncated)
                       setError(
-                        'La búsqueda se limitó a 1000 escenas o 10 segundos. Usa una carpeta más concreta.',
+                        tr(
+                          'La búsqueda se limitó a 1000 escenas o 10 segundos. Usa una carpeta más concreta.',
+                          'The search stopped after reaching 1,000 scenes or 10 seconds. Try a more specific folder.',
+                        ),
                       );
                   } catch (e) {
                     setError((e as Error).message);
@@ -267,17 +320,17 @@ export default function OperationsPanel({
                   }
                 }}
               >
-                Buscar escenas
+                {tr('Buscar escenas', 'Find scenes')}
               </button>
             </div>
             {!!files.length && (
               <>
                 <label className="field-select">
-                  Filtrar figuras
+                  {tr('Filtrar figuras', 'Filter figures')}
                   <input
                     value={filter}
                     onChange={(e) => setFilter(e.target.value)}
-                    placeholder="Nombre del personaje"
+                    placeholder={tr('Nombre del personaje', 'Character name')}
                   />
                 </label>
                 <div className="operation-actions">
@@ -286,14 +339,15 @@ export default function OperationsPanel({
                     disabled={!visible.length}
                     onClick={() => setChosen(visible.slice(0, 100).map((f) => f.path))}
                   >
-                    Seleccionar visibles ({Math.min(100, visible.length)})
+                    {tr('Seleccionar visibles (', 'Select visible (')}
+                    {Math.min(100, visible.length)})
                   </button>
                   <button
                     className="text-button"
                     disabled={!chosen.length}
                     onClick={() => setChosen([])}
                   >
-                    Quitar selección
+                    {tr('Quitar selección', 'Clear selection')}
                   </button>
                 </div>
                 <div className="batch-files">
@@ -313,15 +367,22 @@ export default function OperationsPanel({
                   ))}
                 </div>
                 <p>
-                  {chosen.length} seleccionadas · {files.length} escenas encontradas, más recientes
-                  primero.
+                  {chosen.length} {tr('seleccionadas', 'selected')} · {files.length}{' '}
+                  {tr('escenas encontradas, más recientes primero.', 'scenes found, newest first.')}
                 </p>
                 <label className="field-select">
-                  Preparación
+                  {tr('Preparación', 'Preparation')}
                   <select value={recipe} onChange={(e) => setRecipe(e.target.value)}>
-                    <option value="complete">Figura completa · cuerpo y ropa mTops</option>
-                    <option value="body">Solo cuerpo · separar mTops</option>
-                    <option value="clothing">Solo ropa · mTops</option>
+                    <option value="complete">
+                      {tr(
+                        'Figura completa · cuerpo y ropa mTops',
+                        'Complete figure · body and mTops clothing',
+                      )}
+                    </option>
+                    <option value="body">
+                      {tr('Solo cuerpo · separar mTops', 'Body only · separate mTops')}
+                    </option>
+                    <option value="clothing">{tr('Solo ropa · mTops', 'Clothing only · mTops')}</option>
                   </select>
                 </label>
                 <button
@@ -331,7 +392,7 @@ export default function OperationsPanel({
                     await action('/batch', { sources: chosen, model, recipe });
                   }}
                 >
-                  Añadir {chosen.length} a la cola
+                  {tr(`Añadir ${chosen.length} a la cola`, `Add ${chosen.length} to queue`)}
                 </button>
               </>
             )}
@@ -345,9 +406,9 @@ export default function OperationsPanel({
                     {labels[item.state] || item.state}
                   </span>
                 </div>
-                <p>{item.message}</p>
+                <p>{serverMessage(item.message)}</p>
                 <small>
-                  {item.model} · intento {item.attempt}
+                  {item.model} · {tr('intento', 'attempt')} {item.attempt}
                   {item.started
                     ? ` · ${Math.round(((item.finished || Date.now() / 1000) - item.started) / 60)} min`
                     : ''}
@@ -355,7 +416,7 @@ export default function OperationsPanel({
                 <div className="operation-actions">
                   {item.project && (
                     <button className="text-button" onClick={() => onOpen(item.project!)}>
-                      Abrir resultado
+                      {tr('Abrir resultado', 'Open result')}
                     </button>
                   )}
                   {['error', 'interrupted', 'cancelled'].includes(item.state) && (
@@ -365,7 +426,7 @@ export default function OperationsPanel({
                         void action('/batch/control', { action: 'retry', id: item.id })
                       }
                     >
-                      Reintentar
+                      {tr('Reintentar', 'Retry')}
                     </button>
                   )}
                   {['queued', 'running'].includes(item.state) && (
@@ -375,7 +436,7 @@ export default function OperationsPanel({
                         void action('/batch/control', { action: 'cancel', id: item.id })
                       }
                     >
-                      Cancelar
+                      {tr('Cancelar', 'Cancel')}
                     </button>
                   )}
                 </div>
@@ -383,8 +444,10 @@ export default function OperationsPanel({
             ))}
             {!queue.items.length && (
               <p className="queue-empty">
-                Elige las figuras y deja que el equipo prepare sus mapas. Puedes cerrar esta
-                pantalla mientras trabaja.
+                {tr(
+                  'Elige las figuras y deja que el equipo prepare sus mapas. Puedes cerrar esta pantalla mientras trabaja.',
+                  'Choose the figures to prepare their maps. Processing continues if you close this screen.',
+                )}
               </p>
             )}
           </div>

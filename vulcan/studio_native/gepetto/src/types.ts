@@ -1,3 +1,5 @@
+import { tr } from './i18n';
+import { serverMessage } from './serverMessages';
 export type Region = {
   id: number;
   cluster: number;
@@ -107,7 +109,8 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   });
   if (!response.ok) {
     const e = await response.json().catch(() => ({ detail: response.statusText }));
-    throw new Error(e.detail || 'No se pudo completar la operación.');
+    const fallback = tr('No se pudo completar la operación.', 'The operation could not be completed.');
+    throw new Error(e.detail ? serverMessage(String(e.detail)) : fallback);
   }
   return response.json();
 }
