@@ -624,8 +624,9 @@ from .articulation.tools import TOOLS as ARTICULATION_TOOLS  # noqa: E402
 TOOLS += ARTICULATION_TOOLS
 
 from .blocking import TOOLS as BLOCKING_TOOLS  # noqa: E402
+from .blocking_guide import TOOLS as BLOCKING_GUIDE_TOOLS  # noqa: E402
 
-TOOLS += BLOCKING_TOOLS
+TOOLS += BLOCKING_TOOLS + BLOCKING_GUIDE_TOOLS
 
 TOOLS_BY_NAME = {tool.name: tool for tool in TOOLS}
 
