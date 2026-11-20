@@ -162,7 +162,11 @@ def test_cold_studio_catalog_has_exact_room_schemas():
     cold = {tool['name']: tool for tool in native_catalog() if tool['name'].startswith('room_')}
     assert set(cold) == set(live) == {'room_plan', 'room_build', 'room_get', 'room_rectify'}
     for name, tool in live.items():
-        assert cold[name]['inputSchema'] == tool['inputSchema']
+        schema = dict(tool['inputSchema'])
+        if 'x-timeout-s' in tool:
+            schema['x-timeout-s'] = tool['x-timeout-s']
+        assert cold[name].get('x-timeout-s') == tool.get('x-timeout-s')
+        assert cold[name]['inputSchema'] == schema
         assert cold[name]['module'] == 'library' and cold[name]['native_name'] == name
 
 

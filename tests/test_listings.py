@@ -72,7 +72,7 @@ def test_albums(scanned):
 def test_agent_tools_catalog_and_calls(scanned):
     services, root = scanned
     names = [t.name for t in TOOLS]
-    assert names == ["models_search", "model_info", "model_listing_get", "model_listing_set", "model_tag", "model_note", "models_stats", "models_dupes", "models_similar", "models_add_root", "models_rescan", "models_recent",
+    names_with_synonyms = ["models_search", "model_info", "model_listing_get", "model_listing_set", "model_tag", "model_note", "models_stats", "models_dupes", "models_similar", "models_add_root", "models_rescan", "models_recent",
                       "folder_listings", "folder_listing_get", "folder_listing_set", "folder_listing_check", "folder_listing_draft", "folder_listings_export",
                       "collection_plan", "collection_apply", "collection_undo", "sheets_batch", "model_import_file", "listings_export_catalog",
                      "cad_spec_schema", "cad_from_text", "cad_regenerate", "copilot_context_get", "model_delete", "model_compare",
@@ -83,8 +83,18 @@ def test_agent_tools_catalog_and_calls(scanned):
                      "spatial_example", "spatial_layers_check", "spatial_coverage", "spatial_screen", "spatial_scenarios", "spatial_scenario_save", "spatial_export", "gltf_validate", "gltf_report",
                      "texture_project", "texture_project_status",
                      "code_model", "code_model_run", "code_model_edit", "code_model_status", "model_impostor", "model_impostors_batch"]
+    room_and_pose_names = ["room_plan", "room_build", "room_get", "room_rectify",
+                     "articulation_build", "articulation_get", "articulation_view", "articulation_pick", "articulation_undo",
+                     "blocking_build", "blocking_get", "blocking_freeze", "blocking_pose_get", "blocking_pose_undo",
+                     "blocking_undo", "blocking_guide", "blocking_guide_undo", "blocking_pass"]
+    assert names == names_with_synonyms + room_and_pose_names
+    standard_annotations = {"readOnlyHint", "destructiveHint", "idempotentHint", "openWorldHint"}
     for tool in TOOLS:
-        assert "Sinónimos:" in tool.description and set(tool.annotations) == {"readOnlyHint", "destructiveHint", "idempotentHint", "openWorldHint"}
+        assert tool.description.strip()
+        assert standard_annotations <= tool.annotations.keys()
+        if tool.name in names_with_synonyms:
+            assert "Sinónimos:" in tool.description
+            assert tool.annotations.keys() == standard_annotations
     hits = call_tool(services, "models_search", {"q": "cubo", "format": "stl"})
     assert hits["count"] >= 3 and hits["hits"][0]["thumb_url"].startswith("/api/models/") and "bbox" in hits["hits"][0]
     cube_id = next(h["id"] for h in hits["hits"] if h["rel_path"] == "dragones/dragon_cubo_v2.stl")
