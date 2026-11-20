@@ -276,7 +276,10 @@ def test_tools_registered_and_in_the_cold_catalogue():
     rows = [r for r in native_catalog() if r["module"] == "library"]
     assert [r["name"] for r in rows] == list(live)  # cold library rows mirror the live tool list, in order
     for row in rows:
-        assert {k: v for k, v in row.items() if k not in ("module", "native_name")} == live[row["name"]]
+        expected = live[row["name"]]
+        if "x-timeout-s" in expected:
+            expected = {**expected, "inputSchema": {**expected["inputSchema"], "x-timeout-s": expected["x-timeout-s"]}}
+        assert {k: v for k, v in row.items() if k not in ("module", "native_name")} == expected
     assert set(names) <= {t["name"] for t in cold()}
 
 
@@ -462,7 +465,7 @@ def test_wall_texts_exist_in_both_languages(folder):
     assert [c["status"] for c in es["checks"]] == [c["status"] for c in en["checks"]] and es["defects"][0]["rule"] == en["defects"][0]["rule"]
 
 
-def minimal_3mf(path, textured=False):
+def minimal_3mf(path, textured=False, copies=1):
     """A cube as a 3MF whose triangles point at a colorgroup (and optionally a texture2d + texture2dgroup)."""
     import zipfile
 
@@ -478,7 +481,7 @@ def minimal_3mf(path, textured=False):
              '<basematerials id="1"><base name="Rojo mate" displaycolor="#CC2222FF"/><base name="Azul" displaycolor="#2244CC"/></basematerials>'
              f'<m:colorgroup id="2"><m:color color="#FF0000FF"/><m:color color="#00FF00FF"/></m:colorgroup>{texture}'
              f'<object id="3" type="model"><mesh><vertices>{vertices}</vertices><triangles>{triangles}</triangles></mesh></object>'
-             '</resources><build><item objectid="3"/></build></model>')
+             '</resources><build>' + '<item objectid="3"/>' * copies + '</build></model>')
     rels = ('<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
             '<Relationship Target="/3D/3dmodel.model" Id="rel0" Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel"/></Relationships>')
     types = ('<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
@@ -508,6 +511,18 @@ def test_3mf_colours_and_textures_are_read_from_the_xml(folder):
     assert textured["attributes.textures"]["value"] == 1 and textured["attributes.texture_sizes"]["value"] == [[64, 32]]
     assert textured["attributes.texture_max_px"]["value"] == 64 and textured["attributes.uvs"]["value"] is True
     assert textured["attributes.colors_3mf"]["value"]["textures"][0]["path"] == "/3D/Texture/skin.png"
+
+
+def test_print_inspection_preserves_indexed_objects_of_direct_3mf_build(folder):
+    model = minimal_3mf(folder / "two-build-items.3mf", copies=2)
+    result = ai.inspect_file(model, with_walls=True)
+    measures = result["measurements"]
+    assert measures["geometry.triangles"]["value"] == 24
+    assert measures["geometry.nonmanifold_edges"]["value"] == 0
+    assert measures["geometry.degenerate_triangles"]["value"] == 0
+    assert measures["geometry.winding_consistent"]["value"] is True
+    assert measures["geometry.bodies"]["value"] == 2
+    assert measures["geometry.bbox_mm"]["value"] == [10, 10, 10]
 
 
 def test_unreadable_3mf_xml_stays_not_measured(folder):
