@@ -7,8 +7,8 @@ Model
 -----
 * The rig is given as rest matrices (armature space), parent indices and the
   current pose-basis matrices, plus the armature object's world matrix.
-* Only ``POSED_BONES`` are solved (Luis, 2026-09-25: hip, shoulders, elbows,
-  neck - nothing else). Every other bone keeps its current basis, so legs,
+* The solver rotates only ``POSED_BONES``: the hip, shoulders, elbows and neck.
+  Every other bone keeps its current basis, so legs,
   feet, face, wrists, tail, collar... are left exactly as they were.
 * The card is treated as a pinhole render about the image centre (fitted
   distance; kappa = 1/distance, 0 = orthographic ``uv = s * R[:2] @ X + t``),

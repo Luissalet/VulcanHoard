@@ -4,7 +4,7 @@ Revisión de la instalación local de Blender 5.0, 12 de septiembre de 2026. Se 
 
 ## Qué se ejecuta
 
-El trabajador de Blender abre una copia de trabajo y llama a los operadores reales: UV Merger (0,001), Merger aplicado, AutoQuad (40°, comparar UV), Is Figure y Auto-Populate Displacement. El perfil observado con Luis establece fusiones inicial/final en 0,01, Scale en 0,2 y Subdivision en 4. Los materiales elegidos para separar quedan fuera del desplazamiento del cuerpo. En las pruebas se separa `mTops`.
+El trabajador de Blender abre una copia de trabajo y llama a los operadores reales: UV Merger (0,001), Merger aplicado, AutoQuad (40°, comparar UV), Is Figure y Auto-Populate Displacement. El perfil de referencia establece fusiones inicial/final en 0,01, Scale en 0,2 y Subdivision en 4. Los materiales elegidos para separar quedan fuera del desplazamiento del cuerpo. En las pruebas se separa `mTops`.
 
 Para la ropa, la selección `target_materials=['mTops']` conserva la prenda y separa el resto como contexto. El operador UV Merger instalado devuelve `CANCELLED` cuando no encuentra parejas que necesiten fusión: se observó este caso en prendas con UV continuas y se permite continuar. Merger y AutoQuad siguen ejecutándose.
 
