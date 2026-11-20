@@ -18169,5 +18169,419 @@
       "x-timeout-s": 90.0
     },
     "x-timeout-s": 90.0
+  },
+  {
+    "module": "library",
+    "native_name": "blocking_build",
+    "name": "blocking_build",
+    "description": "Build a primitive take on CPU. Crea una toma con articulación en CPU.\nReturns editable scene, animated GLB and same-camera colour, depth and normal maps at each key. Crea un bloqueo de primitivas con dos manos, piezas articuladas, accesorios y una toma corta. Devuelve la escena editable, el GLB animado y mapas de color, profundidad y normales de cada clave. Undo / Deshacer: blocking_undo.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "draftSafeHint": true
+    },
+    "inputSchema": {
+      "$defs": {
+        "Camera": {
+          "additionalProperties": false,
+          "properties": {
+            "center": {
+              "default": [
+                0,
+                -0.25,
+                0.72
+              ],
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "maximum": 5,
+                  "minimum": -5,
+                  "type": "number"
+                },
+                {
+                  "maximum": 5,
+                  "minimum": -5,
+                  "type": "number"
+                },
+                {
+                  "maximum": 5,
+                  "minimum": -5,
+                  "type": "number"
+                }
+              ],
+              "title": "Center",
+              "type": "array"
+            },
+            "azimuth": {
+              "default": 22,
+              "maximum": 360,
+              "minimum": -360,
+              "title": "Azimuth",
+              "type": "number"
+            },
+            "elevation": {
+              "default": 12,
+              "maximum": 80,
+              "minimum": -80,
+              "title": "Elevation",
+              "type": "number"
+            },
+            "ortho_scale": {
+              "default": 2.8,
+              "maximum": 10,
+              "minimum": 0.5,
+              "title": "Ortho Scale",
+              "type": "number"
+            },
+            "distance": {
+              "default": 6,
+              "maximum": 30,
+              "minimum": 3.1,
+              "title": "Distance",
+              "type": "number"
+            }
+          },
+          "title": "Camera",
+          "type": "object"
+        },
+        "Key": {
+          "additionalProperties": false,
+          "properties": {
+            "frame": {
+              "maximum": 96,
+              "minimum": 0,
+              "title": "Frame",
+              "type": "integer"
+            },
+            "sheet": {
+              "default": [
+                0,
+                -0.4,
+                1.25
+              ],
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "maximum": 5,
+                  "minimum": -5,
+                  "type": "number"
+                },
+                {
+                  "maximum": 5,
+                  "minimum": -5,
+                  "type": "number"
+                },
+                {
+                  "maximum": 5,
+                  "minimum": -5,
+                  "type": "number"
+                }
+              ],
+              "title": "Sheet",
+              "type": "array"
+            },
+            "sheet_rotation": {
+              "default": [
+                0,
+                0,
+                0
+              ],
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "maximum": 360,
+                  "minimum": -360,
+                  "type": "number"
+                },
+                {
+                  "maximum": 360,
+                  "minimum": -360,
+                  "type": "number"
+                },
+                {
+                  "maximum": 360,
+                  "minimum": -360,
+                  "type": "number"
+                }
+              ],
+              "title": "Sheet Rotation",
+              "type": "array"
+            },
+            "sheet_width": {
+              "default": 0.46,
+              "maximum": 0.65,
+              "minimum": 0.06,
+              "title": "Sheet Width",
+              "type": "number"
+            },
+            "tube": {
+              "default": [
+                0.33,
+                0.06,
+                1.02
+              ],
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "maximum": 5,
+                  "minimum": -5,
+                  "type": "number"
+                },
+                {
+                  "maximum": 5,
+                  "minimum": -5,
+                  "type": "number"
+                },
+                {
+                  "maximum": 5,
+                  "minimum": -5,
+                  "type": "number"
+                }
+              ],
+              "title": "Tube",
+              "type": "array"
+            },
+            "tube_rotation": {
+              "default": [
+                0,
+                -13,
+                0
+              ],
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "maximum": 360,
+                  "minimum": -360,
+                  "type": "number"
+                },
+                {
+                  "maximum": 360,
+                  "minimum": -360,
+                  "type": "number"
+                },
+                {
+                  "maximum": 360,
+                  "minimum": -360,
+                  "type": "number"
+                }
+              ],
+              "title": "Tube Rotation",
+              "type": "array"
+            },
+            "left_hand": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "rest",
+                    "sheet_left",
+                    "sheet_right",
+                    "tube"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "maxItems": 3,
+                  "minItems": 3,
+                  "prefixItems": [
+                    {
+                      "maximum": 5,
+                      "minimum": -5,
+                      "type": "number"
+                    },
+                    {
+                      "maximum": 5,
+                      "minimum": -5,
+                      "type": "number"
+                    },
+                    {
+                      "maximum": 5,
+                      "minimum": -5,
+                      "type": "number"
+                    }
+                  ],
+                  "type": "array"
+                }
+              ],
+              "default": "rest",
+              "title": "Left Hand"
+            },
+            "right_hand": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "rest",
+                    "sheet_left",
+                    "sheet_right",
+                    "tube"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "maxItems": 3,
+                  "minItems": 3,
+                  "prefixItems": [
+                    {
+                      "maximum": 5,
+                      "minimum": -5,
+                      "type": "number"
+                    },
+                    {
+                      "maximum": 5,
+                      "minimum": -5,
+                      "type": "number"
+                    },
+                    {
+                      "maximum": 5,
+                      "minimum": -5,
+                      "type": "number"
+                    }
+                  ],
+                  "type": "array"
+                }
+              ],
+              "default": "rest",
+              "title": "Right Hand"
+            },
+            "sheet_roll": {
+              "default": false,
+              "title": "Sheet Roll",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "frame"
+          ],
+          "title": "Key",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "gesture": {
+          "default": "flip",
+          "description": "Unroll, flip, pass or custom. Desenrollar, voltear, pasar o toma propia.",
+          "enum": [
+            "unroll",
+            "flip",
+            "pass",
+            "custom"
+          ],
+          "title": "Gesture",
+          "type": "string"
+        },
+        "accessories": {
+          "description": "Defaults to all three props. Incluye hoja, tubo y escalera por defecto.",
+          "items": {
+            "enum": [
+              "sheet",
+              "tube",
+              "stairs"
+            ],
+            "type": "string"
+          },
+          "title": "Accessories",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "poses": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/Key"
+              },
+              "maxItems": 8,
+              "minItems": 2,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Poses"
+        },
+        "camera": {
+          "$ref": "#/$defs/Camera"
+        },
+        "size": {
+          "default": 384,
+          "description": "Square PNG size in pixels. Tamaño de los PNG cuadrados en píxeles.",
+          "maximum": 768,
+          "minimum": 128,
+          "title": "Size",
+          "type": "integer"
+        }
+      },
+      "title": "Build",
+      "type": "object",
+      "x-timeout-s": 105.0
+    },
+    "x-timeout-s": 105.0
+  },
+  {
+    "module": "library",
+    "native_name": "blocking_get",
+    "name": "blocking_get",
+    "description": "Read a blocking package. Consulta un bloqueo y su articulación.\nReturns named parts, files and maps by keyframe. Devuelve piezas, archivos y mapas por fotograma.",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[a-f0-9]{32}$",
+          "title": "Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "Lookup",
+      "type": "object"
+    }
+  },
+  {
+    "module": "library",
+    "native_name": "blocking_undo",
+    "name": "blocking_undo",
+    "description": "Withdraw or restore a blocking package. Retira o restaura un bloqueo.\nReturns the inverse call. Devuelve la operación inversa.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[a-f0-9]{32}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "restore": {
+          "default": false,
+          "title": "Restore",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "Undo",
+      "type": "object"
+    }
   }
 ]

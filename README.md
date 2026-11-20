@@ -17,6 +17,7 @@ The library stays on the machine: SQLite with FTS5 and WebP thumbnails, no accou
 **Library**
 
 - Articulation of inferred meshes through MCP, with source-linked contact marks from the viewer, comparable pose close-ups, local seam repair, separately reconstructed parts, clipped panels built from a pinned dossier and rigged game exports within a triangle budget.
+- [Primitive blocking](docs/blocking.md) through MCP. Build a quick editable take with two simple hands and optional props, export a rigged GLB and get colour, depth and normal images from the same camera.
 - Roots are folders you choose, with include and exclude globs, per-root thumbnail policy and a minimum file size. Scans are incremental (size and mtime, then SHA-256), run in a process pool, show progress and ETA, and watch folders for changes.
 - Geometry through `trimesh`: triangles, bounding box in mm, volume, surface, watertight flag, body count and a unit guess. GLB and glTF are measured as scenes; FBX goes through Blender when it is installed.
 - Pure-Python thumbnails (numpy and Pillow, no GPU or OpenGL), a three.js viewer with orbit controls and a build-plate grid.
