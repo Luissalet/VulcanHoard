@@ -10,6 +10,135 @@ from vulcan.agent_tools import call_tool
 from vulcan.articulation.seams import connect_ends, cycles
 from vulcan.articulation.tools import Build
 from vulcan.blender_render import find_blender
+from vulcan.hoard_link.agentkit import AppError
+
+
+def dossier_panel(tmp_path, fields):
+    ref = "hoard://writer/codex/map"
+    dossier = tmp_path / "dossier.json"
+    original = json.dumps({"objects": [{"ref": ref, "fields": fields}]}, ensure_ascii=False)
+    dossier.write_bytes(original.encode("utf-8"))
+    return {
+        "name": "map", "thickness": 0.004, "rgb": [0.5, 0.5, 0.5],
+        "reference": "Dossier map", "pivot": [0, 0, 0],
+        "dossier_object": {
+            "path": str(dossier), "ref": ref, "revision": sha256(dossier.read_bytes()).hexdigest(),
+            "right": [1, 0, 0], "up": [0, 0, 1], "scale": 0.5, "grip_uv": [0, 0.5],
+        },
+    }
+
+
+@pytest.mark.skipif(find_blender() is None, reason="Blender is not installed")
+@pytest.mark.parametrize(("fields", "dimensions", "corner", "silhouette"), [
+    ({"Tamaño": "Unos 60 × 45 cm desplegado, plegado en cuatro",
+      "Defecto": "Le falta la esquina inferior derecha, rasgada en diagonal", "Material": "Pergamino"},
+     (0.6, 0.45), "bottom-right",
+     [(0, -0.1125), (0, 0.1125), (0.3, 0.1125), (0.3, -0.07875), (0.26625, -0.1125)]),
+    ({"Size": "400 x 700 mm unfolded", "Defect": "Upper left corner diagonally cut", "Material": "Parchment"},
+     (0.4, 0.7), "top-left",
+     [(0, -0.175), (0, 0.145), (0.03, 0.175), (0.2, 0.175), (0.2, -0.175)]),
+])
+def test_pinned_dossier_geometry_is_used_in_the_export(services, tmp_path, fields, dimensions, corner, silhouette):
+    source = tmp_path / "source.glb"
+    trimesh.creation.box().export(source)
+    panel = dossier_panel(tmp_path, fields)
+    result = call_tool(services, "articulation_build", {
+        "source": str(source), "panels": [panel], "selection_views": False,
+        "poses": [{"name": "frozen", "cameras": []}],
+    })
+    origin = result["parts"]["map"]["source_object"]
+    assert origin["dimensions_m"] == pytest.approx(dimensions)
+    assert origin["corner"] == corner
+    assert origin["scale"] == 0.5 and origin["grip"] == [0, 0, 0]
+    assert origin["revision"] == panel["dossier_object"]["revision"]
+    assert origin["finish"] == fields["Material"]
+    scene = trimesh.load(result["files"]["frozen"], force="scene")
+    transform, geometry = scene.graph["map_pose"]
+    vertices = trimesh.transform_points(scene.geometry[geometry].vertices, transform)
+    assert {tuple(point) for point in np.round(vertices[:, :2], 6)} == set(silhouette)
+    assert set(np.round(vertices[:, 2], 6)) == {-0.002, 0.002}
+
+
+@pytest.mark.parametrize(("problem", "code", "message"), [
+    ("changed revision", "conflict", "Dossier revision changed"),
+    ("changed reference", "invalid", "object reference"),
+    ("unrecognised corner", "invalid", "Defect"),
+    ("ambiguous dimensions", "invalid", "Size"),
+])
+def test_invalid_dossier_geometry_is_rejected_before_build(services, tmp_path, problem, code, message):
+    fields = {"Size": "60 x 45 cm", "Defect": "Lower right corner torn diagonally", "Material": "Parchment"}
+    if problem == "unrecognised corner":
+        fields["Defect"] = "A fold at the lower right corner"
+    if problem == "ambiguous dimensions":
+        fields["Size"] = "60 x 45 cm unfolded, 30 x 20 cm folded"
+    panel = dossier_panel(tmp_path, fields)
+    if problem == "changed revision":
+        Path(panel["dossier_object"]["path"]).write_text("{}", encoding="utf-8")
+    if problem == "changed reference":
+        panel["dossier_object"]["ref"] += "-missing"
+    with pytest.raises(AppError, match=message) as exc:
+        call_tool(services, "articulation_build", {"source": "unused.glb", "panels": [panel]})
+    assert exc.value.code == code
+    assert not (services.config.data_dir / "articulation").exists()
+
+
+@pytest.mark.skipif(find_blender() is None, reason="Blender is not installed")
+def test_viewer_ray_identifies_a_selectable_source_face(services, tmp_path):
+    source = tmp_path / "source.glb"
+    trimesh.creation.box().export(source)
+    digest = sha256(source.read_bytes()).hexdigest()
+    args = {"source": str(source), "source_sha256": digest, "origin": [0.12, 0.24, 2], "direction": [0, 0, -1]}
+    hit = call_tool(services, "articulation_pick", args)
+    assert hit["sha256"] == digest
+    assert hit["point"] == pytest.approx([0.12, 0.24, 0.5])
+    assert hit["face_ranges"] == [[hit["source_face"], hit["source_face"]]]
+    visible_hit = call_tool(services, "articulation_pick", {**args, "point": [0.12, 0.24, -0.5]})
+    assert visible_hit["source_face"] != hit["source_face"]
+    assert visible_hit["point"] == pytest.approx([0.12, 0.24, -0.5])
+    result = call_tool(services, "articulation_build", {
+        "source": str(source), "source_sha256": digest, "selection_views": False,
+        "parts": [{"name": "hit", "select": {"face_ranges": hit["face_ranges"]}}],
+    })
+    assert result["parts"]["hit"]["source_faces"] == 1
+
+
+@pytest.mark.skipif(find_blender() is None, reason="Blender is not installed")
+def test_pinned_reconstruction_and_game_keep_bones_pivots_and_budget(services, tmp_path):
+    source = tmp_path / "source.glb"
+    replacement = tmp_path / "replacement.glb"
+    trimesh.creation.icosphere(subdivisions=2).export(source)
+    trimesh.creation.box().export(replacement)
+    revision = sha256(replacement.read_bytes()).hexdigest()
+    result = call_tool(services, "articulation_build", {
+        "source": str(source), "selection_views": False, "game_triangle_budget": 80,
+        "bones": [{"name": "root", "head": [0, 0, 0], "tail": [0, 0, 1]},
+                  {"name": "grip", "parent": "root", "head": [0.2, 0.3, 0.4], "tail": [0.2, 0.3, 0.6]}],
+        "body_bone": "root",
+        "reconstructions": [{"name": "hand", "path": str(replacement), "sha256": revision,
+                              "anchor": [0.2, 0.3, 0.4], "bone": "grip", "reference": "Wrist boundary"}],
+        "panels": [{"name": "map", "outline": [[0, 0, 0], [1, 0, 0], [0, 1, 0]], "thickness": 0.01,
+                    "rgb": [0.5, 0.5, 0.5], "bone": "grip", "pivot": [0.2, 0.3, 0.4], "reference": "Scene map",
+                    "source_object": {"ref": "hoard://writer/project/map", "revision": "a" * 64,
+                                      "dimensions_m": [0.6, 0.45], "finish": "parchment"}}],
+        "poses": [{"name": "turned", "rotations": {"grip": [0, 90, 0]}, "cameras": []}],
+    })
+    assert result["parts"]["hand"]["lineage"] == "reconstructed"
+    assert result["parts"]["hand"]["sha256"] == revision
+    assert result["parts"]["map"]["source_object"]["grip"] == [0.2, 0.3, 0.4]
+    game = result["game"]
+    assert game["triangles"] <= 80 and set(game["pieces"]) == {"body", "hand", "map"}
+    assert game["joints"][1]["pivot"] == pytest.approx([0.2, 0.4, -0.3])
+    assert game["joints"][1]["parent"] == "root"
+    assert game["pose_seconds"]["turned"] == pytest.approx(25 / 24)
+    with open(result["files"]["game"], "rb") as stream:
+        stream.seek(12)
+        size = int.from_bytes(stream.read(4), "little")
+        stream.read(4)
+        gltf = json.loads(stream.read(size))
+    assert len(gltf["skins"][0]["joints"]) == 2
+    assert len(gltf["meshes"]) == 3 and gltf["animations"]
+    assert sum(gltf["accessors"][p["indices"]]["count"] // 3
+               for mesh in gltf["meshes"] for p in mesh["primitives"]) == game["triangles"]
 
 
 def test_seam_routes_along_boundary_and_keeps_a_shared_vertex():

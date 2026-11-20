@@ -1,4 +1,5 @@
 """Agent entry points for selecting, repairing and articulating an inferred mesh."""
+import math
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, FiniteFloat, model_validator
@@ -14,6 +15,7 @@ RGB = tuple[Annotated[FiniteFloat, Field(ge=0, le=1)], Annotated[FiniteFloat, Fi
 Positive = Annotated[FiniteFloat, Field(gt=0)]
 FaceIndex = Annotated[int, Field(ge=0)]
 View = Annotated[str, Field(pattern=r"^[A-Za-z][A-Za-z0-9_-]{0,100}\.png$")]
+Digest = Annotated[str, Field(pattern=r"^[0-9a-fA-F]{64}$")]
 
 
 class Args(BaseModel):
@@ -70,14 +72,54 @@ class Part(Args):
     discard: bool = False
 
 
+class ObjectReference(Args):
+    ref: str = Field(min_length=1, max_length=500)
+    revision: Digest
+    dimensions_m: tuple[Positive, Positive]
+    finish: str = Field(min_length=1, max_length=500)
+
+
+Unit = Annotated[FiniteFloat, Field(ge=0, le=1)]
+
+
+class DossierObject(Args):
+    path: str = Field(description="Absolute dossier JSON path. / Ruta absoluta al JSON del expediente.")
+    ref: str = Field(min_length=1, max_length=500, description="Object ref in the dossier. / Referencia del objeto en el expediente.")
+    revision: Digest = Field(description="SHA-256 of the dossier file. / SHA-256 del fichero del expediente.")
+    right: Vec = Field(description="Panel's rightward axis in source space. / Eje hacia la derecha del panel en el espacio de origen.")
+    up: Vec = Field(description="Panel's upward axis in source space. / Eje hacia arriba del panel en el espacio de origen.")
+    scale: Positive = Field(description="Uniform scene scale, 1 for real size. / Escala uniforme de escena, 1 para tamaño real.")
+    grip_uv: tuple[Unit, Unit] = Field(description="Grip within the full rectangle, from bottom left (0,0). / Agarre en el rectángulo completo, desde abajo a la izquierda (0,0).")
+
+
 class Panel(Args):
     name: Name
-    outline: list[Vec] = Field(min_length=3, max_length=128, description="Ordered planar outline in source space.")
+    outline: list[Vec] | None = Field(None, min_length=3, max_length=128, description="Ordered planar outline in source space. / Contorno plano ordenado en el espacio de origen.")
     thickness: Positive
     rgb: RGB
     reference: str = Field(min_length=1, max_length=500, description="Reference identifying the added geometry.")
     bone: Name | None = None
     pivot: Vec | None = None
+    source_object: ObjectReference | None = Field(None, description="Pinned dossier object and finish. / Objeto fijado del expediente y acabado.")
+    dossier_object: DossierObject | None = Field(None, description="Build a clipped rectangle from a pinned dossier. / Construye un rectángulo con una esquina cortada desde el expediente fijado.")
+
+    @model_validator(mode="after")
+    def check_geometry(self):
+        if self.dossier_object:
+            if self.outline is not None or self.source_object is not None or self.pivot is None:
+                raise ValueError("dossier_object requires pivot and takes the place of outline and source_object. / dossier_object requiere pivot y sustituye a outline y source_object.")
+        elif self.outline is None:
+            raise ValueError("Provide outline or dossier_object. / Indica outline o dossier_object.")
+        return self
+
+
+class Reconstruction(Args):
+    name: Name
+    path: str = Field(description="Triangulated GLB in source coordinates and metres.")
+    sha256: Digest
+    reference: str = Field(min_length=1, max_length=500)
+    bone: Name | None = None
+    anchor: Vec = Field(description="Connection point in source space. / Anclaje en el espacio de origen.")
 
 
 class Bone(Args):
@@ -106,9 +148,10 @@ class Camera(Args):
 class Build(Args):
     source: str = Field(description="Absolute path to a self-contained GLB, in metres.")
     source_ref: str | None = Field(None, max_length=500)
-    source_sha256: str | None = Field(None, pattern=r"^[0-9a-fA-F]{64}$")
+    source_sha256: Digest | None = None
     parts: list[Part] = Field(default_factory=list, max_length=32)
     panels: list[Panel] = Field(default_factory=list, max_length=16)
+    reconstructions: list[Reconstruction] = Field(default_factory=list, max_length=16)
     bones: list[Bone] = Field(default_factory=list, max_length=32)
     body_bone: Name | None = None
     repair_original: bool = Field(False, description="Also attempt to close pre-existing boundary loops.")
@@ -120,6 +163,7 @@ class Build(Args):
     view_scale: Positive | None = Field(None, description="Orthographic span, in metres.")
     view_size: int = Field(480, ge=256, le=1024)
     selection_views: bool = True
+    game_triangle_budget: int | None = Field(None, ge=4, le=10_000_000, description="Additional skinned game GLB with a triangle limit. / GLB adicional de juego con límite de triángulos.")
 
     @model_validator(mode="after")
     def check_face_revision(self):
@@ -140,6 +184,27 @@ class Undo(Lookup):
     restore: bool = False
 
 
+class SourcePick(Args):
+    source: str
+    source_sha256: Digest
+    origin: Vec
+    direction: Vec
+    point: Vec | None = Field(None, description="Visible impact from the viewer. / Punto de impacto visible en el visor.")
+
+    @model_validator(mode="after")
+    def check_direction(self):
+        length = math.hypot(*self.direction)
+        if not length:
+            raise ValueError("The ray direction cannot be zero. / La dirección del rayo no puede ser cero.")
+        if self.point is not None:
+            heading = [value / length for value in self.direction]
+            offset = [point - origin for point, origin in zip(self.point, self.origin)]
+            along = sum(a * b for a, b in zip(heading, offset))
+            if along < 0 or math.hypot(*(b - a * along for a, b in zip(heading, offset))) > 0.00025:
+                raise ValueError("The point is outside the view ray. / El punto queda fuera del rayo del visor.")
+        return self
+
+
 def build(services, args):
     return service.build(services.config.data_dir, args.model_dump(mode="json"))
 
@@ -156,16 +221,22 @@ def undo(services, args):
     return service.undo(services.config.data_dir, args.id, args.restore)
 
 
+def pick(services, args):
+    return service.pick(args.model_dump(mode="json"))
+
+
 TOOLS = [
     Tool("articulation_build", "Split and rig an inferred mesh. Selección, corte, reparación y articulación.\nSelect by region, plane, colour or seed; cap boundaries, "
          "repair named seams, discard debris and rig separate pieces. Creates a new editable package with source face provenance, GLB, "
-         "frozen poses and optional same-camera previews. Use articulation_undo to revert. "
-         "Selecciona por región, plano, color, semilla o caras de origen. Repara encastres, retira restos y articula piezas con huesos.",
+         "frozen poses and optional same-camera previews. Build a clipped panel from a pinned dossier. Use articulation_undo to revert. "
+         "Selecciona por región, plano, color, semilla o caras de origen. Repara encastres, articula piezas y construye paneles desde un expediente fijado.",
          Build, ann(draft_safe=True), build, timeout_s=600, capped=False),
     Tool("articulation_get", "Read an articulation package. Consulta de articulación.\nReturns its revision, measurements and files. "
          "Consulta la procedencia, las medidas y los archivos de la articulación.", Lookup, ann(True), get, capped=False),
     Tool("articulation_view", "Open a source, selection or pose preview. Vista de articulación.\nUse a PNG name from articulation_get. "
          "Abre una vista de origen, selección o pose.", Picture, ann(True), view, capped=False),
+    Tool("articulation_pick", "Resolve a viewer ray to a source face. Resuelve un rayo del visor a una cara de origen.",
+         SourcePick, ann(True), pick, timeout_s=90),
     Tool("articulation_undo", "Withdraw or restore a package. Deshacer articulación.\nReturns arguments to reverse the operation. "
          "Retira o restaura un paquete generado.", Undo, ann(idempotent=True), undo),
 ]

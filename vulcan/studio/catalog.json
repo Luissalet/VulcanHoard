@@ -2244,7 +2244,8 @@
         "tolerances"
       ],
       "title": "FitArgs",
-      "type": "object"
+      "type": "object",
+      "x-timeout-s": 45.0
     },
     "x-timeout-s": 45.0,
     "module": "library",
@@ -2577,7 +2578,8 @@
         }
       },
       "title": "PrepareArgs",
-      "type": "object"
+      "type": "object",
+      "x-timeout-s": 600.0
     },
     "x-timeout-s": 600.0,
     "module": "library",
@@ -3002,7 +3004,8 @@
         }
       },
       "title": "AnimPrepareArgs",
-      "type": "object"
+      "type": "object",
+      "x-timeout-s": 300.0
     },
     "x-timeout-s": 300.0,
     "module": "library",
@@ -3110,7 +3113,8 @@
         }
       },
       "title": "AnimFbxImportArgs",
-      "type": "object"
+      "type": "object",
+      "x-timeout-s": 900.0
     },
     "module": "library",
     "native_name": "anim_fbx_import",
@@ -3172,7 +3176,8 @@
         }
       },
       "title": "AnimFbxExportArgs",
-      "type": "object"
+      "type": "object",
+      "x-timeout-s": 1800.0
     },
     "module": "library",
     "native_name": "anim_fbx_export",
@@ -3343,7 +3348,8 @@
         }
       },
       "title": "AnimRetargetArgs",
-      "type": "object"
+      "type": "object",
+      "x-timeout-s": 900.0
     },
     "module": "library",
     "native_name": "anim_retarget",
@@ -3751,7 +3757,8 @@
         }
       },
       "title": "ValidateArgs",
-      "type": "object"
+      "type": "object",
+      "x-timeout-s": 180.0
     },
     "x-timeout-s": 180.0,
     "module": "library",
@@ -3932,7 +3939,8 @@
         "id"
       ],
       "title": "TextureArgs",
-      "type": "object"
+      "type": "object",
+      "x-timeout-s": 600.0
     },
     "x-timeout-s": 600.0,
     "module": "library",
@@ -4033,7 +4041,8 @@
         "description"
       ],
       "title": "CodeModelArgs",
-      "type": "object"
+      "type": "object",
+      "x-timeout-s": 1800.0
     },
     "module": "library",
     "native_name": "code_model",
@@ -4144,7 +4153,8 @@
         }
       },
       "title": "CodeModelRunArgs",
-      "type": "object"
+      "type": "object",
+      "x-timeout-s": 300.0
     },
     "module": "library",
     "native_name": "code_model_run",
@@ -4186,7 +4196,8 @@
         "instruction"
       ],
       "title": "CodeModelEditArgs",
-      "type": "object"
+      "type": "object",
+      "x-timeout-s": 1800.0
     },
     "module": "library",
     "native_name": "code_model_edit",
@@ -4322,7 +4333,8 @@
         "id"
       ],
       "title": "ImpostorArgs",
-      "type": "object"
+      "type": "object",
+      "x-timeout-s": 600.0
     },
     "module": "library",
     "native_name": "model_impostor",
@@ -4445,7 +4457,8 @@
         }
       },
       "title": "ImpostorBatchArgs",
-      "type": "object"
+      "type": "object",
+      "x-timeout-s": 3600.0
     },
     "module": "library",
     "native_name": "model_impostors_batch",
@@ -16306,7 +16319,8 @@
         }
       },
       "title": "SketchArgs",
-      "type": "object"
+      "type": "object",
+      "x-timeout-s": 300.0
     },
     "x-timeout-s": 300.0,
     "module": "library",
@@ -16791,7 +16805,8 @@
         "plan"
       ],
       "title": "BuildArgs",
-      "type": "object"
+      "type": "object",
+      "x-timeout-s": 300.0
     },
     "x-timeout-s": 300.0,
     "module": "library",
@@ -16900,7 +16915,7 @@
     "module": "library",
     "native_name": "articulation_build",
     "name": "articulation_build",
-    "description": "Split and rig an inferred mesh. Selección, corte, reparación y articulación.\nSelect by region, plane, colour or seed; cap boundaries, repair named seams, discard debris and rig separate pieces. Creates a new editable package with source face provenance, GLB, frozen poses and optional same-camera previews. Use articulation_undo to revert. Selecciona por región, plano, color, semilla o caras de origen. Repara encastres, retira restos y articula piezas con huesos.",
+    "description": "Split and rig an inferred mesh. Selección, corte, reparación y articulación.\nSelect by region, plane, colour or seed; cap boundaries, repair named seams, discard debris and rig separate pieces. Creates a new editable package with source face provenance, GLB, frozen poses and optional same-camera previews. Build a clipped panel from a pinned dossier. Use articulation_undo to revert. Selecciona por región, plano, color, semilla o caras de origen. Repara encastres, articula piezas y construye paneles desde un expediente fijado.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -17088,6 +17103,147 @@
           "title": "Colour",
           "type": "object"
         },
+        "DossierObject": {
+          "additionalProperties": false,
+          "properties": {
+            "path": {
+              "description": "Absolute dossier JSON path. / Ruta absoluta al JSON del expediente.",
+              "title": "Path",
+              "type": "string"
+            },
+            "ref": {
+              "description": "Object ref in the dossier. / Referencia del objeto en el expediente.",
+              "maxLength": 500,
+              "minLength": 1,
+              "title": "Ref",
+              "type": "string"
+            },
+            "revision": {
+              "description": "SHA-256 of the dossier file. / SHA-256 del fichero del expediente.",
+              "pattern": "^[0-9a-fA-F]{64}$",
+              "title": "Revision",
+              "type": "string"
+            },
+            "right": {
+              "description": "Panel's rightward axis in source space. / Eje hacia la derecha del panel en el espacio de origen.",
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "title": "Right",
+              "type": "array"
+            },
+            "up": {
+              "description": "Panel's upward axis in source space. / Eje hacia arriba del panel en el espacio de origen.",
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "title": "Up",
+              "type": "array"
+            },
+            "scale": {
+              "description": "Uniform scene scale, 1 for real size. / Escala uniforme de escena, 1 para tamaño real.",
+              "exclusiveMinimum": 0,
+              "title": "Scale",
+              "type": "number"
+            },
+            "grip_uv": {
+              "description": "Grip within the full rectangle, from bottom left (0,0). / Agarre en el rectángulo completo, desde abajo a la izquierda (0,0).",
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                }
+              ],
+              "title": "Grip Uv",
+              "type": "array"
+            }
+          },
+          "required": [
+            "path",
+            "ref",
+            "revision",
+            "right",
+            "up",
+            "scale",
+            "grip_uv"
+          ],
+          "title": "DossierObject",
+          "type": "object"
+        },
+        "ObjectReference": {
+          "additionalProperties": false,
+          "properties": {
+            "ref": {
+              "maxLength": 500,
+              "minLength": 1,
+              "title": "Ref",
+              "type": "string"
+            },
+            "revision": {
+              "pattern": "^[0-9a-fA-F]{64}$",
+              "title": "Revision",
+              "type": "string"
+            },
+            "dimensions_m": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                }
+              ],
+              "title": "Dimensions M",
+              "type": "array"
+            },
+            "finish": {
+              "maxLength": 500,
+              "minLength": 1,
+              "title": "Finish",
+              "type": "string"
+            }
+          },
+          "required": [
+            "ref",
+            "revision",
+            "dimensions_m",
+            "finish"
+          ],
+          "title": "ObjectReference",
+          "type": "object"
+        },
         "Panel": {
           "additionalProperties": false,
           "properties": {
@@ -17097,27 +17253,35 @@
               "type": "string"
             },
             "outline": {
-              "description": "Ordered planar outline in source space.",
-              "items": {
-                "maxItems": 3,
-                "minItems": 3,
-                "prefixItems": [
-                  {
-                    "type": "number"
+              "anyOf": [
+                {
+                  "items": {
+                    "maxItems": 3,
+                    "minItems": 3,
+                    "prefixItems": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "number"
+                      }
+                    ],
+                    "type": "array"
                   },
-                  {
-                    "type": "number"
-                  },
-                  {
-                    "type": "number"
-                  }
-                ],
-                "type": "array"
-              },
-              "maxItems": 128,
-              "minItems": 3,
-              "title": "Outline",
-              "type": "array"
+                  "maxItems": 128,
+                  "minItems": 3,
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Ordered planar outline in source space. / Contorno plano ordenado en el espacio de origen.",
+              "title": "Outline"
             },
             "thickness": {
               "exclusiveMinimum": 0,
@@ -17191,11 +17355,34 @@
               ],
               "default": null,
               "title": "Pivot"
+            },
+            "source_object": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ObjectReference"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Pinned dossier object and finish. / Objeto fijado del expediente y acabado."
+            },
+            "dossier_object": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/DossierObject"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Build a clipped rectangle from a pinned dossier. / Construye un rectángulo con una esquina cortada desde el expediente fijado."
             }
           },
           "required": [
             "name",
-            "outline",
             "thickness",
             "rgb",
             "reference"
@@ -17385,6 +17572,72 @@
             "name"
           ],
           "title": "Pose",
+          "type": "object"
+        },
+        "Reconstruction": {
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,47}$",
+              "title": "Name",
+              "type": "string"
+            },
+            "path": {
+              "description": "Triangulated GLB in source coordinates and metres.",
+              "title": "Path",
+              "type": "string"
+            },
+            "sha256": {
+              "pattern": "^[0-9a-fA-F]{64}$",
+              "title": "Sha256",
+              "type": "string"
+            },
+            "reference": {
+              "maxLength": 500,
+              "minLength": 1,
+              "title": "Reference",
+              "type": "string"
+            },
+            "bone": {
+              "anyOf": [
+                {
+                  "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,47}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Bone"
+            },
+            "anchor": {
+              "description": "Connection point in source space. / Anclaje en el espacio de origen.",
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "title": "Anchor",
+              "type": "array"
+            }
+          },
+          "required": [
+            "name",
+            "path",
+            "sha256",
+            "reference",
+            "anchor"
+          ],
+          "title": "Reconstruction",
           "type": "object"
         },
         "Seed": {
@@ -17581,6 +17834,14 @@
           "title": "Panels",
           "type": "array"
         },
+        "reconstructions": {
+          "items": {
+            "$ref": "#/$defs/Reconstruction"
+          },
+          "maxItems": 16,
+          "title": "Reconstructions",
+          "type": "array"
+        },
         "bones": {
           "items": {
             "$ref": "#/$defs/Bone"
@@ -17695,13 +17956,29 @@
           "default": true,
           "title": "Selection Views",
           "type": "boolean"
+        },
+        "game_triangle_budget": {
+          "anyOf": [
+            {
+              "maximum": 10000000,
+              "minimum": 4,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Additional skinned game GLB with a triangle limit. / GLB adicional de juego con límite de triángulos.",
+          "title": "Game Triangle Budget"
         }
       },
       "required": [
         "source"
       ],
       "title": "Build",
-      "type": "object"
+      "type": "object",
+      "x-timeout-s": 600.0
     },
     "x-timeout-s": 600.0
   },
@@ -17796,5 +18073,101 @@
       "title": "Undo",
       "type": "object"
     }
+  },
+  {
+    "module": "library",
+    "native_name": "articulation_pick",
+    "name": "articulation_pick",
+    "description": "Resolve a viewer ray to a source face. Resuelve un rayo del visor a una cara de origen.",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "source_sha256": {
+          "pattern": "^[0-9a-fA-F]{64}$",
+          "title": "Source Sha256",
+          "type": "string"
+        },
+        "origin": {
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Origin",
+          "type": "array"
+        },
+        "direction": {
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Direction",
+          "type": "array"
+        },
+        "point": {
+          "anyOf": [
+            {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Visible impact from the viewer. / Punto de impacto visible en el visor.",
+          "title": "Point"
+        }
+      },
+      "required": [
+        "source",
+        "source_sha256",
+        "origin",
+        "direction"
+      ],
+      "title": "SourcePick",
+      "type": "object",
+      "x-timeout-s": 90.0
+    },
+    "x-timeout-s": 90.0
   }
 ]

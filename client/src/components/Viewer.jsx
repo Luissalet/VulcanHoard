@@ -61,7 +61,7 @@ async function makeRenderer(dense) {
  * frame on the GPU), offered for very dense meshes when the browser has WebGPU; anything failing falls back to WebGL. */
 export default function Viewer({ model, glbUrl = null, onCloseGlb, overlay = null, glbNote = null, roomView = false, roomLighting = null }) {
   const host = useRef(null);
-  const live = useRef({ scene: null, radius: 1 }); // scene + model radius, for the defect overlay layer
+  const live = useRef({ scene: null, radius: 1, marker: null });
   const [state, setState] = useState({ phase: "loading", error: null });
   const [dense, setDense] = useState(false);
   const [denseNote, setDenseNote] = useState("");
@@ -76,6 +76,13 @@ export default function Viewer({ model, glbUrl = null, onCloseGlb, overlay = nul
   const [clipIndex, setClipIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [clipTime, setClipTime] = useState(0);
+  const [marking, setMarking] = useState(false);
+  const [mark, setMark] = useState(null);
+  const [markUrl, setMarkUrl] = useState(null);
+  const markingRef = useRef(false);
+  const restoreCamera = useRef(null);
+  const [cameraError, setCameraError] = useState(false);
+  const english = (navigator.language || "es").startsWith("en");
   const denseOffer = hasWebGPU() && (model?.triangles || 0) >= DENSE_TRIANGLES;
   useEffect(() => { setDense(false); setDenseNote(""); }, [model?.id]);
 
@@ -84,8 +91,9 @@ export default function Viewer({ model, glbUrl = null, onCloseGlb, overlay = nul
     const container = host.current;
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0xfbf9f6);
-    live.current = { scene, radius: 1 };
-    const camera = new THREE.PerspectiveCamera(40, 4 / 3, 0.1, 100000);
+    live.current = { scene, radius: 1, marker: null };
+    let camera = new THREE.PerspectiveCamera(40, 4 / 3, 0.1, 100000);
+    let orthographicSpan = null;
     camera.up.set(0, 0, 1);
     scene.add(new THREE.HemisphereLight(0xffffff, 0x8a7f74, roomView ? .8 : 1.1));
     const key = new THREE.DirectionalLight(0xffffff, 1.4);
@@ -102,6 +110,10 @@ export default function Viewer({ model, glbUrl = null, onCloseGlb, overlay = nul
     let object = null;
     let grid = null;
     let vg = null;
+    let pointerStart = null;
+    let marker = null;
+    let capture = null;
+    const restMatrices = new WeakMap();
     let roomDirty = true;
     let lastCutaway = true;
     const resize = () => {
@@ -110,6 +122,13 @@ export default function Viewer({ model, glbUrl = null, onCloseGlb, overlay = nul
       const height = container.clientHeight || 480;
       renderer.setSize(width, height, false);
       camera.aspect = width / height;
+      if (camera.isOrthographicCamera) {
+        const half = orthographicSpan * WEB_GLB_TO_MM / 2;
+        camera.left = -half;
+        camera.right = half;
+        camera.top = half / camera.aspect;
+        camera.bottom = -half / camera.aspect;
+      }
       camera.updateProjectionMatrix();
       roomDirty = true;
     };
@@ -191,6 +210,87 @@ export default function Viewer({ model, glbUrl = null, onCloseGlb, overlay = nul
       container.appendChild(renderer.domElement);
       controls = new OrbitControls(camera, renderer.domElement);
       controls.enableDamping = true;
+      restoreCamera.current = (view) => {
+        const vector = (v) => Array.isArray(v) && v.length === 3 && v.every(Number.isFinite);
+        const hasSpan = Number.isFinite(view.span) && view.span > 0;
+        const hasFov = Number.isFinite(view.fov) && view.fov > 0 && view.fov < 180;
+        if (!vector(view.position) || !vector(view.target) || !vector(view.up) || !view.up.some(Boolean) ||
+            view.position.every((value, index) => value === view.target[index]) || !(hasSpan || hasFov)) throw new Error("camera");
+        orthographicSpan = hasSpan ? view.span : null;
+        camera = orthographicSpan
+          ? new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 100000)
+          : new THREE.PerspectiveCamera(view.fov, 1, 0.1, 100000);
+        controls.object = camera;
+        camera.position.fromArray(view.position).multiplyScalar(WEB_GLB_TO_MM);
+        camera.up.fromArray(view.up).normalize();
+        controls.target.fromArray(view.target).multiplyScalar(WEB_GLB_TO_MM);
+        controls.update();
+        resize();
+      };
+      const canvas = renderer.domElement;
+      canvas.addEventListener("pointerdown", (event) => {
+        pointerStart = event.button === 0 ? [event.clientX, event.clientY] : null;
+      });
+      canvas.addEventListener("click", (event) => {
+        if (!markingRef.current || !object || !pointerStart ||
+            Math.hypot(event.clientX - pointerStart[0], event.clientY - pointerStart[1]) > 4) return;
+        const bounds = canvas.getBoundingClientRect();
+        const uv = [(event.clientX - bounds.left) / bounds.width, (event.clientY - bounds.top) / bounds.height];
+        const ray = new THREE.Raycaster();
+        object.updateMatrixWorld(true);
+        // Skinned meshes need bounds from the current pose, particularly once the limb moves outside its rest box.
+        object.traverse((node) => {
+          if (node.isSkinnedMesh) { node.boundingBox = null; node.boundingSphere = null; }
+        });
+        ray.setFromCamera(new THREE.Vector2(2 * uv[0] - 1, 1 - 2 * uv[1]), camera);
+        const hit = ray.intersectObject(object, true).find((item) => item.object.visible && item.face);
+        if (!hit) return;
+        if (!marker) {
+          marker = new THREE.Mesh(new THREE.SphereGeometry(live.current.radius * 0.004),
+            new THREE.MeshBasicMaterial({ color: 0xf07022, depthTest: false }));
+          marker.renderOrder = 20;
+          scene.add(marker);
+          live.current.marker = marker;
+        }
+        marker.visible = true;
+        marker.position.copy(hit.point);
+        const a = anim.current;
+        const metres = (p) => p.toArray().map((x) => x / WEB_GLB_TO_MM);
+        const bindPoint = new THREE.Vector3();
+        const weights = hit.barycoord?.toArray();
+        if (weights) {
+          [hit.face.a, hit.face.b, hit.face.c].forEach((index, i) => {
+            bindPoint.addScaledVector(new THREE.Vector3().fromBufferAttribute(hit.object.geometry.attributes.position, index), weights[i]);
+          });
+          bindPoint.applyMatrix4(restMatrices.get(hit.object));
+        }
+        const receipt = {
+          source_sha256: model.sha256,
+          part: hit.object.userData.articulation_part || hit.object.name,
+          displayed_face: hit.faceIndex,
+          point: metres(hit.point),
+          origin: metres(ray.ray.origin),
+          direction: ray.ray.direction.toArray(),
+          ...(weights ? { bind_point: metres(bindPoint) } : {}),
+          camera: { position: metres(camera.position), target: metres(controls.target), up: camera.up.toArray(),
+            ...(camera.isOrthographicCamera ? { span: orthographicSpan / camera.zoom } : { fov: camera.fov }),
+            aspect: camera.aspect, uv },
+          pose: a.action ? { clip: a.action.getClip().name, seconds: a.action.time } : null,
+        };
+        a.playing = false;
+        setPlaying(false);
+        markingRef.current = false;
+        setMarking(false);
+        capture = () => {
+          const crop = document.createElement("canvas");
+          const side = Math.min(320, canvas.width, canvas.height);
+          crop.width = crop.height = side;
+          const left = Math.max(0, Math.min(canvas.width - side, uv[0] * canvas.width - side / 2));
+          const top = Math.max(0, Math.min(canvas.height - side, uv[1] * canvas.height - side / 2));
+          crop.getContext("2d").drawImage(canvas, left, top, side, side, 0, 0, side, side);
+          setMark({ ...receipt, crop: crop.toDataURL("image/png") });
+        };
+      });
       observer = new ResizeObserver(resize);
       observer.observe(container);
       resize();
@@ -216,6 +316,7 @@ export default function Viewer({ model, glbUrl = null, onCloseGlb, overlay = nul
           if (now - a.lastUi > 100) { a.lastUi = now; setClipTime(a.action.time); }
         }
         renderer.render(scene, camera);
+        if (capture) { capture(); capture = null; }
       });
       setState({ phase: "loading", error: null });
       const textured = !!glbUrl && glbUrl.includes("/texture/jobs/");
@@ -265,6 +366,8 @@ export default function Viewer({ model, glbUrl = null, onCloseGlb, overlay = nul
       if (disposed) return;
       scene.add(object);
       fit(object);
+      object.updateMatrixWorld(true);
+      object.traverse((node) => { if (node.isMesh) restMatrices.set(node, node.matrixWorld.clone()); });
       roomDirty = true;
       setState({ phase: "ready", error: null });
       setSceneVersion((v) => v + 1);
@@ -273,6 +376,7 @@ export default function Viewer({ model, glbUrl = null, onCloseGlb, overlay = nul
 
     return () => {
       disposed = true;
+      restoreCamera.current = null;
       anim.current.mixer?.stopAllAction();
       anim.current = { ...anim.current, mixer: null, action: null, clips: [], playing: false };
       renderer?.setAnimationLoop(null);
@@ -280,6 +384,7 @@ export default function Viewer({ model, glbUrl = null, onCloseGlb, overlay = nul
       controls?.dispose();
       if (object) dispose(object);
       if (grid) grid.dispose();
+      if (marker) dispose(marker);
       vg?.dispose?.();
       renderer?.dispose();
       renderer?.domElement.remove();
@@ -325,6 +430,7 @@ export default function Viewer({ model, glbUrl = null, onCloseGlb, overlay = nul
   const selectClip = (i) => {
     const a = anim.current;
     if (!a.mixer || !a.clips[i]) return;
+    if (live.current.marker) live.current.marker.visible = false;
     a.mixer.stopAllAction();
     const action = a.mixer.clipAction(a.clips[i]);
     action.reset();
@@ -337,6 +443,7 @@ export default function Viewer({ model, glbUrl = null, onCloseGlb, overlay = nul
   const togglePlay = () => {
     const a = anim.current;
     if (!a.action) { selectClip(clipIndex); return; }
+    if (live.current.marker) live.current.marker.visible = false;
     a.playing = !a.playing;
     a.clock.getDelta();
     setPlaying(a.playing);
@@ -345,12 +452,27 @@ export default function Viewer({ model, glbUrl = null, onCloseGlb, overlay = nul
     if (!anim.current.action) selectClip(clipIndex);
     const a = anim.current;
     if (!a.action) return;
+    if (live.current.marker) live.current.marker.visible = false;
     a.action.time = t;
     a.mixer.update(0);
     a.playing = false;
     setPlaying(false); setClipTime(t);
   };
   const shownClip = clips[clipIndex];
+
+  useEffect(() => {
+    markingRef.current = false;
+    setMarking(false);
+    setMark(null);
+    setCameraError(false);
+  }, [sceneVersion]);
+
+  useEffect(() => {
+    if (!mark) { setMarkUrl(null); return undefined; }
+    const url = URL.createObjectURL(new Blob([JSON.stringify(mark, null, 2)], { type: "application/json" }));
+    setMarkUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [mark]);
 
   return (
     <div>
@@ -362,6 +484,34 @@ export default function Viewer({ model, glbUrl = null, onCloseGlb, overlay = nul
           {state.phase === "error" && <span style={{ color: "var(--danger-ink)" }}>{state.error}</span>}
         </div>
       </div>
+      {state.phase === "ready" && !dense && !glbUrl && !roomView && model.format === "glb" && (
+        <div className="mt-1 flex flex-wrap items-center gap-2 text-[12px]">
+          <button type="button" className="btn btn-sm" aria-pressed={marking} onClick={() => {
+            markingRef.current = !marking;
+            setMarking(!marking);
+          }}>{english ? "Mark contact" : "Marcar contacto"}</button>
+          <label className="btn btn-sm">
+            {english ? "Load camera" : "Cargar cámara"}
+            <input className="sr-only" type="file" accept=".json,application/json" onChange={async (event) => {
+              const input = event.currentTarget;
+              const file = input.files[0];
+              input.value = "";
+              if (!file) return;
+              try {
+                const data = JSON.parse(await file.text());
+                restoreCamera.current?.(data.camera || data);
+                setCameraError(false);
+              } catch {
+                setCameraError(true);
+              }
+            }} />
+          </label>
+          {cameraError && <span role="status">{english ? "Invalid camera file." : "Archivo de cámara no válido."}</span>}
+          {marking && <span role="status">{english ? "Select a point on the mesh." : "Selecciona un punto en la malla."}</span>}
+          {markUrl && <a className="btn btn-sm" data-contact-receipt download="mesh-contact.json" href={markUrl}>
+            {english ? "Download contact and crop" : "Descargar contacto y recorte"}</a>}
+        </div>
+      )}
       {clips.length > 0 && (
         <div className="mt-1 flex flex-wrap items-center gap-2 text-[12px]" data-anim-controls>
           <select className="field" style={{ width: "auto" }} aria-label="Clip de animación" value={clipIndex} onChange={(e) => selectClip(Number(e.target.value))} data-anim-clip>
