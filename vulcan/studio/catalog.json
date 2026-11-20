@@ -18737,5 +18737,67 @@
       "title": "Undo",
       "type": "object"
     }
+  },
+  {
+    "module": "library",
+    "native_name": "blocking_guide",
+    "name": "blocking_guide",
+    "description": "Export a blocking video guide. Exporta la guía de vídeo de un bloqueo.\nRenders every pose through the last key. Undo: blocking_guide_undo. Renderiza todas las poses hasta la última clave. Deshacer: blocking_guide_undo.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "draftSafeHint": true
+    },
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[a-f0-9]{32}$",
+          "title": "Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "Lookup",
+      "type": "object",
+      "x-timeout-s": 145.0
+    },
+    "x-timeout-s": 145.0
+  },
+  {
+    "module": "library",
+    "native_name": "blocking_guide_undo",
+    "name": "blocking_guide_undo",
+    "description": "Withdraw or restore a video guide. Retira o restaura un vídeo guía.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[a-f0-9]{32}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "restore": {
+          "default": false,
+          "title": "Restore",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "Undo",
+      "type": "object"
+    }
   }
 ]
