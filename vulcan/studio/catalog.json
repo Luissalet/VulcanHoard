@@ -18757,16 +18757,36 @@
           "pattern": "^[a-f0-9]{32}$",
           "title": "Id",
           "type": "string"
+        },
+        "include_end": {
+          "default": true,
+          "description": "Include the final key as a sample. Incluye una muestra de la última clave.",
+          "title": "Include End",
+          "type": "boolean"
+        },
+        "gpu": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "CUDA GPU for detailed takes; CPU by default. GPU CUDA para tomas detalladas; CPU por defecto.",
+          "title": "Gpu"
         }
       },
       "required": [
         "id"
       ],
-      "title": "Lookup",
+      "title": "Guide",
       "type": "object",
-      "x-timeout-s": 145.0
+      "x-timeout-s": 255.0
     },
-    "x-timeout-s": 145.0
+    "x-timeout-s": 255.0
   },
   {
     "module": "library",
@@ -18799,5 +18819,521 @@
       "title": "Undo",
       "type": "object"
     }
+  },
+  {
+    "module": "library",
+    "native_name": "blocking_pass",
+    "name": "blocking_pass",
+    "description": "Pass a sheet between the hands of a detailed rig. Pasa una hoja entre las manos de un modelo detallado.\nReturns an editable take, key views and an animated GLB. Undo: blocking_undo. Devuelve toma editable, vistas por clave y GLB animado. Deshacer: blocking_undo.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "draftSafeHint": true
+    },
+    "inputSchema": {
+      "$defs": {
+        "Arm": {
+          "additionalProperties": false,
+          "properties": {
+            "shoulder": {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "title": "Shoulder",
+              "type": "array"
+            },
+            "elbow": {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "title": "Elbow",
+              "type": "array"
+            },
+            "wrist": {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "title": "Wrist",
+              "type": "array"
+            },
+            "bind_contact": {
+              "description": "Point on the palm in the source pose. Punto de contacto de la mano en la pose de origen.",
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "title": "Bind Contact",
+              "type": "array"
+            },
+            "pole": {
+              "description": "World direction of the bend. Dirección del codo en el espacio de la escena.",
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "title": "Pole",
+              "type": "array"
+            },
+            "skin": {
+              "additionalProperties": {
+                "maxItems": 3,
+                "minItems": 3,
+                "prefixItems": [
+                  {
+                    "exclusiveMinimum": 0,
+                    "maximum": 1,
+                    "type": "number"
+                  },
+                  {
+                    "exclusiveMinimum": 0,
+                    "maximum": 1,
+                    "type": "number"
+                  },
+                  {
+                    "exclusiveMinimum": 0,
+                    "maximum": 1,
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              "description": "Mesh names with upper arm, forearm and hand binding radii in metres. Nombres de mallas con radios de influencia en metros para brazo, antebrazo y mano.",
+              "propertyNames": {
+                "maxLength": 100,
+                "minLength": 1
+              },
+              "title": "Skin",
+              "type": "object"
+            },
+            "forearm_parts": {
+              "items": {
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string"
+              },
+              "maxItems": 16,
+              "title": "Forearm Parts",
+              "type": "array"
+            },
+            "hand_parts": {
+              "items": {
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string"
+              },
+              "maxItems": 16,
+              "title": "Hand Parts",
+              "type": "array"
+            },
+            "grip_rotation": {
+              "default": [
+                0,
+                0,
+                0
+              ],
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "maximum": 360,
+                  "minimum": -360,
+                  "type": "number"
+                },
+                {
+                  "maximum": 360,
+                  "minimum": -360,
+                  "type": "number"
+                },
+                {
+                  "maximum": 360,
+                  "minimum": -360,
+                  "type": "number"
+                }
+              ],
+              "title": "Grip Rotation",
+              "type": "array"
+            }
+          },
+          "required": [
+            "shoulder",
+            "elbow",
+            "wrist",
+            "bind_contact",
+            "pole"
+          ],
+          "title": "Arm",
+          "type": "object"
+        },
+        "Camera": {
+          "additionalProperties": false,
+          "properties": {
+            "center": {
+              "default": [
+                0,
+                -0.25,
+                0.72
+              ],
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "maximum": 5,
+                  "minimum": -5,
+                  "type": "number"
+                },
+                {
+                  "maximum": 5,
+                  "minimum": -5,
+                  "type": "number"
+                },
+                {
+                  "maximum": 5,
+                  "minimum": -5,
+                  "type": "number"
+                }
+              ],
+              "title": "Center",
+              "type": "array"
+            },
+            "azimuth": {
+              "default": 22,
+              "maximum": 360,
+              "minimum": -360,
+              "title": "Azimuth",
+              "type": "number"
+            },
+            "elevation": {
+              "default": 12,
+              "maximum": 80,
+              "minimum": -80,
+              "title": "Elevation",
+              "type": "number"
+            },
+            "ortho_scale": {
+              "default": 2.8,
+              "maximum": 10,
+              "minimum": 0.5,
+              "title": "Ortho Scale",
+              "type": "number"
+            },
+            "distance": {
+              "default": 6,
+              "maximum": 30,
+              "minimum": 3.1,
+              "title": "Distance",
+              "type": "number"
+            }
+          },
+          "title": "Camera",
+          "type": "object"
+        },
+        "Hold": {
+          "additionalProperties": false,
+          "properties": {
+            "contact": {
+              "description": "World position of the active grip. Posición del agarre activo en la escena.",
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "title": "Contact",
+              "type": "array"
+            },
+            "rotation": {
+              "default": [
+                0,
+                0,
+                0
+              ],
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "maximum": 360,
+                  "minimum": -360,
+                  "type": "number"
+                },
+                {
+                  "maximum": 360,
+                  "minimum": -360,
+                  "type": "number"
+                },
+                {
+                  "maximum": 360,
+                  "minimum": -360,
+                  "type": "number"
+                }
+              ],
+              "title": "Rotation",
+              "type": "array"
+            }
+          },
+          "required": [
+            "contact"
+          ],
+          "title": "Hold",
+          "type": "object"
+        },
+        "SheetArt": {
+          "additionalProperties": false,
+          "properties": {
+            "path": {
+              "maxLength": 1000,
+              "title": "Path",
+              "type": "string"
+            },
+            "sha256": {
+              "pattern": "^[a-fA-F0-9]{64}$",
+              "title": "Sha256",
+              "type": "string"
+            },
+            "up": {
+              "description": "Up direction of the artwork in the source. Dirección hacia arriba del dibujo en el origen.",
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "title": "Up",
+              "type": "array"
+            }
+          },
+          "required": [
+            "path",
+            "sha256",
+            "up"
+          ],
+          "title": "SheetArt",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "description": "Editable articulation scene (.blend). Escena editable de articulación (.blend).",
+          "maxLength": 1000,
+          "title": "Source",
+          "type": "string"
+        },
+        "source_sha256": {
+          "pattern": "^[a-fA-F0-9]{64}$",
+          "title": "Source Sha256",
+          "type": "string"
+        },
+        "source_frame": {
+          "default": 1,
+          "maximum": 100000,
+          "minimum": 0,
+          "title": "Source Frame",
+          "type": "integer"
+        },
+        "sheet": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Sheet",
+          "type": "string"
+        },
+        "left_edge": {
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Left Edge",
+          "type": "array"
+        },
+        "right_edge": {
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Right Edge",
+          "type": "array"
+        },
+        "sheet_art": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SheetArt"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "left": {
+          "$ref": "#/$defs/Arm"
+        },
+        "right": {
+          "$ref": "#/$defs/Arm"
+        },
+        "direction": {
+          "default": "left_to_right",
+          "enum": [
+            "left_to_right",
+            "right_to_left"
+          ],
+          "title": "Direction",
+          "type": "string"
+        },
+        "start": {
+          "$ref": "#/$defs/Hold"
+        },
+        "overlap": {
+          "$ref": "#/$defs/Hold"
+        },
+        "finish": {
+          "$ref": "#/$defs/Hold"
+        },
+        "approach_contact": {
+          "anyOf": [
+            {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional receiving-hand contact target at frame 12. Objetivo opcional de la mano que recibe en el fotograma 12.",
+          "title": "Approach Contact"
+        },
+        "camera": {
+          "$ref": "#/$defs/Camera"
+        },
+        "review_camera": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Camera"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "size": {
+          "default": 384,
+          "maximum": 768,
+          "minimum": 128,
+          "title": "Size",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "source",
+        "source_sha256",
+        "sheet",
+        "left_edge",
+        "right_edge",
+        "left",
+        "right",
+        "start",
+        "overlap",
+        "finish",
+        "camera"
+      ],
+      "title": "Handoff",
+      "type": "object",
+      "x-timeout-s": 175.0
+    },
+    "x-timeout-s": 175.0
   }
 ]
