@@ -40,6 +40,89 @@ def glb_json(path):
         return json.loads(source.read(length))
 
 
+def read_png(path):
+    with Image.open(path) as image:
+        return np.array(image)
+
+
+def assert_layer_passes(result, key, pose):
+    maps = key["maps"]
+    geometry = json.loads(Path(key["geometry"]).read_text(encoding="utf-8"))
+    assert geometry["frame"] == key["frame"]
+    assert geometry["size"] == result["camera"]["size"]
+    assert geometry["depth_encoding"] == result["depth_encoding"]
+    assert geometry["part_ids"] == dict(zip(result["parts"], range(1, len(result["parts"]) + 1)))
+    assert key["layers"].keys() == geometry["part_ids"].keys()
+
+    ids = read_png(maps["part_ids"])
+    depth = read_png(maps["depth"])
+    color = read_png(maps["color"])
+    assert np.array_equal(ids != 0, depth != 0)
+    depths = {}
+    for part, layer in key["layers"].items():
+        depths[part] = read_png(layer["depth"])
+        alpha = read_png(layer["rgba"])[:, :, 3]
+        mask = read_png(layer["mask"])
+        visible = read_png(layer["visible_rgba"])
+        visible_mask = read_png(layer["visible_mask"])
+        winner = ids == geometry["part_ids"][part]
+        assert np.array_equal(mask, (depths[part] != 0) * 255)
+        assert np.array_equal(alpha, mask)
+        assert np.array_equal(visible_mask, winner * 255)
+        assert np.array_equal(visible[:, :, 3], visible_mask)
+        assert np.array_equal(visible[winner, :3], color[winner])
+        assert np.array_equal(depth[winner], depths[part][winner])
+    assert np.array_equal(depth, np.maximum.reduce(list(depths.values())))
+    clean = np.maximum.reduce([d for p, d in depths.items() if p not in {"tube", "sheet", "sheet_roll"}])
+    assert np.array_equal(read_png(maps["depth_without_accessories"]), clean)
+
+    for pair in geometry["occlusion"]:
+        a, b = depths[pair["a"]], depths[pair["b"]]
+        shared = (a > 0) & (b > 0)
+        assert pair["a_in_front"] == np.count_nonzero(shared & (a > b))
+        assert pair["b_in_front"] == np.count_nonzero(shared & (b > a))
+        assert pair["ties"] == np.count_nonzero(shared & (a == b))
+
+    expected = {side: pose[side] for side in ("left_hand", "right_hand")
+                if pose[side] in ("sheet_left", "sheet_right", "tube")}
+    assert {c["hand"]: c["target"] for c in geometry["contacts"]} == expected
+    for contact in geometry["contacts"]:
+        part = contact["part"]
+        side = contact["hand"].split("_")[0]
+        assert set(contact["digit_contacts"]) == {side + "_thumb", side + "_index"}
+        for point in (contact, *contact["digit_contacts"].values()):
+            x, y = map(int, point["pixel"])
+            assert 0 <= x < geometry["size"] and 0 <= y < geometry["size"]
+            # The edge-on sheet in reverse can fit between pixel centres at this resolution.
+            if (result["gesture"], key["frame"]) != ("reverse", 24) or depths[part].any():
+                assert np.any(depths[part][max(0, y - 2):y + 3, max(0, x - 2):x + 3] > 0)
+            assert point["camera_depth_m"] > 0
+    if result["gesture"] == "pass" and key["frame"] == 24:
+        # The paper sits between the two fingers of each hand at the regrip.
+        pairs = {(row["a"], row["b"]): row for row in geometry["occlusion"]}
+        for side in ("left", "right"):
+            assert pairs[(side + "_thumb", "sheet")]["a_in_front"] > 0
+            assert pairs[(side + "_index", "sheet")]["b_in_front"] > 0
+    if result["gesture"] == "unroll":
+        pairs = {(row["a"], row["b"]): row for row in geometry["occlusion"]}
+        assert pairs[("left_thumb", "tube")]["a_in_front"] > 0
+        assert pairs[("left_index", "tube")]["b_in_front"] > 0
+
+
+def test_reads_blocking_packages_from_before_layer_export(tmp_path):
+    package_id = "1" * 32
+    package = tmp_path / "blockings" / package_id
+    package.mkdir(parents=True)
+    (package / "blocking.json").write_text(json.dumps({
+        "id": package_id, "files": {"mesh": "blocking.glb"},
+        "keyframes": [{"maps": {"color": "color.png", "depth": "depth.png", "normals": "normal.png"}}],
+    }), encoding="utf-8")
+    services = SimpleNamespace(config=SimpleNamespace(data_dir=tmp_path))
+    result = blocking.get(services, blocking.Lookup(id=package_id))
+    assert result["anchors"]["depth"] == str(package / "depth.png")
+    assert "layers" not in result["keyframes"][0]
+
+
 def assert_map_turns_upright(result):
     assert [(pose["right_hand"], pose["left_hand"]) for pose in result["poses"]] == [
         ("sheet_left", "rest"), ("sheet_left", "rest"), ("sheet_left", "rest")
@@ -76,6 +159,8 @@ def test_build_exports_animated_skin_and_maps(tmp_path, gesture, pass_direction)
     assert result["duration_s"] == expected_duration and result["device"] == "cpu"
     assert result["joints"]["left_hand"] == "left_forearm"
     assert result["joints"]["right_hand"] == "right_forearm"
+    assert result["joints"]["left_thumb"] == "left_hand"
+    assert result["joints"]["right_index"] == "right_hand"
     assert ("step_3" in result["parts"]) == (gesture != "custom")
     assert ("tube" in result["parts"]) == (gesture != "custom")
     assert ("sheet_roll" in result["parts"]) is (gesture == "unroll")
@@ -94,11 +179,12 @@ def test_build_exports_animated_skin_and_maps(tmp_path, gesture, pass_direction)
         with Image.open(a[name]) as start, Image.open(b[name]) as end:
             assert start.size == (128, 128)
             assert start.tobytes() != end.tobytes()
-    for key in result["keyframes"]:
+    for key, pose in zip(result["keyframes"], result["poses"], strict=True):
         maps = key["maps"]
         with Image.open(maps["depth"]) as depth, Image.open(maps["normals"]) as normal:
             assert depth.mode in {"I", "I;16"} and depth.getextrema()[1] > 255
             assert np.array_equal(np.asarray(depth) != 0, np.any(np.asarray(normal) != 0, axis=2))
+        assert_layer_passes(result, key, pose)
 
     if gesture == "unroll":
         assert [pose["sheet_width"] for pose in result["poses"]] == [0.10, 0.28, 0.46]
@@ -119,6 +205,7 @@ def test_build_exports_animated_skin_and_maps(tmp_path, gesture, pass_direction)
     withdrawn = blocking.undo(services, undo)
     assert withdrawn == blocking.undo(services, undo)
     assert not Path(result["files"]["mesh"]).exists()
+    assert not Path(result["keyframes"][0]["geometry"]).exists()
     with pytest.raises(ValueError, match="Blocking package not found"):
         blocking.get(services, undo)
     blocking.undo(services, blocking.Undo(**withdrawn["undo"]["arguments"]))

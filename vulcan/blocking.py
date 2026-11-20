@@ -143,6 +143,12 @@ def _receipt(package: Path) -> dict:
     result["files"] = {label: str(package / file) for label, file in result["files"].items()}
     for key in result["keyframes"]:
         key["maps"] = {label: str(package / file) for label, file in key["maps"].items()}
+        if "geometry" in key:
+            key["geometry"] = str(package / key["geometry"])
+            key["layers"] = {
+                part: {label: str(package / file) for label, file in paths.items()}
+                for part, paths in key["layers"].items()
+            }
     first = result["keyframes"][0]["maps"]
     result["anchors"] = {"blocking": result["files"]["mesh"], "parts": str(metadata),
                          "blocking_color": first["color"], "depth": first["depth"], "normals": first["normals"]}
@@ -178,7 +184,10 @@ def build(services, args: Build) -> dict:
             raise RuntimeError("Blocking failed. / Falló el bloqueo.\n" + (result.stdout + result.stderr)[-2400:])
         receipt = _receipt(output)
         files = list(receipt["files"].values())
-        files.extend(path for key in receipt["keyframes"] for path in key["maps"].values())
+        for key in receipt["keyframes"]:
+            files.extend(key["maps"].values())
+            files.append(key["geometry"])
+            files.extend(path for layer in key["layers"].values() for path in layer.values())
         if any(not Path(path).is_file() or not Path(path).stat().st_size for path in files):
             raise RuntimeError("Blocking output incomplete. / El bloqueo está incompleto.")
         output.rename(root / package_id)
@@ -204,12 +213,12 @@ def undo(services, args: Undo) -> dict:
 
 TOOLS = [
     Tool("blocking_build", "Build a primitive take on CPU. Crea una toma con articulación en CPU.\n"
-         "Returns editable scene, animated GLB and same-camera colour, depth and normal maps at each key. "
-         "Crea un bloqueo de primitivas con dos manos, piezas articuladas, accesorios y una toma corta. "
-         "Devuelve la escena editable, el GLB animado y mapas de color, profundidad y normales de cada clave. "
+         "Returns an editable scene, animated GLB, per-key maps and transparent part layers with grip contacts. "
+         "Devuelve la escena editable, el GLB animado, mapas por clave, capas transparentes y contactos de agarre. "
          "Undo / Deshacer: blocking_undo.", Build, ann(draft_safe=True), build, timeout_s=105, capped=False),
     Tool("blocking_get", "Read a blocking package. Consulta un bloqueo y su articulación.\n"
-         "Returns named parts, files and maps by keyframe. Devuelve piezas, archivos y mapas por fotograma.",
+         "Returns named parts, maps, layers and contact files by keyframe. "
+         "Devuelve las partes, mapas, capas y archivos de contacto por fotograma.",
          Lookup, ann(True), get, capped=False),
     Tool("blocking_undo", "Withdraw or restore a blocking package. Retira o restaura un bloqueo.\n"
          "Returns the inverse call. Devuelve la operación inversa.",
