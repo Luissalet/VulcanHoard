@@ -375,6 +375,8 @@ def main(spec, out):
         "depth_encoding": {"background": 0, "near_m": camera["distance"] - 3, "far_m": camera["distance"] + 3},
         "normal_encoding": {"background": [0, 0, 0], "space": "camera", "axes": "right, up, toward camera"},
     }
+    if "pass_direction" in spec:
+        receipt["pass_direction"] = spec["pass_direction"]
     (out / "blocking.json").write_text(json.dumps(receipt, indent=2), encoding="utf-8")
 
 

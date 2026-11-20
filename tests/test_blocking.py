@@ -17,6 +17,8 @@ def test_blocking_discoverable_and_pose_arguments_checked():
     assert tools["blocking_build"]["inputSchema"]["properties"]["gesture"]["enum"] == [
         "unroll", "flip", "pass", "custom", "reverse"
     ]
+    assert (tools["blocking_build"]["inputSchema"]["properties"]["pass_direction"]
+            == blocking.Build.model_json_schema()["properties"]["pass_direction"])
     assert tools["blocking_get"]["annotations"]["readOnlyHint"]
     assert "blocking_undo" in tools
     with pytest.raises(ValidationError, match="requires the tube"):
@@ -25,6 +27,8 @@ def test_blocking_discoverable_and_pose_arguments_checked():
         blocking.Build(gesture="custom", poses=[{"frame": 0}, {"frame": 0}])
     with pytest.raises(ValidationError, match="Use poses"):
         blocking.Build(gesture="pass", poses=[{"frame": 0}, {"frame": 24}])
+    with pytest.raises(ValidationError, match="Use pass_direction"):
+        blocking.Build(gesture="flip", pass_direction="right_to_left")
 
 
 def glb_json(path):
@@ -56,13 +60,18 @@ def assert_map_turns_upright(result):
 
 
 @pytest.mark.skipif(not blocking.find_blender(), reason="Blender executable not installed")
-@pytest.mark.parametrize("gesture", ["unroll", "flip", "pass", "custom", "reverse"])
-def test_build_exports_animated_skin_and_maps(tmp_path, gesture):
+@pytest.mark.parametrize(("gesture", "pass_direction"), [
+    ("unroll", None), ("flip", None), ("pass", None), ("pass", "right_to_left"),
+    ("custom", None), ("reverse", None),
+])
+def test_build_exports_animated_skin_and_maps(tmp_path, gesture, pass_direction):
     services = SimpleNamespace(config=SimpleNamespace(data_dir=tmp_path))
     custom = {
         "accessories": [], "poses": [{"frame": 0}, {"frame": 24, "right_hand": [-0.38, -0.33, 1.28]}],
     } if gesture == "custom" else {}
-    result = blocking.build(services, blocking.Build(gesture=gesture, size=128, camera={"azimuth": 0}, **custom))
+    result = blocking.build(services, blocking.Build(
+        gesture=gesture, pass_direction=pass_direction, size=128, camera={"azimuth": 0}, **custom
+    ))
     expected_duration = 1 if custom else 2
     assert result["duration_s"] == expected_duration and result["device"] == "cpu"
     assert result["joints"]["left_hand"] == "left_forearm"
@@ -97,9 +106,12 @@ def test_build_exports_animated_skin_and_maps(tmp_path, gesture):
     if gesture == "flip":
         assert_map_turns_upright(result)
     if gesture == "pass":
-        assert [(pose["right_hand"], pose["left_hand"]) for pose in result["poses"]] == [
-            ("sheet_right", "rest"), ("sheet_right", "sheet_left"), ("rest", "sheet_left")
+        assert result["pass_direction"] == (pass_direction or "left_to_right")
+        poses = result["poses"] if pass_direction else result["poses"][::-1]
+        assert [(pose["right_hand"], pose["left_hand"], pose["sheet"][0]) for pose in poses] == [
+            ("sheet_right", "rest", -0.23), ("sheet_right", "sheet_left", 0), ("rest", "sheet_left", 0.23)
         ]
+        assert all(pose["tube"][0] > 0 for pose in poses)
     if gesture == "reverse":
         assert [pose["sheet_rotation"] for pose in result["poses"]] == [[0, 0, 0], [0, 0, -90], [0, 0, -180]]
 

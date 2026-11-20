@@ -18477,6 +18477,23 @@
           "title": "Gesture",
           "type": "string"
         },
+        "pass_direction": {
+          "anyOf": [
+            {
+              "enum": [
+                "left_to_right",
+                "right_to_left"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "For pass only, from the character's perspective. Defaults to left_to_right. Solo para pass, desde el punto de vista del personaje. Por defecto, de izquierda a derecha.",
+          "title": "Pass Direction"
+        },
         "accessories": {
           "description": "Defaults to all three props. Incluye hoja, tubo y escalera por defecto.",
           "items": {

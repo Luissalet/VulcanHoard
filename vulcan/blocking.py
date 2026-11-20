@@ -20,6 +20,7 @@ Position = tuple[Coordinate, Coordinate, Coordinate]
 Rotation = tuple[Angle, Angle, Angle]
 Grip = Literal["rest", "sheet_left", "sheet_right", "tube"]
 Accessory = Literal["sheet", "tube", "stairs"]
+PassDirection = Literal["left_to_right", "right_to_left"]
 FPS = 24
 
 
@@ -52,6 +53,10 @@ class Build(Input):
         "flip", description="Unroll, turn upright (flip), pass, custom or turn over (reverse). "
         "Desenrollar, enderezar (flip), pasar, toma propia o girar al dorso (reverse)."
     )
+    pass_direction: PassDirection | None = Field(
+        None, description="For pass only, from the character's perspective. Defaults to left_to_right. "
+        "Solo para pass, desde el punto de vista del personaje. Por defecto, de izquierda a derecha."
+    )
     accessories: set[Accessory] = Field(
         default_factory=lambda: {"sheet", "tube", "stairs"},
         description="Defaults to all three props. Incluye hoja, tubo y escalera por defecto.",
@@ -62,13 +67,15 @@ class Build(Input):
 
     @model_validator(mode="after")
     def check_poses(self):
+        if self.pass_direction is not None and self.gesture != "pass":
+            raise ValueError("Use pass_direction with gesture=pass. / Usa pass_direction con gesture=pass.")
         if (self.poses is not None) != (self.gesture == "custom"):
             raise ValueError("Use poses with gesture=custom. / Usa poses con gesture=custom.")
         if self.poses is not None:
             frames = [key.frame for key in self.poses]
             if frames[0] != 0 or any(a >= b for a, b in zip(frames, frames[1:])):
                 raise ValueError("Pose frames must increase from 0. / Los fotogramas deben aumentar desde 0.")
-        for key in self.poses or preset(self.gesture):
+        for key in self.resolved_poses():
             grips = (key.left_hand, key.right_hand)
             if "sheet" not in self.accessories and (key.sheet_roll or "sheet_left" in grips or "sheet_right" in grips):
                 raise ValueError("Sheet grip or roll requires the sheet. / El agarre o enrollado requiere la hoja.")
@@ -76,8 +83,11 @@ class Build(Input):
                 raise ValueError("Tube grip requires the tube. / El agarre requiere el tubo.")
         return self
 
+    def resolved_poses(self) -> list[Key]:
+        return self.poses or preset(self.gesture, self.pass_direction or "left_to_right")
 
-def preset(gesture: str) -> list[Key]:
+
+def preset(gesture: str, pass_direction: PassDirection = "left_to_right") -> list[Key]:
     frames = (0, 24, 48)
     if gesture == "unroll":
         return [
@@ -98,6 +108,12 @@ def preset(gesture: str) -> list[Key]:
             Key(frame=0, sheet=(-0.10, -0.40, 1.23), right_hand="sheet_right"),
             Key(frame=24, sheet=(-0.33, -0.66, 1.40), sheet_rotation=(0, 0, -90), right_hand="sheet_right"),
             Key(frame=48, sheet=(-0.56, -0.40, 1.23), sheet_rotation=(0, 0, -180), right_hand="sheet_right"),
+        ]
+    if pass_direction == "left_to_right":
+        return [
+            Key(frame=0, sheet=(0.23, -0.39, 1.25), left_hand="sheet_left"),
+            Key(frame=24, sheet=(0, -0.43, 1.36), right_hand="sheet_right", left_hand="sheet_left"),
+            Key(frame=48, sheet=(-0.23, -0.39, 1.25), right_hand="sheet_right"),
         ]
     return [
         Key(frame=0, sheet=(-0.23, -0.39, 1.25), right_hand="sheet_right"),
@@ -141,9 +157,11 @@ def build(services, args: Build) -> dict:
     root = _root(services)
     root.mkdir(parents=True, exist_ok=True)
     package_id = uuid4().hex
-    spec = args.model_dump(mode="json", exclude={"poses", "accessories"})
+    spec = args.model_dump(mode="json", exclude={"poses", "accessories", "pass_direction"})
+    if args.gesture == "pass":
+        spec["pass_direction"] = args.pass_direction or "left_to_right"
     spec.update(id=package_id, accessories=sorted(args.accessories), fps=FPS,
-                poses=[key.model_dump(mode="json") for key in args.poses or preset(args.gesture)])
+                poses=[key.model_dump(mode="json") for key in args.resolved_poses()])
     worker = Path(__file__).with_name("blender_blocking_worker.py")
     with tempfile.TemporaryDirectory(prefix=".build-", dir=root) as scratch:
         recipe = Path(scratch) / "recipe.json"
