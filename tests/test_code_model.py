@@ -419,7 +419,13 @@ def test_a_size_instruction_maps_onto_the_size_tuple():
     assert code_checks.parameter_edit("más alta: 40 mm de alto", code_checks.example("box_with_lid")["code"])["changes"] == {"h": 40.0}
 
 
-def test_measures_and_checks_of_a_real_mesh():
+@pytest.fixture
+def mesh_rtree():
+    pytest.importorskip("rtree", reason="mesh wall and section measurements require rtree")
+
+
+def test_measures_and_checks_of_a_real_mesh(mesh_rtree):
+    pytest.importorskip("shapely", reason="round section measurements require shapely")
     ring = trimesh.creation.annulus(r_min=12.5, r_max=16, height=20, sections=96)  # a 25 mm bore, 3.5 mm wall
     ring.apply_translation((0, 0, 10))
     measured = code_checks.measure_part(ring.vertices, ring.faces)
@@ -474,7 +480,7 @@ def test_a_broken_fix_keeps_the_part_that_worked(sim):
     assert job["status"] == "done" and job["result"]["measures"]["bbox_mm"][0] == 70.0 and len(sim.link.calls) == 2
 
 
-def test_a_measure_instruction_changes_the_parameter_without_the_model(sim):
+def test_a_measure_instruction_changes_the_parameter_without_the_model(mesh_rtree, sim):
     saved = call_tool(sim, "code_model_run", {"code": GOOD, "name": "Placa", "description": "plate 80 x 40"})
     sim.link = FakeChat([])  # any call to the language model would fail the test
     job = call_tool(sim, "code_model_edit", {"id": saved["id"], "instruction": "hazla de 11 mm de grosor"})
@@ -520,7 +526,9 @@ def test_rest_examples_and_requirements(client):
 
 @real
 @pytest.mark.parametrize("row", code_checks.load_examples(), ids=lambda r: r["id"])
-def test_every_example_builds_its_expected_part(row):
+def test_every_example_builds_its_expected_part(mesh_rtree, row):
+    if "diameter_mm" in row["expected"]:
+        pytest.importorskip("shapely", reason="round section measurements require shapely")
     run = cm.run_engine(None, row["code"])
     try:
         vertices, faces = cm._mesh_mm(run["stl"])
@@ -533,7 +541,7 @@ def test_every_example_builds_its_expected_part(row):
         if "diameter_mm" in row["expected"]:
             reqs.append({"kind": "round", "value": row["expected"]["diameter_mm"]})
         check = code_checks.verify(reqs, measured)
-        assert check["ok"] is True, (row["id"], check)
+        assert check["ok"] is True and check["met"] == len(reqs), (row["id"], check)
         from vulcan import cad
 
         assert cad.measure(vertices, faces)["watertight"] is True
