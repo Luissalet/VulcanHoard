@@ -17,7 +17,7 @@ Shared projects use `studio-projects.json`: native owner/ID/revision/deep link a
 
 Text and vision use Faustus's `/api/global-model` descriptor and `/api/global-model/v1/chat/completions`. Each job pins endpoint, model and connection revision; static/provider credentials never leave Faustus. JSON schema, images, reasoning and SSE completion metadata are preserved. Truncation, filtering, missing completion or selection changes fail explicitly. The synchronous family facade retains the global consumer and the same job pin, including a CAD repair round. No Ollama text-model fallback, load, download or unload is performed. This requires the corresponding Faustus transport to be installed; missing transport is an explicit unavailable state.
 
-Library automation controls initial rescan and folder watching. Generation automation separately controls recovery of historical queued jobs. Neither automation is enabled by merely enabling its module. A cold MCP catalogue contains 242 tools and imports no native engine or SQLite store; it starts no app or worker.
+Library automation controls initial rescan and folder watching. Generation automation separately controls recovery of historical queued jobs. Neither automation is enabled by merely enabling its module. A cold MCP catalogue contains 243 tools and imports no native engine or SQLite store; it starts no app or worker.
 
 The figures workspace follows the browser language. It uses English for English locales and Spanish (Spain) otherwise, including the pose setup and review.
 
