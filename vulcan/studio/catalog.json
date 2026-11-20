@@ -16271,7 +16271,7 @@
   },
   {
     "name": "room_plan",
-    "description": "Interpret a room sketch as a measured plan. Keywords: boceto, planta, habitación.\nUses the configured global vision model. Returns a measured editable plan, volumes, openings, materials and explicit assumptions. width_m calibrates the horizontal span. Review the plan before room_build. Without vision, trace an outline and pass a RoomPlan directly to room_build. Keywords: boceto, planta, habitación.",
+    "description": "Interpret a room sketch as a measured plan. Keywords: boceto, planta, habitación.\nUses the configured global vision model. Returns a measured editable plan, volumes, openings, materials and explicit assumptions. width_m calibrates the horizontal span. Review the plan before room_build. Without vision, trace an outline and pass a RoomPlan directly to room_build. Keywords: boceto, planta, habitación.\nSinónimos: pasar un croquis a planta, interpretar un boceto, sacar las medidas de una habitación.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -16328,7 +16328,7 @@
   },
   {
     "name": "room_build",
-    "description": "Build a textured room from a reviewed plan. Keywords: habitación 3D, materiales.\nBuilds in metres as a GLB library model. Includes concave floors, connected rooms with partitions and doorways, ceilings, framed doors/windows with glass, and parametric bed/table/chair/sofa/shelf/wardrobe furniture or free boxes; selectable interior/exterior materials with planar UV projection. Retains editable plan, runnable code and optional sketch. Creates a new model each time. The existing texture_project tool can paint a further variant. Keywords: habitación 3D, materiales, boceto a 3D.",
+    "description": "Build a textured room from a reviewed plan. Keywords: habitación 3D, materiales.\nSinónimos: levantar una habitación en 3D, construir una estancia desde la planta, amueblar un plano.\nBuilds in metres as a GLB library model. Includes concave floors, connected rooms with partitions and doorways, ceilings, framed doors/windows with glass, and parametric bed/table/chair/sofa/shelf/wardrobe furniture or free boxes; selectable interior/exterior materials with planar UV projection. Retains editable plan, runnable code and optional sketch. Creates a new model each time. The existing texture_project tool can paint a further variant. Keywords: habitación 3D, materiales, boceto a 3D.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -16814,7 +16814,7 @@
   },
   {
     "name": "room_get",
-    "description": "Read a room recipe and measurements. Keywords: planta, receta habitación.\nReturns the saved plan, assumptions, material choices, dimensions and scoped download URLs without changing it.",
+    "description": "Read a room recipe and measurements. Keywords: planta, receta habitación.\nReturns the saved plan, assumptions, material choices, dimensions and scoped download URLs without changing it.\nSinónimos: consultar la planta guardada, ver las cotas de la habitación, recuperar la receta de la estancia.",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -16842,7 +16842,7 @@
     "module": "library",
     "native_name": "room_rectify",
     "name": "room_rectify",
-    "description": "Rectify perspective in a photographed sketch before tracing. Keywords: perspectiva, boceto, foto.\nProvide image_path or image_base64, four normalized corners in top-left/top-right/bottom-right/bottom-left order, and the true paper aspect (width/height). Returns a rectified PNG data URL, width and height; no model required.",
+    "description": "Rectify perspective in a photographed sketch before tracing. Keywords: perspectiva, boceto, foto.\nProvide image_path or image_base64, four normalized corners in top-left/top-right/bottom-right/bottom-left order, and the true paper aspect (width/height). Returns a rectified PNG data URL, width and height; no model required.\nSinónimos: enderezar la foto de un croquis, corregir la perspectiva del dibujo, rectificar el plano fotografiado.",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -16915,7 +16915,7 @@
     "module": "library",
     "native_name": "articulation_build",
     "name": "articulation_build",
-    "description": "Split and rig an inferred mesh. Selección, corte, reparación y articulación.\nSelect by region, plane, colour or seed; cap boundaries, repair named seams, discard debris and rig separate pieces. Creates a new editable package with source face provenance, GLB, frozen poses and optional same-camera previews. Build a clipped panel from a pinned dossier. Use articulation_undo to revert. Selecciona por región, plano, color, semilla o caras de origen. Repara encastres, articula piezas y construye paneles desde un expediente fijado.",
+    "description": "Split and rig an inferred mesh. Selección, corte, reparación y articulación.\nSinónimos: separar y articular una malla, preparar piezas móviles, cortar y reparar encastres.\nSelect by region, plane, colour or seed; cap boundaries, repair named seams, discard debris and rig separate pieces. Creates a new editable package with source face provenance, GLB, frozen poses and optional same-camera previews. Build a clipped panel from a pinned dossier. Use articulation_undo to revert. Selecciona por región, plano, color, semilla o caras de origen. Repara encastres, articula piezas y construye paneles desde un expediente fijado.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -17986,7 +17986,7 @@
     "module": "library",
     "native_name": "articulation_get",
     "name": "articulation_get",
-    "description": "Read an articulation package. Consulta de articulación.\nReturns its revision, measurements and files. Consulta la procedencia, las medidas y los archivos de la articulación.",
+    "description": "Read an articulation package. Consulta de articulación.\nReturns its revision, measurements and files. Consulta la procedencia, las medidas y los archivos de la articulación.\nSinónimos: consultar una malla articulada, ver la revisión del rig, recuperar piezas y medidas.",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -18013,7 +18013,7 @@
     "module": "library",
     "native_name": "articulation_view",
     "name": "articulation_view",
-    "description": "Open a source, selection or pose preview. Vista de articulación.\nUse a PNG name from articulation_get. Abre una vista de origen, selección o pose.",
+    "description": "Open a source, selection or pose preview. Vista de articulación.\nUse a PNG name from articulation_get. Abre una vista de origen, selección o pose.\nSinónimos: previsualizar la pose, ver el recorte, comparar con la malla original.",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -18046,7 +18046,7 @@
     "module": "library",
     "native_name": "articulation_pick",
     "name": "articulation_pick",
-    "description": "Resolve a viewer ray to a source face. Resuelve un rayo del visor a una cara de origen.",
+    "description": "Resolve a viewer ray to a source face. Resuelve un rayo del visor a una cara de origen.\nSinónimos: localizar una cara de origen, identificar el triángulo señalado, seleccionar desde el visor.",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -18142,7 +18142,7 @@
     "module": "library",
     "native_name": "articulation_undo",
     "name": "articulation_undo",
-    "description": "Withdraw or restore a package. Deshacer articulación.\nReturns arguments to reverse the operation. Retira o restaura un paquete generado.",
+    "description": "Withdraw or restore a package. Deshacer articulación.\nReturns arguments to reverse the operation. Retira o restaura un paquete generado.\nSinónimos: deshacer la articulación, retirar el paquete articulado, restaurar el rig.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -18174,7 +18174,7 @@
     "module": "library",
     "native_name": "blocking_build",
     "name": "blocking_build",
-    "description": "Build a primitive take on CPU. Crea una toma con articulación en CPU.\nReturns an editable scene, animated GLB, per-key maps and transparent part layers with grip contacts. Devuelve la escena editable, el GLB animado, mapas por clave, capas transparentes y contactos de agarre. Undo / Deshacer: blocking_undo.",
+    "description": "Build a primitive take on CPU. Crea una toma con articulación en CPU.\nReturns an editable scene, animated GLB, per-key maps and transparent part layers with grip contacts. Devuelve la escena editable, el GLB animado, mapas por clave, capas transparentes y contactos de agarre. Undo / Deshacer: blocking_undo.\nSinónimos: preparar un bloqueo de animación, montar una toma con primitivas, ensayar un gesto.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -18547,7 +18547,7 @@
     "module": "library",
     "native_name": "blocking_get",
     "name": "blocking_get",
-    "description": "Read a blocking package. Consulta un bloqueo y su articulación.\nReturns named parts, maps, layers and contact files by keyframe. Devuelve las partes, mapas, capas y archivos de contacto por fotograma.",
+    "description": "Read a blocking package. Consulta un bloqueo y su articulación.\nReturns named parts, maps, layers and contact files by keyframe. Devuelve las partes, mapas, capas y archivos de contacto por fotograma.\nSinónimos: consultar un bloqueo, ver las claves de la toma, recuperar capas y contactos.",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -18574,7 +18574,7 @@
     "module": "library",
     "native_name": "blocking_freeze",
     "name": "blocking_freeze",
-    "description": "Bake a take frame to static GLB. Congela un fotograma en GLB estático.\nReturns mesh, source hash and measured grips. Devuelve malla, huella de origen y agarres medidos. Undo / Deshacer: blocking_pose_undo.",
+    "description": "Bake a take frame to static GLB. Congela un fotograma en GLB estático.\nReturns mesh, source hash and measured grips. Devuelve malla, huella de origen y agarres medidos. Undo / Deshacer: blocking_pose_undo.\nSinónimos: congelar una pose, sacar una malla de un fotograma, exportar un GLB estático.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -18651,7 +18651,7 @@
     "module": "library",
     "native_name": "blocking_pose_get",
     "name": "blocking_pose_get",
-    "description": "Read a frozen pose by ID. Consulta una pose congelada por ID.",
+    "description": "Read a frozen pose by ID. Consulta una pose congelada por ID.\nSinónimos: consultar una pose fija, recuperar la malla del fotograma, ver los agarres de la pose.",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,
@@ -18678,7 +18678,7 @@
     "module": "library",
     "native_name": "blocking_pose_undo",
     "name": "blocking_pose_undo",
-    "description": "Withdraw or restore a frozen pose. Retira o restaura una pose congelada.",
+    "description": "Withdraw or restore a frozen pose. Retira o restaura una pose congelada.\nSinónimos: deshacer la pose congelada, retirar la malla estática, restaurar la pose fija.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -18710,7 +18710,7 @@
     "module": "library",
     "native_name": "blocking_undo",
     "name": "blocking_undo",
-    "description": "Withdraw or restore a blocking package. Retira o restaura un bloqueo.\nReturns the inverse call. Devuelve la operación inversa.",
+    "description": "Withdraw or restore a blocking package. Retira o restaura un bloqueo.\nReturns the inverse call. Devuelve la operación inversa.\nSinónimos: deshacer el bloqueo, retirar la toma, restaurar el paquete de animación.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -18742,7 +18742,7 @@
     "module": "library",
     "native_name": "blocking_guide",
     "name": "blocking_guide",
-    "description": "Export a blocking video guide. Exporta la guía de vídeo de un bloqueo.\nRenders every pose through the last key. Undo: blocking_guide_undo. Renderiza todas las poses hasta la última clave. Deshacer: blocking_guide_undo.",
+    "description": "Export a blocking video guide. Exporta la guía de vídeo de un bloqueo.\nRenders every pose through the last key. Undo: blocking_guide_undo. Renderiza todas las poses hasta la última clave. Deshacer: blocking_guide_undo.\nSinónimos: exportar un vídeo guía, renderizar el bloqueo, sacar un vídeo de referencia de las poses.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -18792,7 +18792,7 @@
     "module": "library",
     "native_name": "blocking_guide_undo",
     "name": "blocking_guide_undo",
-    "description": "Withdraw or restore a video guide. Retira o restaura un vídeo guía.",
+    "description": "Withdraw or restore a video guide. Retira o restaura un vídeo guía.\nSinónimos: deshacer la exportación de la guía, retirar el vídeo de referencia, restaurar el vídeo guía.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -18824,7 +18824,7 @@
     "module": "library",
     "native_name": "blocking_pass",
     "name": "blocking_pass",
-    "description": "Pass a sheet between the hands of a detailed rig. Pasa una hoja entre las manos de un modelo detallado.\nReturns an editable take, key views and an animated GLB. Undo: blocking_undo. Devuelve toma editable, vistas por clave y GLB animado. Deshacer: blocking_undo.",
+    "description": "Pass a sheet between the hands of a detailed rig. Pasa una hoja entre las manos de un modelo detallado.\nReturns an editable take, key views and an animated GLB. Undo: blocking_undo. Devuelve toma editable, vistas por clave y GLB animado. Deshacer: blocking_undo.\nSinónimos: pasar una hoja de una mano a otra, animar el cambio de mano, preparar el relevo de un papel.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
