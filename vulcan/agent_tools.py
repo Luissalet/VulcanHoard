@@ -623,6 +623,10 @@ from .articulation.tools import TOOLS as ARTICULATION_TOOLS  # noqa: E402
 
 TOOLS += ARTICULATION_TOOLS
 
+from .blocking import TOOLS as BLOCKING_TOOLS  # noqa: E402
+
+TOOLS += BLOCKING_TOOLS
+
 TOOLS_BY_NAME = {tool.name: tool for tool in TOOLS}
 
 
