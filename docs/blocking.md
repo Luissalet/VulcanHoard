@@ -18,6 +18,8 @@ Para registrar las salidas, usa `hub_agora_piece_add` con el trabajo de bloqueo 
 
 `blocking_get` vuelve a leer un paquete por `id`. `blocking_undo` lo retira y devuelve la llamada inversa para restaurarlo. Si el resultado ya pasó a otro puesto, deshacer retira el paquete local de Vulcan.
 
+`blocking_freeze {id, frame}` evalúa un fotograma de la escena editable y exporta las mallas estáticas con sus transformaciones aplicadas. Para el GLB animado registrado en una orden, usa `{source, source_sha256, frame, fps}` con la ruta fijada, su huella y los fotogramas por segundo (24 en los bloqueos). El recibo identifica la fuente y el resultado, enumera las partes y mide la distancia de vértices de mano o dedos a la hoja y al tubo en metros, en XYZ con Z arriba. Si el fotograma corresponde a una clave de un paquete con geometría, también devuelve sus contactos declarados. Para recuperar o retirar la exportación usa `blocking_pose_get` y `blocking_pose_undo`.
+
 ## English
 
 In the 3D Library, `blocking_build` creates a CPU-only take with separate head, torso, short cape, arms, hands and legs, rigidly bound to a rig with named joints. Props are optional: `sheet`, `tube` and `stairs`. It requires Blender 4.3 or later and runs headlessly.
@@ -35,3 +37,5 @@ The `geometry` JSON records the camera, size and frame. Its `part_ids` assigns a
 Register outputs with `hub_agora_piece_add` under the blocking job and its order. Register each key's JSON as a `parts` piece. Give it the previews `depth`, `depth_without_accessories`, `part_ids`, `color` and `normals` in that order. For each layer register `visible_rgba` as an `image` piece with previews `mask`, `depth`, `rgba` and `visible_mask`. Link each layer to its geometry piece with `derives_from`. Pass the piece IDs and zero-based preview indices to the next station.
 
 `blocking_get` reads the package by `id`. `blocking_undo` withdraws it and returns the inverse call to restore it. This operates on the package retained by Vulcan.
+
+`blocking_freeze {id, frame}` evaluates a frame from the editable scene and bakes its mesh transforms into a static GLB. For an animated GLB registered in an order, use `{source, source_sha256, frame, fps}` with its pinned path, hash and source rate (24 fps for blocking takes). The receipt pins both files, names the parts and measures hand or digit vertex distances to the sheet and tube in metres in XYZ, Z up. The declared contacts are also included at a keyframe when the package has a geometry receipt. Use `blocking_pose_get` to recover the export and `blocking_pose_undo` to withdraw or restore it.

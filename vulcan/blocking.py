@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from shutil import copyfile
 import subprocess
 import tempfile
 from pathlib import Path
@@ -11,6 +12,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from .asset_inspection import read_gltf, sha256_of
 from .blender_render import find_blender
 from .hoard_link.agentkit import Tool, ann
 
@@ -130,6 +132,20 @@ class Undo(Lookup):
     restore: bool = False
 
 
+class Freeze(Input):
+    id: str | None = Field(None, pattern=r"^[a-f0-9]{32}$")
+    source: str | None = Field(None, max_length=1000)
+    source_sha256: str | None = Field(None, pattern=r"^[a-fA-F0-9]{64}$")
+    frame: int = Field(ge=0, le=100_000)
+    fps: int = Field(FPS, ge=1, le=240)
+
+    @model_validator(mode="after")
+    def check_source(self):
+        if bool(self.id) == bool(self.source) or bool(self.source) != bool(self.source_sha256):
+            raise ValueError("Supply a blocking ID or a GLB path with its SHA-256. / Indica un ID de bloqueo o un GLB con su SHA-256.")
+        return self
+
+
 def _root(services) -> Path:
     return services.config.data_dir.resolve() / "blockings"
 
@@ -198,17 +214,93 @@ def get(services, args: Lookup) -> dict:
     return _receipt(_root(services) / args.id)
 
 
+def _pose_root(services) -> Path:
+    return _root(services) / "poses"
+
+
+def freeze(services, args: Freeze) -> dict:
+    package = get(services, Lookup(id=args.id)) if args.id else None
+    source = Path(package["files"]["scene"] if package else args.source).resolve(strict=True)
+    digest = sha256_of(source)
+    fps = package["fps"] if package else args.fps
+    contacts = None
+    if package:
+        if args.frame > package["poses"][-1]["frame"]:
+            raise ValueError("Frame is outside the take. / El fotograma queda fuera de la toma.")
+        key = next((key for key in package["keyframes"] if key["frame"] == args.frame), {})
+        if key.get("geometry"):
+            contacts = json.loads(Path(key["geometry"]).read_text(encoding="utf-8"))["contacts"]
+    else:
+        if source.suffix.lower() != ".glb" or digest != args.source_sha256.lower():
+            raise ValueError("The pinned GLB does not match. / El GLB fijado no coincide.")
+        doc, _ = read_gltf(source)
+        if len(doc.get("animations", [])) != 1:
+            raise ValueError("A single animated take is required. / Se necesita una toma con una sola animación.")
+        samplers = doc["animations"][0]["samplers"]
+        end = max((doc["accessors"][sampler["input"]]["max"][0] for sampler in samplers), default=0)
+        if args.frame / fps > end + 1e-5:
+            raise ValueError("Frame is outside the take. / El fotograma queda fuera de la toma.")
+    blender = find_blender()
+    if not blender:
+        raise RuntimeError("Install Blender or set VULCAN_BLENDER. / Instala Blender o configura VULCAN_BLENDER.")
+    root = _pose_root(services)
+    root.mkdir(parents=True, exist_ok=True)
+    pose_id = uuid4().hex
+    worker = Path(__file__).with_name("blender_blocking_worker.py")
+    with tempfile.TemporaryDirectory(prefix=".pose-", dir=root) as scratch:
+        scratch = Path(scratch)
+        output = scratch / "output"
+        output.mkdir()
+        pinned = scratch / source.name
+        copyfile(source, pinned)
+        if sha256_of(pinned) != digest:
+            raise ValueError("The animation changed. / Ha cambiado la animación.")
+        result = subprocess.run(
+            [blender, "--background", "--factory-startup", "--disable-autoexec", "--threads", "2",
+             "--python-exit-code", "1", "--python", str(worker), "--", "freeze", str(pinned), str(output),
+             str(args.frame), str(fps)],
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=85,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        if result.returncode or not (output / "pose.glb").is_file():
+            raise RuntimeError("Freezing failed. / Ha fallado la congelación.\n" + (result.stdout + result.stderr)[-2400:])
+        receipt = json.loads((output / "pose.json").read_text(encoding="utf-8"))
+        receipt.update(id=pose_id, blocking_id=args.id, frame=args.frame, fps=fps, seconds=args.frame / fps,
+                       source_sha256=digest, sha256=sha256_of(output / "pose.glb"))
+        if contacts is not None:
+            receipt["key_contacts"] = contacts
+        (output / "pose.json").write_text(json.dumps(receipt), encoding="utf-8")
+        output.rename(root / pose_id)
+    return pose_get(services, Lookup(id=pose_id))
+
+
+def pose_get(services, args: Lookup) -> dict:
+    folder = _pose_root(services) / args.id
+    receipt = folder / "pose.json"
+    if not receipt.is_file():
+        raise ValueError("Frozen pose not found. / No se ha encontrado la pose congelada.")
+    return {**json.loads(receipt.read_text(encoding="utf-8")), "path": str(folder / "pose.glb"),
+            "receipt": str(receipt), "undo": {"tool": "blocking_pose_undo", "arguments": {"id": args.id}}}
+
+
+def pose_undo(services, args: Undo) -> dict:
+    return _withdraw(_pose_root(services), args, "pose.json", "blocking_pose_undo")
+
+
 def undo(services, args: Undo) -> dict:
-    root = _root(services)
+    return _withdraw(_root(services), args, "blocking.json", "blocking_undo")
+
+
+def _withdraw(root: Path, args: Undo, manifest: str, tool: str) -> dict:
     active, withdrawn = root / args.id, root / (".withdrawn-" + args.id)
     source, target = (withdrawn, active) if args.restore else (active, withdrawn)
     try:
         source.rename(target)
     except FileNotFoundError:
-        if not (target / "blocking.json").is_file():
+        if not (target / manifest).is_file():
             raise ValueError("Blocking package not found. / No se ha encontrado el bloqueo.") from None
     return {"ok": True, "id": args.id, "withdrawn": not args.restore,
-            "undo": {"tool": "blocking_undo", "arguments": {"id": args.id, "restore": not args.restore}}}
+            "undo": {"tool": tool, "arguments": {"id": args.id, "restore": not args.restore}}}
 
 
 TOOLS = [
@@ -220,6 +312,13 @@ TOOLS = [
          "Returns named parts, maps, layers and contact files by keyframe. "
          "Devuelve las partes, mapas, capas y archivos de contacto por fotograma.",
          Lookup, ann(True), get, capped=False),
+    Tool("blocking_freeze", "Bake a take frame to static GLB. Congela un fotograma en GLB estático.\n"
+         "Returns mesh, source hash and measured grips. Devuelve malla, huella de origen y agarres medidos. "
+         "Undo / Deshacer: blocking_pose_undo.", Freeze, ann(draft_safe=True), freeze, timeout_s=95, capped=False),
+    Tool("blocking_pose_get", "Read a frozen pose by ID. Consulta una pose congelada por ID.",
+         Lookup, ann(True), pose_get, capped=False),
+    Tool("blocking_pose_undo", "Withdraw or restore a frozen pose. Retira o restaura una pose congelada.",
+         Undo, ann(idempotent=True), pose_undo),
     Tool("blocking_undo", "Withdraw or restore a blocking package. Retira o restaura un bloqueo.\n"
          "Returns the inverse call. Devuelve la operación inversa.",
          Undo, ann(idempotent=True), undo),

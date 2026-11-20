@@ -224,9 +224,32 @@ def load_geometry(path: Path):
 
 
 def _edge_counts(faces: np.ndarray) -> tuple[int, int]:
-    edges = np.sort(np.asarray(faces)[:, [0, 1, 1, 2, 2, 0]].reshape(-1, 2), axis=1)
-    _unused, counts = np.unique(edges, axis=0, return_counts=True)
+    if not len(faces):
+        return 0, 0
+    _, counts, _ = asset_walls._edge_table(np.asarray(faces, dtype=np.int64), int(faces.max()) + 1)
     return int((counts == 1).sum()), int((counts > 2).sum())
+
+
+def load_print_geometry(path: Path):
+    """Use stored indices for a direct 3MF build, and the general loader otherwise."""
+    if path.suffix.lower() == ".3mf" and (direct := asset_3mf.direct_meshes(path)) is not None:
+        import trimesh
+
+        unit, shapes = direct
+        meshes = [trimesh.Trimesh(vertices, faces, process=False) for vertices, faces in shapes]
+        return meshes, meshes[0] if len(meshes) == 1 else trimesh.util.concatenate(meshes), TRIMESH_UNITS.get(unit), None
+    return load_geometry(path)
+
+
+def measure_mesh_edges(mesh, to_mm: float):
+    faces = np.asarray(mesh.faces, dtype=np.int64)
+    edge_table = asset_walls._edge_table(faces, len(mesh.vertices))
+    _, incidence, edge_index = edge_table
+    ascending = (faces < np.roll(faces, -1, axis=1)).ravel()
+    forward = np.bincount(edge_index[ascending], minlength=len(incidence))
+    locations = asset_walls.locate_defects(mesh, to_mm, edge_table)
+    return (int(np.count_nonzero(incidence == 1)), int(np.count_nonzero(incidence > 2)),
+            not np.any((incidence == 2) & (forward != 1)), locations)
 
 
 def welded_mm(path: Path):
@@ -278,31 +301,26 @@ def _inspect_file(path: Path, max_mb: int | None, with_walls: bool = False) -> d
     if max_mb and size > max_mb * 1024 * 1024:
         raise ValueError(_("e.too_big", mb=f"{size / 1048576:.0f}", limit=max_mb))
     started = time.perf_counter()
-    meshes, welded, declared, loaded = load_geometry(path)
+    meshes, welded, declared, _loaded = load_print_geometry(path) if with_walls else load_geometry(path)
     m: dict[str, dict] = {}
     triangles = int(len(welded.faces))
     m["geometry.triangles"] = observed(triangles, _("m.triangles"))
     m["geometry.vertices_stored"] = observed(int(sum(len(x.vertices) for x in meshes)), _("m.vertices_stored"))
     m["geometry.vertices_welded"] = observed(int(len(welded.vertices)), _("m.vertices_welded"))
-    open_edges, nonmanifold = _edge_counts(welded.faces)
+    unit = declared or "mm"
+    open_edges, nonmanifold, winding, locations = measure_mesh_edges(welded, UNIT_TO_MM[unit])
     m["geometry.open_edges"] = observed(open_edges, _("m.open_edges"))
     m["geometry.nonmanifold_edges"] = observed(nonmanifold, _("m.nonmanifold_edges"))
     m["geometry.watertight"] = observed(bool(open_edges == 0 and nonmanifold == 0), _("m.watertight"))
-    m["geometry.winding_consistent"] = observed(bool(welded.is_winding_consistent), _("m.winding"))
-    try:
-        bodies = int(welded.body_count)
-    except Exception:  # noqa: BLE001 - graph library missing
-        bodies = None
-    m["geometry.bodies"] = observed(bodies, _("m.bodies")) if bodies else not_measured(_("m.bodies_unavailable"))
-    areas = welded.area_faces
-    m["geometry.degenerate_triangles"] = observed(int((areas <= 1e-12).sum()), _("m.degenerate"))
-    unit = declared or "mm"
+    m["geometry.winding_consistent"] = observed(winding, _("m.winding"))
     extents = [round(float(x), 6) for x in welded.extents]
     m["geometry.bbox"] = observed(extents, _("m.bbox", unit=unit))
     m["geometry.bbox_mm"] = observed([round(x * UNIT_TO_MM[unit], 4) for x in extents], _("m.bbox_mm_assumed" if declared is None else "m.bbox_mm", unit=unit))
-    m["geometry.volume_mm3"] = (observed(round(abs(float(welded.volume)) * UNIT_TO_MM[unit] ** 3, 4), _("m.volume"))
-                                if open_edges == 0 and nonmanifold == 0 else not_measured(_("m.volume_open")))
-    locations = asset_walls.locate_defects(welded, UNIT_TO_MM[unit])
+    m["geometry.volume_mm3"] = (
+        observed(round(abs(locations["signed_volume"]) * UNIT_TO_MM[unit] ** 3, 4), _("m.volume"))
+        if open_edges == 0 and nonmanifold == 0 else not_measured(_("m.volume_open")))
+    m["geometry.degenerate_triangles"] = observed(locations["degenerate_triangles"], _("m.degenerate"))
+    m["geometry.bodies"] = observed(locations["bodies_total"], _("m.bodies"))
     locations.update(unit=unit, unit_to_mm=UNIT_TO_MM[unit], thin_regions=[])
     if with_walls:
         m["geometry.wall_thickness"], m["geometry.min_wall_mm"], wall = _wall_records(welded, UNIT_TO_MM[unit], open_edges, nonmanifold)

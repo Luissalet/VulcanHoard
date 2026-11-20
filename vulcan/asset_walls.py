@@ -94,18 +94,20 @@ def _components(vertex_count: int, edges: np.ndarray) -> tuple[int, np.ndarray]:
     return connected_components(graph, directed=False, return_labels=True)
 
 
-def _edge_table(faces: np.ndarray):
-    """(sorted unique edges, count per edge, edge index of each of the 3F half-edges)."""
-    half = np.sort(faces[:, [0, 1, 1, 2, 2, 0]].reshape(-1, 2), axis=1)
-    unique, inverse, counts = np.unique(half, axis=0, return_inverse=True, return_counts=True)
-    return unique, counts, np.asarray(inverse).reshape(-1)
+def _edge_table(faces: np.ndarray, vertex_count: int):
+    """Compact unique edge keys, their incidence and the edge of each half-edge."""
+    side = np.roll(faces, -1, axis=1)
+    keys = (np.minimum(faces, side) * vertex_count + np.maximum(faces, side)).ravel()
+    unique, inverse, counts = np.unique(keys, return_inverse=True, return_counts=True)
+    return unique, counts, inverse
 
 
-def locate_defects(mesh, to_mm: float) -> dict:
-    """{open_loops[], open_loops_total, bodies[], bodies_total, overlay{}} of a welded mesh. Coordinates in mm (and in file units in overlay)."""
+def locate_defects(mesh, to_mm: float, edge_table=None) -> dict:
+    """Boundary loops and connected bodies of a welded mesh, with locations."""
     vertices = np.asarray(mesh.vertices, dtype=np.float64)
     faces = np.asarray(mesh.faces, dtype=np.int64)
-    unique, counts, inverse = _edge_table(faces)
+    unique, counts, inverse = edge_table if edge_table is not None else _edge_table(faces, len(vertices))
+    unique = np.column_stack(np.divmod(unique, len(vertices)))
     boundary = unique[counts == 1]
     loops, segments_all = [], []
     if len(boundary):
@@ -129,21 +131,34 @@ def locate_defects(mesh, to_mm: float) -> dict:
         l.pop("_segments", None)
 
     # bodies: connected groups of vertices (the same notion as geometry.bodies), per-body facts without building meshes
-    _count, vertex_label = _components(len(vertices), np.unique(np.sort(faces[:, [0, 1, 1, 2, 2, 0]].reshape(-1, 2), axis=1), axis=0))
+    _count, vertex_label = _components(len(vertices), unique)
     face_label = vertex_label[faces[:, 0]]
     bad_edge = counts[inverse] != 2
     bad_face = bad_edge.reshape(-1, 3).any(axis=1)
-    tri = vertices[faces]
-    signed = np.einsum("ij,ij->i", tri[:, 0], np.cross(tri[:, 1], tri[:, 2])) / 6.0
+    # Aggregate by label once. Repeated scans of the full mesh cost O(faces × bodies).
+    used = np.flatnonzero(np.bincount(faces.ravel(), minlength=len(vertices)))
+    points_by_body = used[np.argsort(vertex_label[used], kind="stable")]
+    point_counts = np.bincount(vertex_label[used], minlength=_count)
+    boundaries = np.r_[0, point_counts.cumsum()]
+    face_counts = np.bincount(face_label, minlength=_count)
+    volumes = np.zeros(_count, np.float64)
+    degenerate = 0
+    for start in range(0, len(faces), 200_000):
+        block = slice(start, start + 200_000)
+        a, b, c = vertices[faces[block]].transpose(1, 0, 2)
+        signed = np.einsum("ij,ij->i", a, np.cross(b, c)) / 6.0
+        volumes += np.bincount(face_label[block], weights=signed, minlength=_count)
+        normals = np.cross(b - a, c - a)
+        degenerate += int(np.count_nonzero(np.einsum("ij,ij->i", normals, normals) <= 4e-24))
+    defects = np.bincount(face_label[bad_face], minlength=_count)
     bodies = []
-    for label in np.unique(face_label):
-        selected = face_label == label
-        points = vertices[np.unique(faces[selected])]
-        closed = not bool(bad_face[selected].any())
-        body = {"triangles": int(selected.sum()), "bbox_mm": {"min": _round(points.min(axis=0) * to_mm), "max": _round(points.max(axis=0) * to_mm)},
-                "centroid_mm": _round(points.mean(axis=0) * to_mm), "closed": closed,
-                "volume_mm3": round(abs(float(signed[selected].sum())) * to_mm ** 3, 4) if closed else None,
-                "inverted": bool(closed and signed[selected].sum() < 0),
+    for label in np.flatnonzero(face_counts):
+        points = vertices[points_by_body[boundaries[label]:boundaries[label + 1]]]
+        closed = defects[label] == 0
+        body = {"triangles": int(face_counts[label]), "bbox_mm": {"min": _round(points.min(axis=0) * to_mm), "max": _round(points.max(axis=0) * to_mm)},
+                "centroid_mm": _round(points.mean(axis=0) * to_mm), "closed": bool(closed),
+                "volume_mm3": round(abs(float(volumes[label])) * to_mm ** 3, 4) if closed else None,
+                "inverted": bool(closed and volumes[label] < 0),
                 "_bbox": [points.min(axis=0), points.max(axis=0)]}
         bodies.append(body)
     bodies.sort(key=lambda b: -b["triangles"])
@@ -154,4 +169,6 @@ def locate_defects(mesh, to_mm: float) -> dict:
         b.pop("_bbox")
     return {"open_loops": loops[:LOOPS_LISTED], "open_loops_total": total_loops,
             "bodies": bodies[:BODIES_LISTED], "bodies_total": len(bodies),
+            "signed_volume": float(volumes.sum()), "degenerate_triangles": degenerate,
+            "inverted_bodies": [b["id"] for b in bodies if b["inverted"]],
             "overlay": {"loops": segments_all, "bodies": boxes if len(bodies) > 1 else [], "points": []}}

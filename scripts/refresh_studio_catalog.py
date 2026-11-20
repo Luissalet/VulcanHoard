@@ -12,15 +12,20 @@ from vulcan.agent_tools import tool_catalog  # noqa: E402
 def main():
     path = ROOT / "vulcan" / "studio" / "catalog.json"
     rows = json.loads(path.read_text(encoding="utf-8"))
-    live = {tool["name"]: tool for tool in tool_catalog()}
+    library = {row["native_name"]: row for row in rows if row["module"] == "library"}
+    live = iter(tool_catalog())
+    last = max(index for index, row in enumerate(rows) if row["module"] == "library")
+    refreshed = []
     for index, row in enumerate(rows):
-        if row["module"] == "library":
-            tool = live.pop(row["native_name"])
-            rows[index] = {**row, **tool}
-            library_end = index + 1
-    rows[library_end:library_end] = [
-        {"module": "library", "native_name": name, **tool} for name, tool in live.items()
-    ]
+        if row["module"] != "library":
+            refreshed.append(row)
+            continue
+        for tool in live:
+            name = tool["name"]
+            refreshed.append({**library.get(name, {}), "module": "library", "native_name": name, **tool})
+            if name in library and index != last:
+                break
+    rows = refreshed
     for row in rows:
         if "x-timeout-s" in row:
             row["inputSchema"]["x-timeout-s"] = row["x-timeout-s"]

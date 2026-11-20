@@ -20,7 +20,7 @@ def test_blocking_discoverable_and_pose_arguments_checked():
     assert (tools["blocking_build"]["inputSchema"]["properties"]["pass_direction"]
             == blocking.Build.model_json_schema()["properties"]["pass_direction"])
     assert tools["blocking_get"]["annotations"]["readOnlyHint"]
-    assert "blocking_undo" in tools
+    assert {"blocking_undo", "blocking_freeze", "blocking_pose_get", "blocking_pose_undo"} <= tools.keys()
     with pytest.raises(ValidationError, match="requires the tube"):
         blocking.Build(gesture="unroll", accessories=["sheet"])
     with pytest.raises(ValidationError, match="increase from 0"):
@@ -198,6 +198,26 @@ def test_build_exports_animated_skin_and_maps(tmp_path, gesture, pass_direction)
             ("sheet_right", "rest", -0.23), ("sheet_right", "sheet_left", 0), ("rest", "sheet_left", 0.23)
         ]
         assert all(pose["tube"][0] > 0 for pose in poses)
+        if pass_direction is None:
+            held = blocking.freeze(services, blocking.Freeze(id=result["id"], frame=24))
+            assert {row["hand"] for row in held["key_contacts"]} == {"left_hand", "right_hand"}
+            assert held["solid_base"] and held["frame"] == 24 and held["seconds"] == 1
+            source = Path(result["files"]["mesh"])
+            pinned = {"source": str(source), "source_sha256": blocking.sha256_of(source)}
+            from_glb = blocking.freeze(services, blocking.Freeze(**pinned, frame=24))
+            start = blocking.freeze(services, blocking.Freeze(**pinned, frame=0))
+            assert start["sha256"] != from_glb["sha256"]
+            doc = glb_json(from_glb["path"])
+            assert not doc.get("animations") and not doc.get("skins")
+            assert {node["name"] for node in doc["nodes"]} == set(result["parts"])
+            sheet_gaps = {sample["hand"]: sample["gap_m"] for sample in from_glb["grip_samples"]
+                          if sample["part"] == "sheet"}
+            assert set(sheet_gaps) == {"left_hand", "right_hand"}
+            assert max(sheet_gaps.values()) < 0.04
+            withdrawn = blocking.pose_undo(services, blocking.Undo(**from_glb["undo"]["arguments"]))
+            assert not Path(from_glb["path"]).exists()
+            blocking.pose_undo(services, blocking.Undo(**withdrawn["undo"]["arguments"]))
+            assert blocking.pose_get(services, blocking.Lookup(id=from_glb["id"])) == from_glb
     if gesture == "reverse":
         assert [pose["sheet_rotation"] for pose in result["poses"]] == [[0, 0, 0], [0, 0, -90], [0, 0, -180]]
 
