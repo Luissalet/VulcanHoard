@@ -18174,7 +18174,7 @@
     "module": "library",
     "native_name": "blocking_build",
     "name": "blocking_build",
-    "description": "Build a primitive take on CPU. Crea una toma con articulación en CPU.\nReturns editable scene, animated GLB and same-camera colour, depth and normal maps at each key. Crea un bloqueo de primitivas con dos manos, piezas articuladas, accesorios y una toma corta. Devuelve la escena editable, el GLB animado y mapas de color, profundidad y normales de cada clave. Undo / Deshacer: blocking_undo.",
+    "description": "Build a primitive take on CPU. Crea una toma con articulación en CPU.\nReturns an editable scene, animated GLB, per-key maps and transparent part layers with grip contacts. Devuelve la escena editable, el GLB animado, mapas por clave, capas transparentes y contactos de agarre. Undo / Deshacer: blocking_undo.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -18547,7 +18547,7 @@
     "module": "library",
     "native_name": "blocking_get",
     "name": "blocking_get",
-    "description": "Read a blocking package. Consulta un bloqueo y su articulación.\nReturns named parts, files and maps by keyframe. Devuelve piezas, archivos y mapas por fotograma.",
+    "description": "Read a blocking package. Consulta un bloqueo y su articulación.\nReturns named parts, maps, layers and contact files by keyframe. Devuelve las partes, mapas, capas y archivos de contacto por fotograma.",
     "annotations": {
       "readOnlyHint": true,
       "destructiveHint": false,

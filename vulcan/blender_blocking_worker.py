@@ -5,6 +5,7 @@ import math
 import struct
 import sys
 import zlib
+from itertools import combinations
 from pathlib import Path
 
 import bpy
@@ -14,6 +15,8 @@ from mathutils import Euler, Matrix, Vector
 UP = Vector((0, 0, 1))
 ALONG = Vector((0, 1, 0))
 SHEET_WIDTH = 0.46
+PROPS = {"sheet", "sheet_roll", "tube"}
+DIGITS = ("thumb", "index")
 
 
 def rotation(degrees):
@@ -36,6 +39,33 @@ def grip(target, side, sheet, sheet_rotation, width, tube):
     if isinstance(target, str):
         return sheet + sheet_rotation @ sheet_edge(target, width)
     return Vector(target)
+
+
+def grip_details(target, side, pose, point):
+    """Locate the palm, digit segments and their prop contacts in world space."""
+    outward = Vector((side, 0, 0))
+    front = Vector((0, -1, 0))
+    if target == "tube":
+        tube_rotation = pose["tube"].to_quaternion()
+        outward, front = tube_rotation @ outward, tube_rotation @ front
+        palm = point + outward * 0.075
+        # Two points on the twelve-sided tube, on opposite sides of the grip.
+        surface = [point + front * sign * 0.044 for sign in (1, -1)]
+        tips = [point + front * sign * 0.058 for sign in (1, -1)]
+    elif target in ("sheet_left", "sheet_right"):
+        sheet_rotation = pose["sheet"].to_quaternion()
+        outward = sheet_rotation @ Vector((1 if target == "sheet_left" else -1, 0, 0))
+        front = sheet_rotation @ front
+        palm = point + outward * 0.045
+        surface = [point - outward * 0.028 + front * sign * 0.006 for sign in (1, -1)]
+        tips = [contact + front * sign * 0.014 for sign, contact in zip((1, -1), surface)]
+    else:
+        palm = point
+        tips = [palm + Vector((-side * 0.01, sign * 0.025, -0.063)) for sign in (1, -1)]
+        surface = tips
+    fingers = [(palm + front * sign * 0.023, tip, contact)
+               for sign, tip, contact in zip((1, -1), tips, surface)]
+    return palm, fingers
 
 
 def shot(first, second, t, gesture):
@@ -62,6 +92,11 @@ def shot(first, second, t, gesture):
         end = grip(second[name], side, sheet, q, width, tube)
         # Once both adjacent keys declare the same grip, it remains attached between them.
         pose[name] = start.lerp(end, t)
+        palm_a, digits_a = grip_details(first[name], side, pose, start)
+        palm_b, digits_b = grip_details(second[name], side, pose, end)
+        pose[label + "_palm"] = palm_a.lerp(palm_b, t)
+        for digit, start_digit, end_digit in zip(DIGITS, digits_a, digits_b):
+            pose[f"{label}_{digit}"] = tuple(a.lerp(b, t) for a, b in zip(start_digit, end_digit))
     return pose
 
 
@@ -88,9 +123,18 @@ def figure_pose(state):
         shoulder = Vector((side * 0.24, -0.02, 1.41))
         hand = state[label + "_hand"]
         upper, lower = limb(shoulder, hand, 0.31, 0.30, Vector((side, 0.18, -1)))
+        palm = state[label + "_palm"]
+        if palm != hand and 0.01 < (palm - shoulder).length <= 0.61:
+            upper, lower = limb(shoulder, palm, 0.31, 0.30, Vector((side, 0.18, -1)))
         pose[label + "_upper_arm"] = upper
         pose[label + "_forearm"] = lower
-        pose[label + "_hand"] = transform(hand, lower.to_quaternion())
+        pose[label + "_hand"] = transform(palm, lower.to_quaternion())
+        for digit in DIGITS:
+            name = f"{label}_{digit}"
+            base, tip, _ = state[name]
+            axis = tip - base
+            pose[name] = transform((base + tip) / 2, ALONG.rotation_difference(axis.normalized()),
+                                   (1, max(axis.length, 0.01) / 0.06, 1))
         ankle = Vector((side * 0.15, side * 0.07, 0.10))
         thigh, shin = limb(Vector((side * 0.135, 0.015, 0.94)), ankle, 0.44, 0.43, Vector((0, -1, 0)))
         pose[label + "_thigh"] = thigh
@@ -178,12 +222,16 @@ def make_parts(accessories, roll, upright):
             obj.data.transform(transform((0, length / 2, 0), rotation((-90, 0, 0))))
             parts[label], parents[label] = obj, parent
         for name, kind, size, shift, shader, parent in (
-            ("hand", "ball", (0.054, 0.068, 0.049), (0, 0, 0), hands, "forearm"),
+            ("hand", "ball", (0.046, 0.058, 0.038), (0, 0, 0), hands, "forearm"),
             ("foot", "box", (0.077, 0.135, 0.050), (0, -0.05, -0.05), leather, "shin"),
         ):
             label = side + "_" + name
             parts[label] = primitive(kind, label, size, shader, shift)
             parents[label] = side + "_" + parent
+        for digit in DIGITS:
+            label = side + "_" + digit
+            parts[label] = primitive("ball", label, (0.017, 0.037, 0.016), hands)
+            parents[label] = side + "_hand"
     if "sheet" in accessories:
         parts["sheet"] = sheet_mesh("sheet", paper, reverse, upright)
         parents["sheet"] = None
@@ -262,71 +310,161 @@ def add_camera(spec):
 
 
 def png(path, pixels, bits=8):
-    """Write untagged RGB or grayscale PNG so guidance values are preserved exactly."""
+    """Write untagged PNG so guidance values are preserved exactly."""
     def chunk(kind, data):
         return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data))
 
     height, width = pixels.shape[:2]
-    color_type = 2 if pixels.ndim == 3 else 0
+    color_type = {3: 2, 4: 6}[pixels.shape[2]] if pixels.ndim == 3 else 0
     rows = b"".join(b"\0" + row.tobytes() for row in pixels)
     path.write_bytes(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, bits, color_type, 0, 0, 0))
                      + chunk(b"IDAT", zlib.compress(rows, 3)) + chunk(b"IEND", b""))
 
 
-def maps(parts, camera, size, out, frame):
-    """Rasterize the same evaluated triangles into all three passes on CPU."""
+def raster_part(obj, depsgraph, view, camera, size):
     depth = np.full((size, size), np.inf)
-    colors = np.full((size, size, 3), (236, 239, 241), dtype=np.uint8)
+    colors = np.zeros((size, size, 3), dtype=np.uint8)
     normals = np.zeros_like(colors)
-    depsgraph = bpy.context.evaluated_depsgraph_get()
-    view = camera.matrix_world.inverted()
     light = np.array((-0.38, 0.55, 0.74))
-    for obj in parts.values():
-        evaluated = obj.evaluated_get(depsgraph)
-        mesh = evaluated.data
-        mesh.calc_loop_triangles()
-        matrix = np.array(view @ evaluated.matrix_world)
-        points = np.array([vertex.co[:] for vertex in mesh.vertices]) @ matrix[:3, :3].T + matrix[:3, 3]
-        xy = points[:, :2] * [1, -1] / camera.data.ortho_scale * size + size / 2
-        palette = np.array([np.array(mat.diffuse_color[:3]) for mat in mesh.materials])
-        for tri in mesh.loop_triangles:
-            ids = list(tri.vertices)
-            a, b, c = xy[ids]
-            low = np.maximum(np.floor(np.minimum.reduce((a, b, c))).astype(int), 0)
-            high = np.minimum(np.ceil(np.maximum.reduce((a, b, c))).astype(int), size - 1)
-            if np.any(low > high):
-                continue
-            ab, ac = b - a, c - a
-            det = ab[0] * ac[1] - ab[1] * ac[0]
-            if abs(det) < 1e-8:
-                continue
-            x0, y0 = low
-            x1, y1 = high + 1
-            x, y = np.meshgrid(np.arange(x0, x1) + 0.5 - a[0], np.arange(y0, y1) + 0.5 - a[1])
-            u = (x * ac[1] - y * ac[0]) / det
-            v = (ab[0] * y - ab[1] * x) / det
-            pa, pb, pc = points[ids]
-            z = -(pa[2] + u * (pb[2] - pa[2]) + v * (pc[2] - pa[2]))
-            window = depth[y0:y1, x0:x1]
-            mask = (u >= 0) & (v >= 0) & (u + v <= 1) & (z >= camera.data.clip_start) & (z < window)
-            if not mask.any():
-                continue
-            normal = np.cross(pb - pa, pc - pa)
-            normal /= np.linalg.norm(normal)
-            window[mask] = z[mask]
-            normals[y0:y1, x0:x1][mask] = np.rint((normal * 0.5 + 0.5) * 255)
-            shade = 0.62 + 0.38 * max(0, normal @ light)
-            linear = palette[mesh.polygons[tri.polygon_index].material_index] * shade
-            colors[y0:y1, x0:x1][mask] = np.rint(255 * (1.055 * linear ** (1 / 2.4) - 0.055))
-    names = {kind: f"{kind}-{frame:03d}.png" for kind in ("color", "depth", "normals")}
-    png(out / names["color"], colors)
-    png(out / names["normals"], normals)
-    # Disjoint depth zero for background. The same near/far mapping holds for the whole take.
+    evaluated = obj.evaluated_get(depsgraph)
+    mesh = evaluated.data
+    mesh.calc_loop_triangles()
+    matrix = np.array(view @ evaluated.matrix_world)
+    points = np.array([vertex.co[:] for vertex in mesh.vertices]) @ matrix[:3, :3].T + matrix[:3, 3]
+    xy = points[:, :2] * [1, -1] / camera.data.ortho_scale * size + size / 2
+    palette = np.array([np.array(mat.diffuse_color[:3]) for mat in mesh.materials])
+    for tri in mesh.loop_triangles:
+        ids = list(tri.vertices)
+        a, b, c = xy[ids]
+        low = np.maximum(np.floor(np.minimum.reduce((a, b, c))).astype(int), 0)
+        high = np.minimum(np.ceil(np.maximum.reduce((a, b, c))).astype(int), size - 1)
+        if np.any(low > high):
+            continue
+        ab, ac = b - a, c - a
+        det = ab[0] * ac[1] - ab[1] * ac[0]
+        if abs(det) < 1e-8:
+            continue
+        x0, y0 = low
+        x1, y1 = high + 1
+        x, y = np.meshgrid(np.arange(x0, x1) + 0.5 - a[0], np.arange(y0, y1) + 0.5 - a[1])
+        u = (x * ac[1] - y * ac[0]) / det
+        v = (ab[0] * y - ab[1] * x) / det
+        pa, pb, pc = points[ids]
+        z = -(pa[2] + u * (pb[2] - pa[2]) + v * (pc[2] - pa[2]))
+        window = depth[y0:y1, x0:x1]
+        mask = (u >= 0) & (v >= 0) & (u + v <= 1) & (z >= camera.data.clip_start) & (z < window)
+        if not mask.any():
+            continue
+        normal = np.cross(pb - pa, pc - pa)
+        normal /= np.linalg.norm(normal)
+        window[mask] = z[mask]
+        normals[y0:y1, x0:x1][mask] = np.rint((normal * 0.5 + 0.5) * 255)
+        shade = 0.62 + 0.38 * max(0, normal @ light)
+        linear = palette[mesh.polygons[tri.polygon_index].material_index] * shade
+        colors[y0:y1, x0:x1][mask] = np.rint(255 * (1.055 * linear ** (1 / 2.4) - 0.055))
+    return depth, colors, normals
+
+
+def encode_depth(depth, distance):
+    # Zero is reserved for background; every pass uses the same near/far range.
     finite = np.isfinite(depth)
     encoded = np.zeros(depth.shape, dtype=">u2")
-    encoded[finite] = np.rint(1 + 65534 * np.clip(0.5 + (camera["distance"] - depth[finite]) / 6, 0, 1))
-    png(out / names["depth"], encoded, 16)
-    return names
+    encoded[finite] = np.rint(1 + 65534 * np.clip(0.5 + (distance - depth[finite]) / 6, 0, 1))
+    return encoded
+
+
+def rgba(colors, mask):
+    pixels = np.zeros((*mask.shape, 4), dtype=np.uint8)
+    pixels[mask, :3] = colors[mask]
+    pixels[mask, 3] = 255
+    return pixels
+
+
+def overlaps(depths):
+    pairs = []
+    for (a, a_depth), (b, b_depth) in combinations(depths.items(), 2):
+        shared = (a_depth != 0) & (b_depth != 0)
+        count = np.count_nonzero(shared)
+        if count:
+            first, second = a_depth[shared], b_depth[shared]
+            a_front = np.count_nonzero(first > second)
+            b_front = np.count_nonzero(second > first)
+            pairs.append({"a": a, "b": b, "a_in_front": a_front, "b_in_front": b_front,
+                          "ties": count - a_front - b_front})
+    return pairs
+
+
+def contacts(key, gesture, view, scale, size):
+    state = shot(key, key, 0, gesture)
+
+    def project(point):
+        x, y, z = view @ point
+        return {"world_m": [round(v, 6) for v in point],
+                "pixel": [round(size * (0.5 + x / scale), 3), round(size * (0.5 - y / scale), 3)],
+                "camera_depth_m": round(-z, 6)}
+
+    result = []
+    for side, sign in (("left", 1), ("right", -1)):
+        hand = f"{side}_hand"
+        target = key[hand]
+        if target not in ("sheet_left", "sheet_right", "tube"):
+            continue
+        point = state[hand] if target != "tube" else state["tube"] @ Vector((sign * 0.044, 0, 0))
+        digits = {f"{side}_{digit}": project(state[f"{side}_{digit}"][2]) for digit in DIGITS}
+        result.append({"hand": hand, "target": target, "part": "tube" if target == "tube" else "sheet",
+                       **project(point), "digit_contacts": digits})
+    return result
+
+
+def maps(parts, camera, spec, out, key):
+    """Rasterize each part once, then compose the full camera and the prop-free guide."""
+    frame, size, distance = key["frame"], spec["size"], spec["camera"]["distance"]
+    depth = np.full((size, size), np.inf)
+    clean_depth = depth.copy()
+    colors = np.full((size, size, 3), (236, 239, 241), dtype=np.uint8)
+    normals = np.zeros_like(colors)
+    ids = np.zeros((size, size), dtype=np.uint8)
+    depsgraph = bpy.context.evaluated_depsgraph_get()
+    view = camera.matrix_world.inverted()
+    part_ids = {name: index for index, name in enumerate(parts, 1)}
+    layers, depths = {}, {}
+    for part, index in part_ids.items():
+        part_depth, part_color, part_normals = raster_part(parts[part], depsgraph, view, camera, size)
+        wins = part_depth < depth
+        depth[wins] = part_depth[wins]
+        colors[wins] = part_color[wins]
+        normals[wins] = part_normals[wins]
+        ids[wins] = index
+        if part not in PROPS:
+            np.minimum(clean_depth, part_depth, out=clean_depth)
+
+        encoded = depths[part] = encode_depth(part_depth, distance)
+        mask = encoded != 0
+        names = {kind: f"{part}-{kind}-{frame:03d}.png"
+                 for kind in ("rgba", "mask", "depth", "visible_rgba", "visible_mask")}
+        layers[part] = names
+        png(out / names["rgba"], rgba(part_color, mask))
+        png(out / names["mask"], mask.astype(np.uint8) * 255)
+        png(out / names["depth"], encoded, 16)
+    for part, index in part_ids.items():
+        mask = ids == index
+        png(out / layers[part]["visible_rgba"], rgba(colors, mask))
+        png(out / layers[part]["visible_mask"], mask.astype(np.uint8) * 255)
+
+    images = {"color": colors, "depth": encode_depth(depth, distance), "normals": normals,
+              "depth_without_accessories": encode_depth(clean_depth, distance), "part_ids": ids}
+    names = {kind: f"{kind.replace('_', '-')}-{frame:03d}.png" for kind in images}
+    for kind, pixels in images.items():
+        png(out / names[kind], pixels, pixels.dtype.itemsize * 8)
+    geometry = f"geometry-{frame:03d}.json"
+    (out / geometry).write_text(json.dumps({
+        "frame": frame, "size": size, "camera": {**spec["camera"], "projection": "ortho"},
+        "depth_encoding": {"background": 0, "near_m": distance - 3, "far_m": distance + 3},
+        "part_ids": part_ids, "occlusion": overlaps(depths),
+        "contacts": contacts(key, spec["gesture"], view, camera.data.ortho_scale, size),
+    }, indent=2), encoding="utf-8")
+    return {"frame": frame, "seconds": frame / spec["fps"], "maps": names, "layers": layers,
+            "geometry": geometry}
 
 
 def main(spec, out):
@@ -353,13 +491,11 @@ def main(spec, out):
     clip = gesture
     rig.animation_data.action.name = clip
     camera = add_camera(spec["camera"])
-    camera["distance"] = spec["camera"]["distance"]
     keyframes = []
     for key in keys:
         frame = key["frame"]
         scene.frame_set(frame)
-        keyframes.append({"frame": frame, "seconds": frame / spec["fps"],
-                          "maps": maps(parts, camera, spec["size"], out, frame)})
+        keyframes.append(maps(parts, camera, spec, out, key))
     scene.frame_set(0)
     bpy.ops.wm.save_as_mainfile(filepath=str(out / "blocking.blend"))
     bpy.ops.export_scene.gltf(filepath=str(out / "blocking.glb"), export_format="GLB",
@@ -372,7 +508,7 @@ def main(spec, out):
         "camera": {**spec["camera"], "projection": "ortho", "size": spec["size"]},
         "files": {"mesh": "blocking.glb", "scene": "blocking.blend", "recipe": "blocking.json"},
         "units": "m", "device": "cpu",
-        "depth_encoding": {"background": 0, "near_m": camera["distance"] - 3, "far_m": camera["distance"] + 3},
+        "depth_encoding": {"background": 0, "near_m": spec["camera"]["distance"] - 3, "far_m": spec["camera"]["distance"] + 3},
         "normal_encoding": {"background": [0, 0, 0], "space": "camera", "axes": "right, up, toward camera"},
     }
     if "pass_direction" in spec:
