@@ -24,14 +24,17 @@ def transform(point, orientation=None, scale=(1, 1, 1)):
     return Matrix.LocRotScale(Vector(point), orientation or rotation((0, 0, 0)), Vector(scale))
 
 
+def sheet_edge(target, width):
+    return Vector(((1 if target == "sheet_left" else -1) * width / 2, 0, 0))
+
+
 def grip(target, side, sheet, sheet_rotation, width, tube):
     if target == "rest":
         return Vector((side * 0.39, -0.10, 0.98))
     if target == "tube":
         return tube
     if isinstance(target, str):
-        edge = 1 if target == "sheet_left" else -1
-        return sheet + sheet_rotation @ Vector((edge * width / 2, 0, 0))
+        return sheet + sheet_rotation @ sheet_edge(target, width)
     return Vector(target)
 
 
@@ -41,8 +44,8 @@ def shot(first, second, t, gesture):
     qa, qb = rotation(first["sheet_rotation"]), rotation(second["sheet_rotation"])
     q = qa.slerp(qb, t)
     sheet = a.lerp(b, t)
-    if gesture == "flip":
-        edge = Vector((-width / 2, 0, 0))
+    if gesture in ("flip", "reverse"):
+        edge = sheet_edge(first["right_hand"], width)
         sheet = (a + qa @ edge).lerp(b + qb @ edge, t) - q @ edge
     tube = Vector(first["tube"]).lerp(Vector(second["tube"]), t)
     tube_rotation = rotation(first["tube_rotation"]).slerp(rotation(second["tube_rotation"]), t)
@@ -120,23 +123,35 @@ def primitive(kind, name, size, shader, shift=(0, 0, 0)):
     return obj
 
 
-def sheet_mesh(name, front, back):
-    # A clipped upper corner and a darker reverse make the flip readable.
-    outline = [(-0.23, -0.155), (0.23, -0.155), (0.23, 0.095), (0.16, 0.155), (-0.23, 0.155)]
+def sheet_mesh(name, front, back, upright):
+    outline = [(-0.23, -0.155), (0.16, -0.155), (0.23, -0.095), (0.23, 0.155), (-0.23, 0.155)] if upright else [
+        (-0.23, -0.155), (0.23, -0.155), (0.23, 0.095), (0.16, 0.155), (-0.23, 0.155)
+    ]
     vertices = [(x, y, z) for y in (-0.006, 0.006) for x, z in outline]
     sides = [(i, i + 5, (i + 1) % 5 + 5, (i + 1) % 5) for i in range(5)]
+    front_faces = [(0, 1, 2, 3, 4)]
+    if upright:
+        # Inset a coloured triangle into the front without adding another surface.
+        corners = (0, 3, 4)
+        center = sum((Vector(vertices[i]) for i in corners), Vector()) / 3
+        vertices.extend(center.lerp(Vector(vertices[i]), 0.5) for i in corners)
+        front_faces = [(0, 1, 2), (0, 2, 3), (0, 3, 11, 10), (3, 4, 12, 11), (4, 0, 10, 12),
+                       (10, 11, 12)]
     mesh = bpy.data.meshes.new(name)
-    mesh.from_pydata(vertices, [], [(0, 1, 2, 3, 4), (9, 8, 7, 6, 5), *sides])
+    mesh.from_pydata(vertices, [], [*front_faces, (9, 8, 7, 6, 5), *sides])
     mesh.materials.append(front)
     mesh.materials.append(back)
-    for poly in mesh.polygons[1:]:
+    for poly in mesh.polygons[len(front_faces):]:
         poly.material_index = 1
+    if upright:
+        mesh.materials.append(material("Map mark", (0.08, 0.19, 0.72)))
+        mesh.polygons[len(front_faces) - 1].material_index = 2
     obj = bpy.data.objects.new(name, mesh)
     bpy.context.collection.objects.link(obj)
     return obj
 
 
-def make_parts(accessories, roll):
+def make_parts(accessories, roll, upright):
     jacket = material("Coat", (0.055, 0.22, 0.30))
     pants = material("Trousers", (0.082, 0.115, 0.18))
     hands = material("Gloves", (0.67, 0.25, 0.13))
@@ -170,7 +185,7 @@ def make_parts(accessories, roll):
             parts[label] = primitive(kind, label, size, shader, shift)
             parents[label] = side + "_" + parent
     if "sheet" in accessories:
-        parts["sheet"] = sheet_mesh("sheet", paper, reverse)
+        parts["sheet"] = sheet_mesh("sheet", paper, reverse, upright)
         parents["sheet"] = None
         if roll:
             parts["sheet_roll"] = primitive("cylinder", "sheet_roll", (1, 1, 0.16), reverse)
@@ -326,7 +341,7 @@ def main(spec, out):
     scene.display.shading.color_type = "MATERIAL"
     keys = spec["poses"]
     gesture = spec["gesture"]
-    parts, parents = make_parts(spec["accessories"], any(key["sheet_roll"] for key in keys))
+    parts, parents = make_parts(spec["accessories"], any(key["sheet_roll"] for key in keys), gesture == "flip")
     rest = figure_pose(shot(keys[0], keys[0], 0, gesture))
     rig = rig_parts(parts, parents, rest)
     previous = {}

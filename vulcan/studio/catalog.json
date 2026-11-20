@@ -18466,12 +18466,13 @@
       "properties": {
         "gesture": {
           "default": "flip",
-          "description": "Unroll, flip, pass or custom. Desenrollar, voltear, pasar o toma propia.",
+          "description": "Unroll, turn upright (flip), pass, custom or turn over (reverse). Desenrollar, enderezar (flip), pasar, toma propia o girar al dorso (reverse).",
           "enum": [
             "unroll",
             "flip",
             "pass",
-            "custom"
+            "custom",
+            "reverse"
           ],
           "title": "Gesture",
           "type": "string"

@@ -48,8 +48,9 @@ class Key(Input):
 
 
 class Build(Input):
-    gesture: Literal["unroll", "flip", "pass", "custom"] = Field(
-        "flip", description="Unroll, flip, pass or custom. Desenrollar, voltear, pasar o toma propia."
+    gesture: Literal["unroll", "flip", "pass", "custom", "reverse"] = Field(
+        "flip", description="Unroll, turn upright (flip), pass, custom or turn over (reverse). "
+        "Desenrollar, enderezar (flip), pasar, toma propia o girar al dorso (reverse)."
     )
     accessories: set[Accessory] = Field(
         default_factory=lambda: {"sheet", "tube", "stairs"},
@@ -86,7 +87,13 @@ def preset(gesture: str) -> list[Key]:
             for frame, width in zip(frames, (0.10, 0.28, 0.46))
         ]
     if gesture == "flip":
-        # Rotate around the right-hand grip at the edge, lifting it briefly.
+        # The right hand holds the same edge as the front turns in its own plane.
+        return [
+            Key(frame=0, sheet=(-0.17, -0.40, 1.23), sheet_rotation=(0, 180, 0), right_hand="sheet_left"),
+            Key(frame=24, sheet=(-0.25, -0.45, 1.43), sheet_rotation=(0, 90, 0), right_hand="sheet_left"),
+            Key(frame=48, sheet=(-0.31, -0.40, 1.23), right_hand="sheet_left"),
+        ]
+    if gesture == "reverse":
         return [
             Key(frame=0, sheet=(-0.10, -0.40, 1.23), right_hand="sheet_right"),
             Key(frame=24, sheet=(-0.33, -0.66, 1.40), sheet_rotation=(0, 0, -90), right_hand="sheet_right"),
