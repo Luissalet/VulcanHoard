@@ -38,7 +38,7 @@ Assets animados para entregar (Hangar E18, #2203): página «Animaciones» (ruta
 
 ## Bloqueo de primitivas
 
-`blocking_build` crea una toma en CPU con piezas separadas, articulación rígida y dos manos. Admite claves propias, hoja, tubo y escalera opcionales y cuatro gestos de mapa preparados: desenrollar, enderezar, pasar de mano y girar al dorso. Devuelve la escena editable, el GLB animado y mapas de color, profundidad y normales por clave con cámara común. `blocking_get` consulta el resultado y `blocking_undo` lo retira o restaura. Véase [Bloqueo de primitivas](docs/blocking.md).
+`blocking_build` crea una toma en CPU con piezas separadas, articulación rígida y dos manos. Admite claves propias, hoja, tubo y escalera opcionales y cuatro gestos de mapa preparados: desenrollar, enderezar, pasar de mano y girar al dorso. El pase va de izquierda a derecha desde el punto de vista del personaje y admite el sentido inverso mediante `pass_direction`. Devuelve la escena editable, el GLB animado y mapas de color, profundidad y normales por clave con cámara común. `blocking_get` consulta el resultado y `blocking_undo` lo retira o restaura. Véase [Bloqueo de primitivas](docs/blocking.md).
 
 ## Skills for the agents that connect
 
