@@ -11,6 +11,7 @@ from pathlib import Path
 import bpy
 import numpy as np
 from mathutils import Euler, Matrix, Vector
+from mathutils.bvhtree import BVHTree
 
 UP = Vector((0, 0, 1))
 ALONG = Vector((0, 1, 0))
@@ -516,6 +517,77 @@ def main(spec, out):
     (out / "blocking.json").write_text(json.dumps(receipt, indent=2), encoding="utf-8")
 
 
+def measured_grips(meshes):
+    """Measure sampled gaps from named digits to the evaluated prop surfaces, in metres."""
+    props = {}
+    for part in ("sheet", "tube"):
+        if part in meshes:
+            mesh = meshes[part]
+            props[part] = BVHTree.FromPolygons(
+                [v.co for v in mesh.vertices], [p.vertices[:] for p in mesh.polygons])
+    rows = []
+    for side in ("left", "right"):
+        names = [f"{side}_{digit}" for digit in DIGITS if f"{side}_{digit}" in meshes]
+        for name in names or [f"{side}_hand"]:
+            if name not in meshes:
+                continue
+            for part, tree in props.items():
+                samples = [(vertex.co, tree.find_nearest(vertex.co)) for vertex in meshes[name].vertices]
+                if samples:
+                    digit_point, (prop_point, _, _, gap) = min(samples, key=lambda item: item[1][3])
+                    rows.append({"hand": f"{side}_hand", "sample_part": name, "part": part,
+                                 "sample_world_m": list(digit_point), "prop_world_m": list(prop_point),
+                                 "gap_m": gap})
+    return rows
+
+
+def freeze(source, out, frame, fps):
+    if source.suffix.lower() == ".blend":
+        bpy.ops.wm.open_mainfile(filepath=str(source), load_ui=False, use_scripts=False)
+    else:
+        bpy.ops.wm.read_factory_settings(use_empty=True)
+        bpy.context.scene.render.fps = fps
+        bpy.ops.import_scene.gltf(filepath=str(source))
+    scene = bpy.context.scene
+    originals = tuple(scene.objects) if source.suffix.lower() == ".blend" else tuple(bpy.context.selected_objects)
+    scene.frame_set(frame)
+    depsgraph = bpy.context.evaluated_depsgraph_get()
+    bpy.ops.object.select_all(action="DESELECT")
+    meshes = {}
+    for original in originals:
+        if original.type != "MESH":
+            continue
+        evaluated = original.evaluated_get(depsgraph)
+        mesh = bpy.data.meshes.new_from_object(evaluated, preserve_all_data_layers=True, depsgraph=depsgraph)
+        if not mesh.polygons:
+            bpy.data.meshes.remove(mesh)
+            continue
+        mesh.transform(evaluated.matrix_world)
+        if evaluated.matrix_world.determinant() < 0:
+            mesh.flip_normals()
+        meshes[original.name] = mesh
+    if not meshes:
+        raise ValueError("No evaluated meshes in the frame.")
+    for name, mesh in meshes.items():
+        # Keep source part names in the static glTF nodes.
+        bpy.data.objects[name].name = name + "_animated_source"
+        obj = bpy.data.objects.new(name, mesh)
+        scene.collection.objects.link(obj)
+        obj.select_set(True)
+    bpy.ops.export_scene.gltf(filepath=str(out / "pose.glb"), export_format="GLB", use_selection=True,
+                              export_animations=False, export_skins=False, export_yup=True)
+    (out / "pose.json").write_text(json.dumps({
+        "ok": True, "parts": list(meshes), "units": "m", "receipt_axes": "Blender XYZ, +Z up",
+        "grip_samples": measured_grips(meshes),
+        "solid_base": all(f"step_{i}" in meshes for i in range(1, 4)),
+    }), encoding="utf-8")
+
+
 if __name__ == "__main__":
-    recipe, output = sys.argv[sys.argv.index("--") + 1:]
-    main(json.loads(Path(recipe).read_text(encoding="utf-8")), Path(output))
+    args = sys.argv[sys.argv.index("--") + 1:]
+    if args[0] == "freeze":
+        _, source, output, frame, fps = args
+        freeze(Path(source), Path(output), int(frame), int(fps))
+    else:
+        recipe, output = args
+        main(json.loads(Path(recipe).read_text(encoding="utf-8")), Path(output))

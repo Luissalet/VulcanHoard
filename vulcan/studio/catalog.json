@@ -18044,38 +18044,6 @@
   },
   {
     "module": "library",
-    "native_name": "articulation_undo",
-    "name": "articulation_undo",
-    "description": "Withdraw or restore a package. Deshacer articulación.\nReturns arguments to reverse the operation. Retira o restaura un paquete generado.",
-    "annotations": {
-      "readOnlyHint": false,
-      "destructiveHint": false,
-      "idempotentHint": true,
-      "openWorldHint": false
-    },
-    "inputSchema": {
-      "additionalProperties": false,
-      "properties": {
-        "id": {
-          "pattern": "^[0-9a-f]{32}$",
-          "title": "Id",
-          "type": "string"
-        },
-        "restore": {
-          "default": false,
-          "title": "Restore",
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "id"
-      ],
-      "title": "Undo",
-      "type": "object"
-    }
-  },
-  {
-    "module": "library",
     "native_name": "articulation_pick",
     "name": "articulation_pick",
     "description": "Resolve a viewer ray to a source face. Resuelve un rayo del visor a una cara de origen.",
@@ -18169,6 +18137,38 @@
       "x-timeout-s": 90.0
     },
     "x-timeout-s": 90.0
+  },
+  {
+    "module": "library",
+    "native_name": "articulation_undo",
+    "name": "articulation_undo",
+    "description": "Withdraw or restore a package. Deshacer articulación.\nReturns arguments to reverse the operation. Retira o restaura un paquete generado.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[0-9a-f]{32}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "restore": {
+          "default": false,
+          "title": "Restore",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "Undo",
+      "type": "object"
+    }
   },
   {
     "module": "library",
@@ -18567,6 +18567,142 @@
         "id"
       ],
       "title": "Lookup",
+      "type": "object"
+    }
+  },
+  {
+    "module": "library",
+    "native_name": "blocking_freeze",
+    "name": "blocking_freeze",
+    "description": "Bake a take frame to static GLB. Congela un fotograma en GLB estático.\nReturns mesh, source hash and measured grips. Devuelve malla, huella de origen y agarres medidos. Undo / Deshacer: blocking_pose_undo.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "draftSafeHint": true
+    },
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-f0-9]{32}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Id"
+        },
+        "source": {
+          "anyOf": [
+            {
+              "maxLength": 1000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source"
+        },
+        "source_sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[a-fA-F0-9]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Sha256"
+        },
+        "frame": {
+          "maximum": 100000,
+          "minimum": 0,
+          "title": "Frame",
+          "type": "integer"
+        },
+        "fps": {
+          "default": 24,
+          "maximum": 240,
+          "minimum": 1,
+          "title": "Fps",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "frame"
+      ],
+      "title": "Freeze",
+      "type": "object",
+      "x-timeout-s": 95.0
+    },
+    "x-timeout-s": 95.0
+  },
+  {
+    "module": "library",
+    "native_name": "blocking_pose_get",
+    "name": "blocking_pose_get",
+    "description": "Read a frozen pose by ID. Consulta una pose congelada por ID.",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[a-f0-9]{32}$",
+          "title": "Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "Lookup",
+      "type": "object"
+    }
+  },
+  {
+    "module": "library",
+    "native_name": "blocking_pose_undo",
+    "name": "blocking_pose_undo",
+    "description": "Withdraw or restore a frozen pose. Retira o restaura una pose congelada.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[a-f0-9]{32}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "restore": {
+          "default": false,
+          "title": "Restore",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "Undo",
       "type": "object"
     }
   },
