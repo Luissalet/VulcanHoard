@@ -204,10 +204,16 @@ def test_an_atlas_from_an_older_bake_is_baked_again(scanned):
 
 
 def test_catalog_lists_the_impostor_tools():
-    import json
+    from vulcan.studio.catalog import native_catalog
 
-    rows = {r["name"]: r for r in json.loads((Path(imp.__file__).parent / "studio" / "catalog.json").read_text(encoding="utf-8"))}
+    rows = {row["name"]: row for row in native_catalog()}
     for name in ("model_impostor", "model_impostors_batch"):
         tool = TOOLS_BY_NAME[name]
-        assert rows[name]["description"] == tool.description and rows[name]["module"] == "library" and rows[name]["native_name"] == name
-        assert rows[name]["inputSchema"] == tool.input_model.model_json_schema()
+        row = rows[name]
+        assert row["description"] == tool.description
+        assert row["module"] == "library"
+        assert row["native_name"] == name
+        assert row["x-timeout-s"] == tool.timeout_s
+        schema = tool.input_model.model_json_schema()
+        schema["x-timeout-s"] = float(tool.timeout_s)
+        assert row["inputSchema"] == schema

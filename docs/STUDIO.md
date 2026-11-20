@@ -19,6 +19,8 @@ Text and vision use Faustus's `/api/global-model` descriptor and `/api/global-mo
 
 Library automation controls initial rescan and folder watching. Generation automation separately controls recovery of historical queued jobs. Neither automation is enabled by merely enabling its module. A cold MCP catalogue contains 243 tools and imports no native engine or SQLite store; it starts no app or worker.
 
+Tools that declare a timeout publish `x-timeout-s` in seconds on the catalogue entry and inside its `inputSchema`, where MCP clients can read it. The extension sits alongside the argument schema, outside its `properties`. For example, `texture_project` declares 600 seconds, while `texture_project_status` uses the client's default timeout.
+
 The figures workspace follows the browser language. It uses English for English locales and Spanish (Spain) otherwise, including the pose setup and review.
 
 CPU installation: source `pip install -r requirements.txt`, then `python scripts/build_studio.py`. Wheel consumers install the `studio` extra. Daedalus's existing GPU runtime remains separate and is selected through DAEDALUS_ENGINE_PYTHON; DAEDALUS_MODEL_DIR points at the model store. GPU operations use the existing Hub leases. Blender remains configured through SCULPTORS_HOARD_BLENDER/RELIEF_BLENDER. No environment or weights are downloaded just by enabling the shell or discovering tools.

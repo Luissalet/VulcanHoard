@@ -378,14 +378,21 @@ def call_tool_error(services, args):
 
 
 def test_catalog_lists_the_tools_with_their_descriptions():
-    import json
+    from vulcan.studio.catalog import native_catalog
 
-    rows = {r["name"]: r for r in json.loads((Path(tp.__file__).parent / "studio" / "catalog.json").read_text(encoding="utf-8"))}
-    for name in ("texture_project", "texture_project_status"):
+    rows = {row["name"]: row for row in native_catalog()}
+    for name, timeout_s in (("texture_project", 600.0), ("texture_project_status", None)):
         tool = TOOLS_BY_NAME[name]
-        assert rows[name]["description"] == tool.description and rows[name]["module"] == "library" and rows[name]["native_name"] == name
-        assert rows[name]["inputSchema"] == tool.input_model.model_json_schema()
-    assert rows["texture_project"]["x-timeout-s"] == 600.0
+        row = rows[name]
+        assert row["description"] == tool.description
+        assert row["module"] == "library"
+        assert row["native_name"] == name
+        assert row.get("x-timeout-s") == tool.timeout_s == timeout_s
+
+        schema = tool.input_model.model_json_schema()
+        if timeout_s is not None:
+            schema["x-timeout-s"] = timeout_s
+        assert row["inputSchema"] == schema
 
 
 # ---------- the real thing ----------

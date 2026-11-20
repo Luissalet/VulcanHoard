@@ -248,11 +248,21 @@ def test_tools_are_registered_with_short_descriptions():
 
 
 def test_catalog_lists_the_tools_with_their_descriptions():
-    rows = {r["name"]: r for r in json.loads((Path(cm.__file__).parent / "studio" / "catalog.json").read_text(encoding="utf-8"))}
+    from vulcan.studio.catalog import native_catalog
+
+    rows = {row["name"]: row for row in native_catalog()}
     for name in ("code_model", "code_model_run", "code_model_edit", "code_model_status"):
         tool = TOOLS_BY_NAME[name]
-        assert rows[name]["description"] == tool.description and rows[name]["module"] == "library" and rows[name]["native_name"] == name
-        assert rows[name]["inputSchema"] == tool.input_model.model_json_schema()
+        row = rows[name]
+        assert row["description"] == tool.description
+        assert row["module"] == "library"
+        assert row["native_name"] == name
+        assert row.get("x-timeout-s") == tool.timeout_s
+
+        schema = tool.input_model.model_json_schema()
+        if tool.timeout_s is not None:
+            schema["x-timeout-s"] = float(tool.timeout_s)
+        assert row["inputSchema"] == schema
 
 
 # ---------- REST ----------

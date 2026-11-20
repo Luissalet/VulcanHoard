@@ -265,7 +265,10 @@ def test_tools_rest_and_cold_catalogue_for_the_new_animation_surface(client, tmp
     cold = {row['name']: row for row in native_catalog() if row['module'] == 'library'}
     for row in tool_catalog():
         if row['name'].startswith('anim_'):
-            assert {k: v for k, v in cold[row['name']].items() if k not in ('module', 'native_name')} == row
+            expected = row
+            if 'x-timeout-s' in row:
+                expected = {**row, 'inputSchema': {**row['inputSchema'], 'x-timeout-s': row['x-timeout-s']}}
+            assert {k: v for k, v in cold[row['name']].items() if k not in ('module', 'native_name')} == expected
     assert client.get('/api/anim/fbx/status').json()['available'] in (True, False)
     assert client.get('/api/anim/fbx/exports').json()['count'] == 0
     assert client.get('/api/anim/fbx/exports/zzz').status_code == 400
