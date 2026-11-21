@@ -138,7 +138,10 @@ def test_profiles_tools_and_rest(client, tmp_path):
     cold = {row['name']: row for row in native_catalog() if row['module'] == 'library'}
     for row in tool_catalog():
         if row['name'].startswith('anim_'):
-            assert {k: v for k, v in cold[row['name']].items() if k not in ('module', 'native_name')} == row
+            expected = row
+            if 'x-timeout-s' in row:
+                expected = {**row, 'inputSchema': {**row['inputSchema'], 'x-timeout-s': row['x-timeout-s']}}
+            assert {k: v for k, v in cold[row['name']].items() if k not in ('module', 'native_name')} == expected
 
 
 
