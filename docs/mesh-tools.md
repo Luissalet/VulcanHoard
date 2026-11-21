@@ -106,6 +106,7 @@ The library also exposes [mesh articulation](ARTICULATION.md) through MCP, with 
   (`model_ids` or `root_id` + `path`, `slicer`, `dry_run`). MCP: `slicers_list`, `model_open_in_slicer`.
 - UI: **Abrir en laminador** in the model header, on every root in Carpetas and on every folder row in Fichas
   (with a selector when several slicers exist); paths and default in Ajustes → **Laminadores**.
+- For a registered 3MF in a production order, the Hub tool `hub_print_slice` slices the selected plate without opening a window and attaches slicer diagnostics, supports, filament changes and per-slot estimates to the order piece. En una orden de producción, `hub_print_slice` lamina el 3MF registrado sin abrir una ventana y devuelve el recibo y los defectos al puesto de laminado.
 
 ## Dense-mesh viewer mode
 
