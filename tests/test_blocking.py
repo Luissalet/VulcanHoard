@@ -21,6 +21,10 @@ def test_blocking_discoverable_and_pose_arguments_checked():
             == blocking.Build.model_json_schema()["properties"]["pass_direction"])
     assert tools["blocking_get"]["annotations"]["readOnlyHint"]
     assert {"blocking_undo", "blocking_freeze", "blocking_pose_get", "blocking_pose_undo"} <= tools.keys()
+    for field in ("print_size_mm", "sheet_wall_mm"):
+        assert field in tools["blocking_freeze"]["inputSchema"]["properties"]
+    with pytest.raises(ValidationError, match="together"):
+        blocking.Freeze(id="a" * 32, frame=15, sheet_wall_mm=2)
     with pytest.raises(ValidationError, match="requires the tube"):
         blocking.Build(gesture="unroll", accessories=["sheet"])
     with pytest.raises(ValidationError, match="increase from 0"):
@@ -205,6 +209,12 @@ def test_build_exports_animated_skin_and_maps(tmp_path, gesture, pass_direction)
             source = Path(result["files"]["mesh"])
             pinned = {"source": str(source), "source_sha256": blocking.sha256_of(source)}
             from_glb = blocking.freeze(services, blocking.Freeze(**pinned, frame=24))
+            printable = blocking.freeze(services, blocking.Freeze(**pinned, frame=24, print_size_mm=120,
+                                                                  sheet_wall_mm=2.0))
+            assert printable["print_sheet"]["before_mm"] < 0.8
+            assert printable["print_sheet"]["after_mm"] == 2.0
+            assert printable["source_sha256"] == from_glb["source_sha256"]
+            assert printable["sha256"] != from_glb["sha256"]
             start = blocking.freeze(services, blocking.Freeze(**pinned, frame=0))
             assert start["sha256"] != from_glb["sha256"]
             doc = glb_json(from_glb["path"])

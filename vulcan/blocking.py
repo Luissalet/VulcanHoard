@@ -138,11 +138,15 @@ class Freeze(Input):
     source_sha256: str | None = Field(None, pattern=r"^[a-fA-F0-9]{64}$")
     frame: int = Field(ge=0, le=100_000)
     fps: int = Field(FPS, ge=1, le=240)
+    print_size_mm: float | None = Field(None, ge=10, le=2000, description="Longest side in the print. / Lado mayor de la figura impresa.")
+    sheet_wall_mm: float | None = Field(None, ge=0.1, le=5, description="Minimum wall for the blocking's paper, in print millimetres. / Grosor mínimo del papel del bloqueo, en milímetros impresos.")
 
     @model_validator(mode="after")
     def check_source(self):
         if bool(self.id) == bool(self.source) or bool(self.source) != bool(self.source_sha256):
             raise ValueError("Supply a blocking ID or a GLB path with its SHA-256. / Indica un ID de bloqueo o un GLB con su SHA-256.")
+        if (self.print_size_mm is None) != (self.sheet_wall_mm is None):
+            raise ValueError("Supply print_size_mm and sheet_wall_mm together. / Indica print_size_mm y sheet_wall_mm juntos.")
         return self
 
 
@@ -259,7 +263,7 @@ def freeze(services, args: Freeze) -> dict:
         result = subprocess.run(
             [blender, "--background", "--factory-startup", "--disable-autoexec", "--threads", "2",
              "--python-exit-code", "1", "--python", str(worker), "--", "freeze", str(pinned), str(output),
-             str(args.frame), str(fps)],
+             str(args.frame), str(fps), str(args.print_size_mm or 0), str(args.sheet_wall_mm or 0)],
             capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=85,
             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         )
@@ -318,6 +322,7 @@ TOOLS = [
          Lookup, ann(True), get, capped=False),
     Tool("blocking_freeze", "Bake a take frame to static GLB. Congela un fotograma en GLB estático.\n"
          "Returns mesh, source hash and measured grips. Devuelve malla, huella de origen y agarres medidos. "
+         "Optional print size and wall thicken the blocking's paper. El tamaño y el grosor opcionales preparan el papel para impresión. "
          "Undo / Deshacer: blocking_pose_undo.\n"
          "Sinónimos: congelar una pose, sacar una malla de un fotograma, exportar un GLB estático.",
          Freeze, ann(draft_safe=True), freeze, timeout_s=95, capped=False),

@@ -18574,7 +18574,7 @@
     "module": "library",
     "native_name": "blocking_freeze",
     "name": "blocking_freeze",
-    "description": "Bake a take frame to static GLB. Congela un fotograma en GLB estático.\nReturns mesh, source hash and measured grips. Devuelve malla, huella de origen y agarres medidos. Undo / Deshacer: blocking_pose_undo.\nSinónimos: congelar una pose, sacar una malla de un fotograma, exportar un GLB estático.",
+    "description": "Bake a take frame to static GLB. Congela un fotograma en GLB estático.\nReturns mesh, source hash and measured grips. Devuelve malla, huella de origen y agarres medidos. Optional print size and wall thicken the blocking's paper. El tamaño y el grosor opcionales preparan el papel para impresión. Undo / Deshacer: blocking_pose_undo.\nSinónimos: congelar una pose, sacar una malla de un fotograma, exportar un GLB estático.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -18636,6 +18636,36 @@
           "minimum": 1,
           "title": "Fps",
           "type": "integer"
+        },
+        "print_size_mm": {
+          "anyOf": [
+            {
+              "maximum": 2000,
+              "minimum": 10,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Longest side in the print. / Lado mayor de la figura impresa.",
+          "title": "Print Size Mm"
+        },
+        "sheet_wall_mm": {
+          "anyOf": [
+            {
+              "maximum": 5,
+              "minimum": 0.1,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Minimum wall for the blocking's paper, in print millimetres. / Grosor mínimo del papel del bloqueo, en milímetros impresos.",
+          "title": "Sheet Wall Mm"
         }
       },
       "required": [
