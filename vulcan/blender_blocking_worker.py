@@ -541,7 +541,29 @@ def measured_grips(meshes):
     return rows
 
 
-def freeze(source, out, frame, fps):
+def thicken_print_sheet(meshes, print_size_mm, sheet_wall_mm):
+    sheet = meshes.get("sheet")
+    if sheet is None or not {"Paper front", "Paper back"}.issubset(mat.name for mat in sheet.materials if mat):
+        return None
+    # The largest face of the paper is on the sheet plane, in evaluated world coordinates.
+    sheet.update()
+    normal = max(sheet.polygons, key=lambda face: face.area).normal.copy()
+    depths = [vertex.co.dot(normal) for vertex in sheet.vertices]
+    thickness = max(depths) - min(depths)
+    if thickness <= 1e-8:
+        return None
+    extent = np.ptp([tuple(vertex.co) for mesh in meshes.values() for vertex in mesh.vertices], axis=0).max()
+    mm_per_unit = print_size_mm / extent
+    ratio = max(1, sheet_wall_mm / (thickness * mm_per_unit))
+    centre = (min(depths) + max(depths)) / 2
+    for vertex, depth in zip(sheet.vertices, depths):
+        vertex.co += normal * ((depth - centre) * (ratio - 1))
+    sheet.update()
+    return {"requested_mm": sheet_wall_mm, "before_mm": round(thickness * mm_per_unit, 4),
+            "after_mm": round(thickness * ratio * mm_per_unit, 4)}
+
+
+def freeze(source, out, frame, fps, print_size_mm=0, sheet_wall_mm=0):
     if source.suffix.lower() == ".blend":
         bpy.ops.wm.open_mainfile(filepath=str(source), load_ui=False, use_scripts=False)
     else:
@@ -568,6 +590,7 @@ def freeze(source, out, frame, fps):
         meshes[original.name] = mesh
     if not meshes:
         raise ValueError("No evaluated meshes in the frame.")
+    sheet = thicken_print_sheet(meshes, print_size_mm, sheet_wall_mm) if print_size_mm else None
     for name, mesh in meshes.items():
         # Keep source part names in the static glTF nodes.
         bpy.data.objects[name].name = name + "_animated_source"
@@ -580,14 +603,15 @@ def freeze(source, out, frame, fps):
         "ok": True, "parts": list(meshes), "units": "m", "receipt_axes": "Blender XYZ, +Z up",
         "grip_samples": measured_grips(meshes),
         "solid_base": all(f"step_{i}" in meshes for i in range(1, 4)),
+        **({"print_sheet": sheet} if sheet is not None else {}),
     }), encoding="utf-8")
 
 
 if __name__ == "__main__":
     args = sys.argv[sys.argv.index("--") + 1:]
     if args[0] == "freeze":
-        _, source, output, frame, fps = args
-        freeze(Path(source), Path(output), int(frame), int(fps))
+        _, source, output, frame, fps, *print_args = args
+        freeze(Path(source), Path(output), int(frame), int(fps), *map(float, print_args))
     else:
         recipe, output = args
         main(json.loads(Path(recipe).read_text(encoding="utf-8")), Path(output))
