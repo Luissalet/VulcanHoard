@@ -624,8 +624,11 @@ def inspect_doc(doc, profile, file_info):
     rules = profile['rules']
     checks = []
 
-    def check(rule, limit, observed, ok, note=''):
-        checks.append({'rule': rule, 'limit': limit, 'observed': observed, 'status': 'not_evaluated' if ok is None else 'pass' if ok else 'fail', 'note': note})
+    def check(rule, limit, observed, ok, note='', note_es=''):
+        row = {'rule': rule, 'limit': limit, 'observed': observed, 'status': 'not_evaluated' if ok is None else 'pass' if ok else 'fail', 'note': note}
+        if note_es:
+            row['note_es'] = note_es
+        checks.append(row)
 
     compressed = doc.compressed()
     skeleton = skeleton_facts(doc) if not compressed else None
@@ -633,20 +636,21 @@ def inspect_doc(doc, profile, file_info):
     fmt = file_info['format']
     check('accepted_formats', rules['accepted_formats'], fmt, fmt in rules['accepted_formats'] if rules['accepted_formats'] else True)
     note_c = f"compressed attributes ({', '.join(compressed)}) are not decoded" if compressed else ''
+    note_c_es = f"No se decodifican los atributos comprimidos ({', '.join(compressed)})" if compressed else ''
     if rules.get('max_bones') is not None:
         bones = max((len(s.get('joints', [])) for s in doc.gltf.get('skins', [])), default=0)
         check('max_bones', rules['max_bones'], bones, bones <= rules['max_bones'])
     if rules.get('max_influences') is not None:
         check('max_influences', rules['max_influences'], skeleton and skeleton['max_influences'],
-              None if not skeleton or not skeleton['weights_readable'] else skeleton['max_influences'] <= rules['max_influences'], note_c)
+              None if not skeleton or not skeleton['weights_readable'] else skeleton['max_influences'] <= rules['max_influences'], note_c, note_c_es)
     if rules.get('require_normalized_weights'):
         error = skeleton and skeleton['max_weight_sum_error']
-        check('require_normalized_weights', 1e-3, error, None if not skeleton or not skeleton['weights_readable'] else error <= 1e-3, note_c)
+        check('require_normalized_weights', 1e-3, error, None if not skeleton or not skeleton['weights_readable'] else error <= 1e-3, note_c, note_c_es)
     if rules.get('forbid_unused_bones'):
-        check('forbid_unused_bones', 0, skeleton and [b['name'] for b in skeleton['unused_bones']], None if not skeleton else not skeleton['unused_bones'], note_c)
+        check('forbid_unused_bones', 0, skeleton and [b['name'] for b in skeleton['unused_bones']], None if not skeleton else not skeleton['unused_bones'], note_c, note_c_es)
     if rules.get('forbid_nonuniform_bone_scale'):
         bad = skeleton and skeleton['nonuniform_scale_bones']
-        check('forbid_nonuniform_bone_scale', True, bad and [b['name'] for b in bad], None if not skeleton else not bad, note_c)
+        check('forbid_nonuniform_bone_scale', True, bad and [b['name'] for b in bad], None if not skeleton else not bad, note_c, note_c_es)
     names = [c['name'] for c in clips]
     if rules.get('require_named_clips'):
         missing = [c['index'] for c in clips if not c['name']]
@@ -654,11 +658,12 @@ def inspect_doc(doc, profile, file_info):
         check('require_named_clips', True, {'unnamed': missing, 'duplicated': dupes}, not missing and not dupes)
     if rules.get('required_clips'):
         absent = [n for n in rules['required_clips'] if n not in names]
-        check('required_clips', rules['required_clips'], names, not absent, f"missing: {', '.join(absent)}" if absent else '')
+        check('required_clips', rules['required_clips'], names, not absent, f"missing: {', '.join(absent)}" if absent else '',
+              f"Faltan: {', '.join(absent)}" if absent else '')
     looping = [c for c in clips if c['loop_expected']]
     if rules.get('max_loop_error_deg') is not None or rules.get('max_loop_error_mm') is not None:
         if not looping:
-            check('loop_continuity', rules.get('loop_clips'), [], None, 'no clip is expected to loop')
+            check('loop_continuity', rules.get('loop_clips'), [], None, 'no clip is expected to loop', 'Ningún clip está configurado como bucle')
         for c in looping:
             ok = ((rules.get('max_loop_error_deg') is None or c['loop_error_deg'] <= rules['max_loop_error_deg'])
                   and (rules.get('max_loop_error_mm') is None or c['loop_error_mm'] <= rules['max_loop_error_mm']))
@@ -681,9 +686,9 @@ def inspect_doc(doc, profile, file_info):
               None if any(s is None for s in facts['image_sizes']) else max(sizes, default=0) <= rules['max_texture_px'])
     morph = morph_facts(doc) if not compressed else None
     if rules.get('max_morph_targets') is not None:
-        check('max_morph_targets', rules['max_morph_targets'], morph and morph['max_targets'], None if morph is None else morph['max_targets'] <= rules['max_morph_targets'], note_c)
+        check('max_morph_targets', rules['max_morph_targets'], morph and morph['max_targets'], None if morph is None else morph['max_targets'] <= rules['max_morph_targets'], note_c, note_c_es)
     if rules.get('forbid_empty_morph_targets'):
-        check('forbid_empty_morph_targets', 0, morph and [e['name'] for e in morph['empty']], None if morph is None else not morph['empty'], note_c)
+        check('forbid_empty_morph_targets', 0, morph and [e['name'] for e in morph['empty']], None if morph is None else not morph['empty'], note_c, note_c_es)
     root = root_motion_facts(doc)
     by_clip = {r['clip']: r for r in root}
     for c in clips:
@@ -721,14 +726,22 @@ def suggestions_for(rules, clips, checks):
 
 def plan_for(rules, skeleton, clips, checks, compressed, morph=None):
     failed = {c['rule'] for c in checks if c['status'] == 'fail'}
-    operations, manual = [], []
+    operations, manual, manual_es = [], [], []
+
+    def add_manual(en, es):
+        manual.append(en)
+        manual_es.append(es)
+
     if compressed:
-        manual.append(f"decompress {', '.join(compressed)} before preparing (gltf-transform or Blender); this app does not rewrite compressed data")
-        return {'operations': [], 'manual': manual, 'suggested': []}
+        extensions = ', '.join(compressed)
+        add_manual(f"decompress {extensions} before preparing (gltf-transform or Blender); this app does not rewrite compressed data",
+                   f"Descomprime {extensions} con gltf-transform o Blender antes de preparar la variante.")
+        return {'operations': [], 'manual': manual, 'manual_es': manual_es, 'suggested': []}
     if morph and morph['empty'] and 'forbid_empty_morph_targets' in failed:
         operations.append({'op': 'drop_empty_morph_targets', 'why': 'forbid_empty_morph_targets', 'targets': [e['name'] for e in morph['empty']]})
     if 'max_morph_targets' in failed:
-        manual.append('reduce the morph targets (blend shapes) in the modelling tool; only targets that move nothing are removed here')
+        add_manual('reduce the morph targets (blend shapes) in the modelling tool; only targets that move nothing are removed here',
+                   'Reduce los morph targets (formas de mezcla) en la herramienta de modelado. Aquí se pueden quitar los que no desplazan ningún vértice.')
     if any(not c['name'] for c in clips) or 'require_named_clips' in failed:
         operations.append({'op': 'rename_clips', 'why': 'require_named_clips', 'renames': {str(c['index']): c['name'] or f"clip_{c['index']}" for c in clips if not c['name']}})
     if any(c['empty_channels'] for c in clips):
@@ -745,21 +758,32 @@ def plan_for(rules, skeleton, clips, checks, compressed, morph=None):
                            'clips': [c['name'] or c['index'] for c in clips if c['key_rate_fps'] > rules['target_fps'] * 1.001]})
     if 'loop_continuity' in failed:
         bad = [c for c in checks if c['rule'] == 'loop_continuity' and c['status'] == 'fail']
-        manual.append('close the loop of ' + ', '.join(f"{c['limit']['clip']} (worst bone {c['observed']['worst_bone']}, {c['observed']['deg']:.3f} deg, "
-                                                       f"{c['observed']['mm']:.3f} mm)" for c in bad) + ' in the animation tool, or trim the clip to a matching pose, '
-                      'or close it here with close_loops (spreads the difference over the clip)')
+        def loop_details(bone_label, angle_unit):
+            return ', '.join(f"{c['limit']['clip']} ({bone_label} {c['observed']['worst_bone']}, "
+                             f"{c['observed']['deg']:.3f}{angle_unit}, {c['observed']['mm']:.3f} mm)" for c in bad)
+
+        add_manual(f"close the loop of {loop_details('worst bone', ' deg')} in the animation tool, or trim the clip to a matching pose, "
+                   'or close it here with close_loops (spreads the difference over the clip)',
+                   f"Cierra el bucle de {loop_details('hueso con mayor diferencia:', '°')} en la herramienta de animación, "
+                   'recorta el clip hasta una pose que coincida con la inicial o ciérralo aquí con close_loops para repartir la diferencia a lo largo del clip.')
     if 'max_root_drift_mm' in failed:
-        manual.append('the root travels in a looping clip: make it in place here with root_in_place, or in the animation tool')
+        add_manual('the root travels in a looping clip: make it in place here with root_in_place, or in the animation tool',
+                   'La raíz avanza en un clip en bucle. Déjala en el sitio con root_in_place o en la herramienta de animación.')
     if 'forbid_nonuniform_bone_scale' in failed:
-        manual.append('apply or remove the non-uniform scale of the listed bones in the rig (runtimes skin it badly)')
+        add_manual('apply or remove the non-uniform scale of the listed bones in the rig (runtimes skin it badly)',
+                   'Aplica o elimina la escala no uniforme de los huesos indicados para evitar deformaciones en el motor de destino.')
     if 'required_clips' in failed:
-        manual.append('add the missing clips, or rename an existing clip to the required name')
+        add_manual('add the missing clips, or rename an existing clip to the required name',
+                   'Añade los clips que faltan o pon el nombre requerido a un clip existente.')
     if 'max_bones' in failed and not (skeleton and skeleton['removable_bones']):
-        manual.append('reduce the rig: every joint has influence, so bones must be merged in the animation tool')
-    for rule in ('max_triangles', 'max_textures', 'max_texture_px'):
+        add_manual('reduce the rig: every joint has influence, so bones must be merged in the animation tool',
+                   'Reduce el esqueleto. Todos los huesos tienen influencia, así que tendrás que fusionarlos en la herramienta de animación.')
+    for rule, limit in (('max_triangles', 'el número de triángulos'), ('max_textures', 'el número de texturas'),
+                        ('max_texture_px', 'el tamaño de las texturas')):
         if rule in failed:
-            manual.append(f'{rule}: reduce it in the animation tool; the geometry preparation (asset_prepare) rebuilds meshes without skins or clips')
-    return {'operations': operations, 'manual': manual, 'suggested': suggestions_for(rules, clips, checks)}
+            add_manual(f'{rule}: reduce it in the animation tool; the geometry preparation (asset_prepare) rebuilds meshes without skins or clips',
+                       f'Reduce {limit} en la herramienta de animación. La preparación de geometría (asset_prepare) reconstruye mallas sin pieles ni clips.')
+    return {'operations': operations, 'manual': manual, 'manual_es': manual_es, 'suggested': suggestions_for(rules, clips, checks)}
 
 
 # ---------- operations (each edits a Doc in memory and returns what it did) ----------
@@ -1325,6 +1349,7 @@ def prepare(services, target='web-animated', model_id=None, path=None, renames=N
     asked = bool(renames or trims or resample_fps or close_loops or root_in_place or drop_empty_morph_targets)
     if before['manual'] and not before['operations'] and not asked:
         receipt['manual'] = before['manual']
+        receipt['manual_es'] = before['manual_es']
     try:
         if Doc.load(source).compressed():
             raise ValueError('compressed glTF data is not rewritten here: ' + '; '.join(before['manual']))
@@ -1377,12 +1402,12 @@ def prepare(services, target='web-animated', model_id=None, path=None, renames=N
             log.append({'op': 'close_loop', **op_close_loop(doc, _clip_index_after_rename(doc, clip, original_names))})
         if not log:
             receipt.update(status='unchanged', note='Nothing to do: the asset already meets the automatic rules (see manual steps, if any).',
-                           manual=before['manual'])
+                           manual=before['manual'], manual_es=before['manual_es'])
             return _store_receipt(services, receipt)
         too_far = [op for op in log if op.get('within_tolerance') is False]
         if too_far:
             receipt.update(status='rejected', reason='The resampling error exceeds the profile tolerance; nothing was written. '
-                           'Raise the fps or the tolerance.', manual=before['manual'])
+                           'Raise the fps or the tolerance.', manual=before['manual'], manual_es=before['manual_es'])
             return _store_receipt(services, receipt)
         output = _prepared_dir(services) / f"{Path(info['path']).stem}.{profile['id']}.{prep_id}.glb"
         atomic.write_bytes_atomic(output, doc.to_glb())
@@ -1398,7 +1423,7 @@ def prepare(services, target='web-animated', model_id=None, path=None, renames=N
         receipt.update(output=out_info, after={'summary': after['summary'], 'checks': after['checks'], 'clips': after['clips'], 'skeleton': after['skeleton'],
                                                'morph': after['morph'], 'root_motion': after['root_motion']},
                        reimport={'consumer': 'three.js GLTFLoader + AnimationMixer (Node)', **{k: v for k, v in three.items() if k != 'final'},
-                                 'comparison': comparison}, original_unchanged=unchanged, manual=after['manual'])
+                                 'comparison': comparison}, original_unchanged=unchanged, manual=after['manual'], manual_es=after['manual_es'])
         receipt['status'] = 'prepared' if unchanged and (comparison['ok'] or not three.get('available', True)) else 'failed'
         if receipt['status'] == 'failed':
             receipt['reason'] = 'The original changed during preparation' if not unchanged else 'The independent reimport did not match: ' + json.dumps(comparison)[:600]
