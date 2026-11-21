@@ -1,5 +1,6 @@
 """HTTP API through TestClient: roots, models, thumb, file with Range, listing, search, dupes, collections, stats, agent auth."""
 
+import sys
 import time
 
 from fixtures import EXPECTED_MODELS
@@ -17,8 +18,17 @@ def test_health_and_status(client):
     assert health["service"] == "vulcan-hoard" and health["dataDirConfigured"] is True and health["version"]
     status = client.get("/api/status").json()
     assert status["counts"]["models"] == 0 and status["worker"]["running"] is True and status["thumbnails"] is True
+    assert health["mesh_index"] == status["mesh_index"] == {"dependency": "rtree", "available": True}
     assert client.get("/api/nothing").status_code == 404
     assert client.get("/").status_code in (200, 503)
+
+
+def test_health_and_status_report_missing_mesh_index(client, monkeypatch):
+    monkeypatch.setitem(sys.modules, "rtree", None)
+    for route in ("/api/health", "/api/status"):
+        response = client.get(route)
+        assert response.status_code == 200
+        assert response.json()["mesh_index"] == {"dependency": "rtree", "available": False}
 
 
 def test_combined_catalog_http_keeps_native_full_json_and_large_ids(client, monkeypatch):

@@ -6,8 +6,10 @@ from __future__ import annotations
 import json
 import re
 import shutil
+import sys
 import tempfile
 import time
+from importlib import import_module
 from pathlib import Path
 
 import pytest
@@ -421,11 +423,18 @@ def test_a_size_instruction_maps_onto_the_size_tuple():
 
 @pytest.fixture
 def mesh_rtree():
-    pytest.importorskip("rtree", reason="mesh wall and section measurements require rtree")
+    try:
+        import_module("rtree")
+    except (ImportError, OSError) as error:
+        pytest.fail(
+            f"Mesh wall and section measurements require rtree ({error}). "
+            f"Run pytest with Vulcan's virtual environment, or install requirements.txt into {sys.executable}.",
+            pytrace=False,
+        )
 
 
 def test_measures_and_checks_of_a_real_mesh(mesh_rtree):
-    pytest.importorskip("shapely", reason="round section measurements require shapely")
+    pytest.importorskip("shapely", reason="round sections require the optional studio dependency shapely (requirements-studio.txt)")
     ring = trimesh.creation.annulus(r_min=12.5, r_max=16, height=20, sections=96)  # a 25 mm bore, 3.5 mm wall
     ring.apply_translation((0, 0, 10))
     measured = code_checks.measure_part(ring.vertices, ring.faces)
@@ -528,7 +537,7 @@ def test_rest_examples_and_requirements(client):
 @pytest.mark.parametrize("row", code_checks.load_examples(), ids=lambda r: r["id"])
 def test_every_example_builds_its_expected_part(mesh_rtree, row):
     if "diameter_mm" in row["expected"]:
-        pytest.importorskip("shapely", reason="round section measurements require shapely")
+        pytest.importorskip("shapely", reason="round sections require the optional studio dependency shapely (requirements-studio.txt)")
     run = cm.run_engine(None, row["code"])
     try:
         vertices, faces = cm._mesh_mm(run["stl"])

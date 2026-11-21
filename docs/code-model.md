@@ -58,8 +58,12 @@ They go into the user message, and after each successful run the STL is measured
 - round features: sections across X, Y and Z at five heights; rings with circularity >= 0.88 give the diameters of round openings and
   outlines; a hole passes within max(0.6 mm, 3 %), a round fit 0.6 mm more (a socket or spigot needs clearance).
 
-Wall and round-section measurements need the `rtree` spatial index in the app’s Python environment. Round sections also need
-`shapely`. Tests that assert those measurements report a skip when the corresponding dependency is missing.
+Wall and round-section measurements need the `rtree` spatial index in the app’s Python environment. The studio’s `GET /api/health`
+and library’s `GET /library/api/status` report whether the running process can load it in `mesh_index.available`. Run the mesh tests with the
+app’s virtual environment (`venv/Scripts/python.exe -m pytest tests/test_code_model.py` on Windows or
+`venv/bin/python -m pytest tests/test_code_model.py` elsewhere). Those tests fail with installation guidance when the
+index cannot load. Round sections also need the optional studio dependency `shapely`, listed in `requirements-studio.txt`.
+The round-section tests report an explicit skip when Shapely is absent.
 
 If something misses, the measured values go back to the model ("built 70 x 40 x 6 mm overall; size 80 x 40 mm: built 70 x 40 ...")
 for **one more attempt** (so up to 3 calls to get a program that runs plus 1 for measures); the run that meets most measures is
