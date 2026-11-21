@@ -110,8 +110,9 @@ def test_fit_and_create_editable_variant_without_changing_sources(client, tmp_pa
     assert result["reference"]["sha256"] == hashes[0]
     assert result["reference"]["scale_to_mm"] == 10
     cold = next(t for t in native_catalog() if t["name"] == "cad_fit_parameters")
-    assert {k: v for k, v in cold.items() if k not in {"module", "native_name"}} == next(
-        t for t in tool_catalog() if t["name"] == "cad_fit_parameters")
+    native = next(t for t in tool_catalog() if t["name"] == "cad_fit_parameters")
+    expected = {**native, "inputSchema": {**native["inputSchema"], "x-timeout-s": native["x-timeout-s"]}}
+    assert {k: v for k, v in cold.items() if k not in {"module", "native_name"}} == expected
     assert client.post("/api/cad/fit", json={**body, "recipe_sha256": "0" * 64}).status_code == 400
     variant = client.post("/api/cad/from-text", json={"spec": info["spec"], "name": "Fitted plate",
                                                     "params": result["overrides"]})
