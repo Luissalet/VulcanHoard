@@ -19,6 +19,7 @@ from ..hoard_link.copilot import install_copilot
 from ..hoard_link.guard import install_guard
 from ..hoard_link import family
 from ..hoard_link.tokens import check_bearer, read_or_create_token
+from ..mesh_index import mesh_index_status
 from .native_response import NativeResponse
 from .projects import Projects, TOOLS as PROJECT_TOOLS
 from .specs import SPECS
@@ -202,7 +203,8 @@ def create_app(data_dir=None, port=None, factory=None, catalog=None):
     @app.get('/api/health')
     async def health():
         return {'service': 'vulcan-hoard', 'name': "Vulcan's Hoard", 'version': '1.0.0', 'status': 'healthy',
-                'dataDirConfigured': True, 'modules': [module.status() for module in modules.values()]}
+                'dataDirConfigured': True, 'mesh_index': mesh_index_status(),
+                'modules': [module.status() for module in modules.values()]}
 
     @app.get('/api/modules')
     async def module_list():

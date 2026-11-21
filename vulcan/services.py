@@ -16,6 +16,7 @@ from .hoard_link import paths
 from .studio.global_link import GlobalLink as Link
 from .hoard_link.tokens import read_or_create_token
 from .listings import AlbumStore, ListingStore
+from .mesh_index import mesh_index_status
 from .model_backend import load_link_config
 from .organize import Organizer
 from .scanner import Scanner
@@ -128,6 +129,7 @@ class Services:
         return {
             "service": "vulcan-hoard",
             "version": __version__,
+            "mesh_index": mesh_index_status(),
             "data_dir": str(self.config.data_dir),
             "thumbs_dir": str(self.config.thumbs_dir),
             "thumbnails": self.config.thumbnails,

@@ -4,6 +4,7 @@ from pathlib import Path
 import asyncio
 import hashlib
 import json
+import sys
 
 import httpx
 from fastapi import FastAPI
@@ -39,12 +40,23 @@ def test_cold_catalog_never_instantiates_modules(tmp_path):
     with TestClient(app, base_url='http://127.0.0.1:64836') as client:
         assert len(client.get('/api/modules').json()['modules']) == 6
         assert all(not row['enabled'] and not row['automatic'] for row in client.get('/api/modules').json()['modules'])
+        assert client.get('/api/health').json()['mesh_index'] == {'dependency': 'rtree', 'available': True}
         assert client.get('/api/agent/tools').status_code == 200
         assert client.get('/').status_code == 200
         assert not (tmp_path / 'native').exists()
         assert not (tmp_path / 'studio-projects.json').exists()
         assert client.get('/heron/api/health').status_code == 409
     assert not events
+
+
+def test_studio_health_reports_missing_mesh_index_with_library_off(tmp_path, monkeypatch):
+    monkeypatch.setitem(sys.modules, 'rtree', None)
+    app = create_app(tmp_path, 64836, catalog=[])
+    with TestClient(app, base_url='http://127.0.0.1:64836') as client:
+        response = client.get('/api/health')
+        assert response.status_code == 200
+        assert response.json()['mesh_index'] == {'dependency': 'rtree', 'available': False}
+        assert all(not row['enabled'] for row in response.json()['modules'])
 
 
 def test_native_catalog_dispatch_defaults_off_and_keeps_schema(tmp_path):

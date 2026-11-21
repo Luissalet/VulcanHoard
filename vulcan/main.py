@@ -17,6 +17,7 @@ from .hoard_link import family
 from .hoard_link.copilot import install_copilot
 from .hoard_link.guard import install_guard
 from .hoard_link.service import health_router, install_error_handlers, install_spa
+from .mesh_index import mesh_index_status
 from .services import Services
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -51,7 +52,10 @@ def create_app(config: Config | None = None) -> FastAPI:
 
     install_guard(app, port_getter=lambda: config.port, allowed_hosts=config.allowed_hosts, allowed_env="VULCAN_ALLOWED_HOSTS")
     install_error_handlers(app)
-    app.include_router(health_router(SERVICE, __version__, extra=lambda: {"dataDirConfigured": config.data_dir_configured}))
+    app.include_router(health_router(SERVICE, __version__, extra=lambda: {
+        "dataDirConfigured": config.data_dir_configured,
+        "mesh_index": mesh_index_status(),
+    }))
     for router in ROUTERS:
         app.include_router(router)
     install_copilot(app, "vulcan", config.data_dir, app_name="Vulcan's Hoard")
