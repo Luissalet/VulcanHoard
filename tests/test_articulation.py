@@ -5,10 +5,12 @@ from pathlib import Path
 import numpy as np
 import pytest
 import trimesh
+from PIL import Image
 
 from vulcan.agent_tools import call_tool
 from vulcan.articulation.seams import connect_ends, cycles
 from vulcan.articulation.tools import Build
+from vulcan.asset_inspection import read_gltf
 from vulcan.blender_render import find_blender
 from vulcan.hoard_link.agentkit import AppError
 
@@ -189,4 +191,64 @@ def test_articulation_repairs_both_sides_of_an_interrupted_cut(services, tmp_pat
     call_tool(services, "articulation_undo", {"id": result["id"]})
     assert not Path(result["files"]["scene"]).exists()
     call_tool(services, "articulation_undo", {"id": result["id"], "restore": True})
+    assert call_tool(services, "articulation_get", {"id": result["id"]}) == result
+
+
+
+@pytest.mark.skipif(find_blender() is None, reason="Blender is not installed")
+def test_articulation_finish_keeps_rig_and_limits_writes_to_the_selected_parts(services, tmp_path):
+    source = tmp_path / "box.glb"
+    box = trimesh.creation.box()
+    box.visual.vertex_colors = [192, 192, 192, 255]
+    box.export(source)
+    rig = call_tool(services, "articulation_build", {
+        "source": str(source), "selection_views": False, "body_bone": "root",
+        "bones": [{"name": "root", "head": [0, 0, 0], "tail": [0, 0, 1]}],
+        "panels": [{"name": "map", "outline": [[2, 0, 0], [3, 0, 0], [3, 0.8, 0], [2.8, 1, 0], [2, 1, 0]],
+                    "thickness": 0.01, "rgb": [0.5, 0.5, 0.5], "bone": "root", "reference": "Clipped paper"}],
+        "poses": [{"name": "turned", "rotations": {"root": [0, 0, 90]}, "export": False, "cameras": []}],
+    })
+    art = tmp_path / "art.png"
+    Image.new("RGB", (8, 8), (128, 64, 32)).save(art)
+    revision = sha256(art.read_bytes()).hexdigest()
+    args = {
+        "source": rig["files"]["scene"], "source_sha256": rig["artifacts"]["scene"]["sha256"],
+        "edits": [
+            {"mode": "colour", "part": "body", "path": str(art), "sha256": revision,
+             "origin": [-1, -1, 0], "right": [2, 0, 0], "up": [0, 2, 0], "depth": [0.49, 0.51]},
+            {"mode": "image", "part": "map", "path": str(art), "sha256": revision,
+             "origin": [2, 0, 0], "right": [1, 0, 0], "up": [0, 1, 0]},
+        ],
+    }
+    bad = {**args, "edits": [{**args["edits"][0], "sha256": "0" * 64}]}
+    with pytest.raises(AppError, match="source revision changed"):
+        call_tool(services, "articulation_finish", bad)
+    root = services.config.data_dir / "articulation"
+    assert {p.name for p in root.iterdir()} == {rig["id"]}
+    result = call_tool(services, "articulation_finish", args)
+    assert result["poses"] == {"rest": 1, "turned": 25}
+    assert result["edits"][0]["samples_written"] > 0 and result["edits"][1]["faces_mapped"] == 16
+    assert sha256(Path(args["source"]).read_bytes()).hexdigest() == args["source_sha256"]
+
+    before = trimesh.load(rig["files"]["rigged"], force="scene", process=False)
+    after = trimesh.load(result["files"]["rigged"], force="scene", process=False)
+    for part in ("body", "map"):
+        first = before.geometry[before.graph[part][1]]
+        final = after.geometry[after.graph[part][1]]
+        assert len(first.faces) == len(final.faces)
+        assert set(map(tuple, first.vertices)) == set(map(tuple, final.vertices))
+    painted_map = after.geometry[after.graph["map"][1]]
+    assert painted_map.visual.material.baseColorTexture.getpixel((3, 3))[:3] == (128, 64, 32)
+    first = before.geometry[before.graph["body"][1]]
+    final = after.geometry[after.graph["body"][1]]
+    original_colours = first.visual.vertex_attributes["color"]
+    painted_colours = final.visual.vertex_attributes["color"]
+    assert np.all(painted_colours[final.vertices[:, 1] < 0] == original_colours[0])
+    assert np.allclose(painted_colours[final.vertices[:, 1] > 0], [0.21586, 0.05127, 0.01444], atol=2e-5)
+    gltf, _ = read_gltf(Path(result["files"]["rigged"]))
+    assert len(gltf["skins"][0]["joints"]) == 1
+    assert gltf["animations"][0]["name"] == "ArticulationAction"
+    removed = call_tool(services, "articulation_undo", result["undo"])
+    assert not Path(result["files"]["scene"]).exists()
+    call_tool(services, "articulation_undo", removed["undo"])
     assert call_tool(services, "articulation_get", {"id": result["id"]}) == result

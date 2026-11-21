@@ -17984,6 +17984,411 @@
   },
   {
     "module": "library",
+    "native_name": "articulation_finish",
+    "name": "articulation_finish",
+    "description": "Project retained artwork onto a rig. Proyecta ilustraciones de referencia sobre una articulación.\nPaint a localized vertex-colour patch or map an image to a named part. Keeps geometry, rig and animation. Returns an editable scene and skinned GLB. Undo: articulation_undo. Reproyecta color localizado o aplica una imagen a una pieza nombrada. Conserva geometría, esqueleto y animación. Devuelve escena editable y GLB articulado. Deshacer: articulation_undo.\nSinónimos: reproyectar el color de la cara, aplicar tinta al mapa, texturizar una pieza articulada.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "draftSafeHint": true
+    },
+    "inputSchema": {
+      "$defs": {
+        "ColourProjection": {
+          "additionalProperties": false,
+          "properties": {
+            "part": {
+              "description": "Name of the articulated mesh. / Nombre de la malla articulada.",
+              "maxLength": 100,
+              "minLength": 1,
+              "title": "Part",
+              "type": "string"
+            },
+            "path": {
+              "description": "Absolute PNG or JPEG path. / Ruta absoluta a un PNG o JPEG.",
+              "title": "Path",
+              "type": "string"
+            },
+            "sha256": {
+              "pattern": "^[0-9a-fA-F]{64}$",
+              "title": "Sha256",
+              "type": "string"
+            },
+            "reference": {
+              "anyOf": [
+                {
+                  "maxLength": 500,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Reference"
+            },
+            "origin": {
+              "description": "Lower left of the projection in world metres. / Esquina inferior izquierda de la proyección en metros de escena.",
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "title": "Origin",
+              "type": "array"
+            },
+            "right": {
+              "description": "Full width vector towards image right. / Vector de anchura completa hacia la derecha de la imagen.",
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "title": "Right",
+              "type": "array"
+            },
+            "up": {
+              "description": "Full height vector towards image top. / Vector de altura completa hacia arriba en la imagen.",
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "title": "Up",
+              "type": "array"
+            },
+            "mode": {
+              "const": "colour",
+              "title": "Mode",
+              "type": "string"
+            },
+            "depth": {
+              "description": "Signed depth interval along right cross up, in metres. / Intervalo de profundidad con signo desde el plano, según el producto vectorial de right por up, en metros.",
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "title": "Depth",
+              "type": "array"
+            },
+            "min_facing": {
+              "default": 0.2,
+              "maximum": 1,
+              "minimum": -1,
+              "title": "Min Facing",
+              "type": "number"
+            },
+            "attribute": {
+              "anyOf": [
+                {
+                  "maxLength": 100,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Attribute"
+            },
+            "crop": {
+              "anyOf": [
+                {
+                  "maxItems": 4,
+                  "minItems": 4,
+                  "prefixItems": [
+                    {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    {
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  ],
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Image pixel box [left, top, right, bottom], exclusive right and bottom. / Recorte en píxeles [izquierda, arriba, derecha, abajo], con derecha y abajo excluidos.",
+              "title": "Crop"
+            },
+            "mask": {
+              "description": "Convex counterclockwise polygon in projection UV (v points up). / Polígono convexo antihorario en UV de proyección (v hacia arriba).",
+              "items": {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "maximum": 1,
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  {
+                    "maximum": 1,
+                    "minimum": 0,
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              "maxItems": 32,
+              "title": "Mask",
+              "type": "array"
+            },
+            "feather": {
+              "default": 0.08,
+              "description": "Inward edge blend in normalized projection units. / Fundido hacia dentro en unidades normalizadas de proyección.",
+              "maximum": 1,
+              "minimum": 0,
+              "title": "Feather",
+              "type": "number"
+            },
+            "opacity": {
+              "default": 1.0,
+              "exclusiveMinimum": 0,
+              "maximum": 1,
+              "title": "Opacity",
+              "type": "number"
+            }
+          },
+          "required": [
+            "part",
+            "path",
+            "sha256",
+            "origin",
+            "right",
+            "up",
+            "mode",
+            "depth"
+          ],
+          "title": "ColourProjection",
+          "type": "object"
+        },
+        "ImageProjection": {
+          "additionalProperties": false,
+          "properties": {
+            "part": {
+              "description": "Name of the articulated mesh. / Nombre de la malla articulada.",
+              "maxLength": 100,
+              "minLength": 1,
+              "title": "Part",
+              "type": "string"
+            },
+            "path": {
+              "description": "Absolute PNG or JPEG path. / Ruta absoluta a un PNG o JPEG.",
+              "title": "Path",
+              "type": "string"
+            },
+            "sha256": {
+              "pattern": "^[0-9a-fA-F]{64}$",
+              "title": "Sha256",
+              "type": "string"
+            },
+            "reference": {
+              "anyOf": [
+                {
+                  "maxLength": 500,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Reference"
+            },
+            "origin": {
+              "description": "Lower left of the projection in world metres. / Esquina inferior izquierda de la proyección en metros de escena.",
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "title": "Origin",
+              "type": "array"
+            },
+            "right": {
+              "description": "Full width vector towards image right. / Vector de anchura completa hacia la derecha de la imagen.",
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "title": "Right",
+              "type": "array"
+            },
+            "up": {
+              "description": "Full height vector towards image top. / Vector de altura completa hacia arriba en la imagen.",
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "title": "Up",
+              "type": "array"
+            },
+            "mode": {
+              "const": "image",
+              "title": "Mode",
+              "type": "string"
+            }
+          },
+          "required": [
+            "part",
+            "path",
+            "sha256",
+            "origin",
+            "right",
+            "up",
+            "mode"
+          ],
+          "title": "ImageProjection",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "description": "Absolute editable articulation .blend path. / Ruta absoluta al .blend editable de articulación.",
+          "title": "Source",
+          "type": "string"
+        },
+        "source_sha256": {
+          "pattern": "^[0-9a-fA-F]{64}$",
+          "title": "Source Sha256",
+          "type": "string"
+        },
+        "source_ref": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Ref"
+        },
+        "frame": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Projection frame; defaults to the saved frame. / Fotograma de proyección. Por defecto usa el guardado.",
+          "title": "Frame"
+        },
+        "edits": {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "colour": "#/$defs/ColourProjection",
+                "image": "#/$defs/ImageProjection"
+              },
+              "propertyName": "mode"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/ColourProjection"
+              },
+              {
+                "$ref": "#/$defs/ImageProjection"
+              }
+            ]
+          },
+          "maxItems": 16,
+          "minItems": 1,
+          "title": "Edits",
+          "type": "array"
+        }
+      },
+      "required": [
+        "source",
+        "source_sha256",
+        "edits"
+      ],
+      "title": "Finish",
+      "type": "object",
+      "x-timeout-s": 600.0
+    },
+    "x-timeout-s": 600.0
+  },
+  {
+    "module": "library",
     "native_name": "articulation_get",
     "name": "articulation_get",
     "description": "Read an articulation package. Consulta de articulación.\nReturns its revision, measurements and files. Consulta la procedencia, las medidas y los archivos de la articulación.\nSinónimos: consultar una malla articulada, ver la revisión del rig, recuperar piezas y medidas.",

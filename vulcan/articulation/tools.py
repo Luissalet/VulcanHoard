@@ -172,6 +172,64 @@ class Build(Args):
         return self
 
 
+class Projection(Args):
+    part: str = Field(min_length=1, max_length=100, description="Name of the articulated mesh. / Nombre de la malla articulada.")
+    path: str = Field(description="Absolute PNG or JPEG path. / Ruta absoluta a un PNG o JPEG.")
+    sha256: Digest
+    reference: str | None = Field(None, max_length=500)
+    origin: Vec = Field(description="Lower left of the projection in world metres. / Esquina inferior izquierda de la proyección en metros de escena.")
+    right: Vec = Field(description="Full width vector towards image right. / Vector de anchura completa hacia la derecha de la imagen.")
+    up: Vec = Field(description="Full height vector towards image top. / Vector de altura completa hacia arriba en la imagen.")
+
+    @model_validator(mode="after")
+    def check_axes(self):
+        width, height = math.hypot(*self.right), math.hypot(*self.up)
+        if min(width, height) < 1e-6 or abs(sum(a * b for a, b in zip(self.right, self.up))) > 1e-6 * width * height:
+            raise ValueError("Use nonzero perpendicular projection axes. / Usa ejes de proyección perpendiculares y no nulos.")
+        return self
+
+
+class ColourProjection(Projection):
+    mode: Literal["colour"]
+    depth: tuple[FiniteFloat, FiniteFloat] = Field(
+        description="Signed depth interval along right cross up, in metres. / Intervalo de profundidad con signo desde el plano, según el producto vectorial de right por up, en metros.")
+    min_facing: Annotated[FiniteFloat, Field(ge=-1, le=1)] = 0.2
+    attribute: str | None = Field(None, max_length=100)
+    crop: tuple[FaceIndex, FaceIndex, FaceIndex, FaceIndex] | None = Field(
+        None, description="Image pixel box [left, top, right, bottom], exclusive right and bottom. / Recorte en píxeles [izquierda, arriba, derecha, abajo], con derecha y abajo excluidos.")
+    mask: list[tuple[Unit, Unit]] = Field(default_factory=list, max_length=32,
+        description="Convex counterclockwise polygon in projection UV (v points up). / Polígono convexo antihorario en UV de proyección (v hacia arriba).")
+    feather: Unit = Field(0.08, description="Inward edge blend in normalized projection units. / Fundido hacia dentro en unidades normalizadas de proyección.")
+    opacity: Annotated[FiniteFloat, Field(gt=0, le=1)] = 1.0
+
+    @model_validator(mode="after")
+    def check_region(self):
+        if self.depth[0] > self.depth[1]:
+            raise ValueError("Depth bounds are reversed. / Los límites de profundidad están invertidos.")
+        if self.crop and (self.crop[0] >= self.crop[2] or self.crop[1] >= self.crop[3]):
+            raise ValueError("The crop must have a positive width and height. / El recorte debe tener anchura y altura positivas.")
+        if self.mask:
+            edges = list(zip(self.mask, self.mask[1:] + self.mask[:1]))
+            if len(set(self.mask)) != len(self.mask) or len(self.mask) < 3 or any(
+                (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0]) <= 0
+                for a, b in edges for p in self.mask if p not in (a, b)
+            ):
+                raise ValueError("Use a convex counterclockwise mask. / Usa una máscara convexa antihoraria.")
+        return self
+
+
+class ImageProjection(Projection):
+    mode: Literal["image"]
+
+
+class Finish(Args):
+    source: str = Field(description="Absolute editable articulation .blend path. / Ruta absoluta al .blend editable de articulación.")
+    source_sha256: Digest
+    source_ref: str | None = Field(None, max_length=500)
+    frame: int | None = Field(None, description="Projection frame; defaults to the saved frame. / Fotograma de proyección. Por defecto usa el guardado.")
+    edits: list[Annotated[ColourProjection | ImageProjection, Field(discriminator="mode")]] = Field(min_length=1, max_length=16)
+
+
 class Lookup(Args):
     id: PackageId
 
@@ -209,6 +267,10 @@ def build(services, args):
     return service.build(services.config.data_dir, args.model_dump(mode="json"))
 
 
+def finish(services, args):
+    return service.finish(services.config.data_dir, args.model_dump(mode="json"))
+
+
 def get(services, args):
     return service.get(services.config.data_dir, args.id)
 
@@ -233,6 +295,13 @@ TOOLS = [
          "frozen poses and optional same-camera previews. Build a clipped panel from a pinned dossier. Use articulation_undo to revert. "
          "Selecciona por región, plano, color, semilla o caras de origen. Repara encastres, articula piezas y construye paneles desde un expediente fijado.",
          Build, ann(draft_safe=True), build, timeout_s=600, capped=False),
+    Tool("articulation_finish", "Project retained artwork onto a rig. Proyecta ilustraciones de referencia sobre una articulación.\n"
+         "Paint a localized vertex-colour patch or map an image to a named part. Keeps geometry, rig and animation. "
+         "Returns an editable scene and skinned GLB. Undo: articulation_undo. "
+         "Reproyecta color localizado o aplica una imagen a una pieza nombrada. Conserva geometría, esqueleto y animación. "
+         "Devuelve escena editable y GLB articulado. Deshacer: articulation_undo.\n"
+         "Sinónimos: reproyectar el color de la cara, aplicar tinta al mapa, texturizar una pieza articulada.",
+         Finish, ann(draft_safe=True), finish, timeout_s=600, capped=False),
     Tool("articulation_get", "Read an articulation package. Consulta de articulación.\nReturns its revision, measurements and files. "
          "Consulta la procedencia, las medidas y los archivos de la articulación.\n"
          "Sinónimos: consultar una malla articulada, ver la revisión del rig, recuperar piezas y medidas.", Lookup, ann(True), get, capped=False),

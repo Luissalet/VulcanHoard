@@ -85,7 +85,8 @@ def test_agent_tools_catalog_and_calls(scanned):
                      "texture_project", "texture_project_status",
                      "code_model", "code_model_run", "code_model_edit", "code_model_status", "model_impostor", "model_impostors_batch"]
     room_and_pose_names = ["room_plan", "room_build", "room_get", "room_rectify",
-                     "articulation_build", "articulation_get", "articulation_view", "articulation_pick", "articulation_undo",
+                     "articulation_build", "articulation_finish", "articulation_get", "articulation_view",
+                     "articulation_pick", "articulation_undo",
                      "blocking_build", "blocking_get", "blocking_freeze", "blocking_pose_get", "blocking_pose_undo",
                      "blocking_undo", "blocking_guide", "blocking_guide_undo", "blocking_pass"]
     assert names == names_with_legacy_annotations + room_and_pose_names
