@@ -155,6 +155,11 @@
   },
   "notes": "All six modules and automation initially OFF. Explicitly start Vulcan, then vulcan_set_module for a requested function. Discovery uses the complete owned static catalogue without starting any server or native store. Library tool names are preserved; other module tools retain native names/schemas under namespaces. Shared projects retain IDs/revisions/artifact hashes. Text and vision use Faustus global stateless inference only. Native HTTP editors/APIs use /library/, /gepetto/, /daedalus/, /plato/, /heron/, /gulliver/; host control/project/MCP routes remain /api/. Compatibility aliases and real data migration are coordinated separately.",
   "x-family": {
+    "isolated_instance": {
+      "data_env": "VULCAN_DATA_DIR",
+      "port_env": "VULCAN_PORT",
+      "token_env": "VULCAN_TOKEN_FILE"
+    },
     "production": {
       "handoffs": [
         {"accepts": "character-sheet", "produces": ["reference-mesh"], "skill": "web-3d-asset-pipeline", "check": {"en": "Open the exported GLB, inspect several angles and check silhouette, background and fused parts.", "es": "Abre el GLB exportado, inspecciona varios ángulos y comprueba la silueta, el fondo y las piezas fusionadas."}},
