@@ -108,8 +108,10 @@ def undo(services, args: blocking.Undo) -> dict:
 TOOLS = [
     Tool("blocking_guide", "Export a blocking video guide. Exporta la guía de vídeo de un bloqueo.\n"
          "Renders every pose through the last key. Undo: blocking_guide_undo. "
-         "Renderiza todas las poses hasta la última clave. Deshacer: blocking_guide_undo.",
+         "Renderiza todas las poses hasta la última clave. Deshacer: blocking_guide_undo.\n"
+         "Sinónimos: exportar un vídeo guía, renderizar el bloqueo, sacar un vídeo de referencia de las poses.",
          Guide, ann(draft_safe=True), export, timeout_s=255),
-    Tool("blocking_guide_undo", "Withdraw or restore a video guide. Retira o restaura un vídeo guía.",
+    Tool("blocking_guide_undo", "Withdraw or restore a video guide. Retira o restaura un vídeo guía.\n"
+         "Sinónimos: deshacer la exportación de la guía, retirar el vídeo de referencia, restaurar el vídeo guía.",
          blocking.Undo, ann(idempotent=True), undo),
 ]

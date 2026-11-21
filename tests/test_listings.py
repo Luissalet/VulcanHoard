@@ -4,6 +4,7 @@ import pytest
 
 from vulcan.agent_tools import TOOLS, call_tool
 from vulcan.store import normalise_tags
+from vulcan.studio.catalog import native_catalog
 
 
 def test_normalise_tags():
@@ -72,7 +73,7 @@ def test_albums(scanned):
 def test_agent_tools_catalog_and_calls(scanned):
     services, root = scanned
     names = [t.name for t in TOOLS]
-    names_with_synonyms = ["models_search", "model_info", "model_listing_get", "model_listing_set", "model_tag", "model_note", "models_stats", "models_dupes", "models_similar", "models_add_root", "models_rescan", "models_recent",
+    names_with_legacy_annotations = ["models_search", "model_info", "model_listing_get", "model_listing_set", "model_tag", "model_note", "models_stats", "models_dupes", "models_similar", "models_add_root", "models_rescan", "models_recent",
                       "folder_listings", "folder_listing_get", "folder_listing_set", "folder_listing_check", "folder_listing_draft", "folder_listings_export",
                       "collection_plan", "collection_apply", "collection_undo", "sheets_batch", "model_import_file", "listings_export_catalog",
                      "cad_spec_schema", "cad_from_text", "cad_regenerate", "copilot_context_get", "model_delete", "model_compare",
@@ -87,13 +88,15 @@ def test_agent_tools_catalog_and_calls(scanned):
                      "articulation_build", "articulation_get", "articulation_view", "articulation_pick", "articulation_undo",
                      "blocking_build", "blocking_get", "blocking_freeze", "blocking_pose_get", "blocking_pose_undo",
                      "blocking_undo", "blocking_guide", "blocking_guide_undo", "blocking_pass"]
-    assert names == names_with_synonyms + room_and_pose_names
+    assert names == names_with_legacy_annotations + room_and_pose_names
+    cold_descriptions = {tool["native_name"]: tool["description"] for tool in native_catalog() if tool["module"] == "library"}
     standard_annotations = {"readOnlyHint", "destructiveHint", "idempotentHint", "openWorldHint"}
     for tool in TOOLS:
         assert tool.description.strip()
         assert standard_annotations <= tool.annotations.keys()
-        if tool.name in names_with_synonyms:
-            assert "Sinónimos:" in tool.description
+        assert "Sinónimos:" in tool.description, tool.name
+        assert cold_descriptions[tool.name] == tool.description
+        if tool.name in names_with_legacy_annotations:
             assert tool.annotations.keys() == standard_annotations
     hits = call_tool(services, "models_search", {"q": "cubo", "format": "stl"})
     assert hits["count"] >= 3 and hits["hits"][0]["thumb_url"].startswith("/api/models/") and "bbox" in hits["hits"][0]

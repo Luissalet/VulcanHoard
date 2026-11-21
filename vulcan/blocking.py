@@ -308,19 +308,27 @@ TOOLS = [
     Tool("blocking_build", "Build a primitive take on CPU. Crea una toma con articulación en CPU.\n"
          "Returns an editable scene, animated GLB, per-key maps and transparent part layers with grip contacts. "
          "Devuelve la escena editable, el GLB animado, mapas por clave, capas transparentes y contactos de agarre. "
-         "Undo / Deshacer: blocking_undo.", Build, ann(draft_safe=True), build, timeout_s=105, capped=False),
+         "Undo / Deshacer: blocking_undo.\n"
+         "Sinónimos: preparar un bloqueo de animación, montar una toma con primitivas, ensayar un gesto.",
+         Build, ann(draft_safe=True), build, timeout_s=105, capped=False),
     Tool("blocking_get", "Read a blocking package. Consulta un bloqueo y su articulación.\n"
          "Returns named parts, maps, layers and contact files by keyframe. "
-         "Devuelve las partes, mapas, capas y archivos de contacto por fotograma.",
+         "Devuelve las partes, mapas, capas y archivos de contacto por fotograma.\n"
+         "Sinónimos: consultar un bloqueo, ver las claves de la toma, recuperar capas y contactos.",
          Lookup, ann(True), get, capped=False),
     Tool("blocking_freeze", "Bake a take frame to static GLB. Congela un fotograma en GLB estático.\n"
          "Returns mesh, source hash and measured grips. Devuelve malla, huella de origen y agarres medidos. "
-         "Undo / Deshacer: blocking_pose_undo.", Freeze, ann(draft_safe=True), freeze, timeout_s=95, capped=False),
-    Tool("blocking_pose_get", "Read a frozen pose by ID. Consulta una pose congelada por ID.",
+         "Undo / Deshacer: blocking_pose_undo.\n"
+         "Sinónimos: congelar una pose, sacar una malla de un fotograma, exportar un GLB estático.",
+         Freeze, ann(draft_safe=True), freeze, timeout_s=95, capped=False),
+    Tool("blocking_pose_get", "Read a frozen pose by ID. Consulta una pose congelada por ID.\n"
+         "Sinónimos: consultar una pose fija, recuperar la malla del fotograma, ver los agarres de la pose.",
          Lookup, ann(True), pose_get, capped=False),
-    Tool("blocking_pose_undo", "Withdraw or restore a frozen pose. Retira o restaura una pose congelada.",
+    Tool("blocking_pose_undo", "Withdraw or restore a frozen pose. Retira o restaura una pose congelada.\n"
+         "Sinónimos: deshacer la pose congelada, retirar la malla estática, restaurar la pose fija.",
          Undo, ann(idempotent=True), pose_undo),
     Tool("blocking_undo", "Withdraw or restore a blocking package. Retira o restaura un bloqueo.\n"
-         "Returns the inverse call. Devuelve la operación inversa.",
+         "Returns the inverse call. Devuelve la operación inversa.\n"
+         "Sinónimos: deshacer el bloqueo, retirar la toma, restaurar el paquete de animación.",
          Undo, ann(idempotent=True), undo),
 ]

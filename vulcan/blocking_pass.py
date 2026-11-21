@@ -131,6 +131,7 @@ def _pin(source: Path, target: Path, expected: str) -> str:
 TOOLS = [
     Tool("blocking_pass", "Pass a sheet between the hands of a detailed rig. Pasa una hoja entre las manos de un modelo detallado.\n"
          "Returns an editable take, key views and an animated GLB. Undo: blocking_undo. "
-         "Devuelve toma editable, vistas por clave y GLB animado. Deshacer: blocking_undo.",
+         "Devuelve toma editable, vistas por clave y GLB animado. Deshacer: blocking_undo.\n"
+         "Sinónimos: pasar una hoja de una mano a otra, animar el cambio de mano, preparar el relevo de un papel.",
          Handoff, ann(draft_safe=True), build, timeout_s=175, capped=False),
 ]

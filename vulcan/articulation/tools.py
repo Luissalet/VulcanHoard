@@ -226,17 +226,23 @@ def pick(services, args):
 
 
 TOOLS = [
-    Tool("articulation_build", "Split and rig an inferred mesh. Selección, corte, reparación y articulación.\nSelect by region, plane, colour or seed; cap boundaries, "
+    Tool("articulation_build", "Split and rig an inferred mesh. Selección, corte, reparación y articulación.\n"
+         "Sinónimos: separar y articular una malla, preparar piezas móviles, cortar y reparar encastres.\n"
+         "Select by region, plane, colour or seed; cap boundaries, "
          "repair named seams, discard debris and rig separate pieces. Creates a new editable package with source face provenance, GLB, "
          "frozen poses and optional same-camera previews. Build a clipped panel from a pinned dossier. Use articulation_undo to revert. "
          "Selecciona por región, plano, color, semilla o caras de origen. Repara encastres, articula piezas y construye paneles desde un expediente fijado.",
          Build, ann(draft_safe=True), build, timeout_s=600, capped=False),
     Tool("articulation_get", "Read an articulation package. Consulta de articulación.\nReturns its revision, measurements and files. "
-         "Consulta la procedencia, las medidas y los archivos de la articulación.", Lookup, ann(True), get, capped=False),
+         "Consulta la procedencia, las medidas y los archivos de la articulación.\n"
+         "Sinónimos: consultar una malla articulada, ver la revisión del rig, recuperar piezas y medidas.", Lookup, ann(True), get, capped=False),
     Tool("articulation_view", "Open a source, selection or pose preview. Vista de articulación.\nUse a PNG name from articulation_get. "
-         "Abre una vista de origen, selección o pose.", Picture, ann(True), view, capped=False),
-    Tool("articulation_pick", "Resolve a viewer ray to a source face. Resuelve un rayo del visor a una cara de origen.",
+         "Abre una vista de origen, selección o pose.\n"
+         "Sinónimos: previsualizar la pose, ver el recorte, comparar con la malla original.", Picture, ann(True), view, capped=False),
+    Tool("articulation_pick", "Resolve a viewer ray to a source face. Resuelve un rayo del visor a una cara de origen.\n"
+         "Sinónimos: localizar una cara de origen, identificar el triángulo señalado, seleccionar desde el visor.",
          SourcePick, ann(True), pick, timeout_s=90),
     Tool("articulation_undo", "Withdraw or restore a package. Deshacer articulación.\nReturns arguments to reverse the operation. "
-         "Retira o restaura un paquete generado.", Undo, ann(idempotent=True), undo),
+         "Retira o restaura un paquete generado.\n"
+         "Sinónimos: deshacer la articulación, retirar el paquete articulado, restaurar el rig.", Undo, ann(idempotent=True), undo),
 ]
