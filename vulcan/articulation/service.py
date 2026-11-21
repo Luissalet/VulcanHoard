@@ -16,6 +16,7 @@ from ..hoard_link.agentkit import AppError
 from .dossier import resolve_panel
 
 WORKER = Path(__file__).with_name("worker.py")
+FINISH_WORKER = Path(__file__).with_name("finish_worker.py")
 PICK_WORKER = Path(__file__).with_name("pick_worker.py")
 MISSING_PACKAGE = "Articulation package unavailable. / El paquete de articulación no está disponible."
 MISSING_VIEW = "View unavailable. / La vista no está disponible."
@@ -38,6 +39,10 @@ def copy_revision(path, target, expected):
     source = Path(path)
     if not source.is_absolute() or source.suffix.lower() != ".glb" or not source.is_file():
         raise ValueError("An existing absolute GLB path is required. / Hace falta la ruta absoluta a un GLB existente.")
+    return pin_file(source, target, expected)
+
+
+def pin_file(source, target, expected):
     shutil.copyfile(source, target)
     digest = sha256_of(target)
     if expected and digest != expected.lower():
@@ -84,12 +89,51 @@ def build(data_dir, recipe):
         result = json.loads(receipt.read_text(encoding="utf-8"))
         if "game" in result:
             measure_game(output / result["files"]["game"], result["game"])
-        result["artifacts"] = {
-            name: {"sha256": sha256_of(output / file), "size": (output / file).stat().st_size}
-            for name, file in result["files"].items()
-        }
-        receipt.write_text(json.dumps(result, ensure_ascii=False), encoding="utf-8")
-        output.rename(root / package_id)
+        publish(root, package_id, output, result)
+    return get(data_dir, package_id)
+
+
+def publish(root, package_id, output, result):
+    result["artifacts"] = {
+        name: {"sha256": sha256_of(output / file), "size": (output / file).stat().st_size}
+        for name, file in result["files"].items()
+    }
+    (output / "receipt.json").write_text(json.dumps(result, ensure_ascii=False), encoding="utf-8")
+    output.rename(root / package_id)
+
+
+def finish(data_dir, recipe):
+    source = Path(recipe["source"])
+    if not source.is_absolute() or source.suffix.lower() != ".blend" or not source.is_file():
+        raise ValueError("Use an absolute editable .blend path. / Usa la ruta absoluta al .blend editable.")
+    package_id = uuid4().hex
+    root = data_dir / "articulation"
+    root.mkdir(parents=True, exist_ok=True)
+    with TemporaryDirectory(prefix=".finish-", dir=root) as staging:
+        work = Path(staging)
+        editable = work / "source.blend"
+        digest = pin_file(source, editable, recipe["source_sha256"])
+        edits = []
+        for index, edit in enumerate(recipe["edits"]):
+            image = Path(edit["path"])
+            if not image.is_absolute() or image.suffix.lower() not in {".png", ".jpg", ".jpeg"} or not image.is_file():
+                raise ValueError("Use an absolute PNG or JPEG path. / Usa una ruta absoluta a un PNG o JPEG.")
+            folder = work / str(index)
+            folder.mkdir()
+            copy = folder / image.name
+            pin_file(image, copy, edit["sha256"])
+            edits.append({**edit, "file": str(copy)})
+        request = work / "request.json"
+        request.write_text(json.dumps({**recipe, "edits": edits}, ensure_ascii=False), encoding="utf-8")
+        output = work / "package"
+        output.mkdir()
+        receipt = output / "receipt.json"
+        run_worker(FINISH_WORKER, (editable, request, output), receipt, timeout=540)
+        result = json.loads(receipt.read_text(encoding="utf-8"))
+        result["source"] = {"path": str(source), "sha256": digest, "ref": recipe["source_ref"]}
+        result["edits"] = [{**edit, **change} for edit, change in zip(recipe["edits"], result["edits"], strict=True)]
+        (output / "recipe.json").write_text(json.dumps(recipe, ensure_ascii=False), encoding="utf-8")
+        publish(root, package_id, output, result)
     return get(data_dir, package_id)
 
 
