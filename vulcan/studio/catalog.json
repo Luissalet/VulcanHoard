@@ -17986,7 +17986,7 @@
     "module": "library",
     "native_name": "articulation_finish",
     "name": "articulation_finish",
-    "description": "Project retained artwork onto a rig. Proyecta ilustraciones de referencia sobre una articulación.\nPaint local colour, optionally closing holes, adding a bounded patch and smoothing, or map an image to a part. Keeps the rig and animation. Add material-scoped colour replacement, speck cleaning, smoothing or a skinned mesh swap with before/after views. Undo: articulation_undo. Reproyecta color localizado, con relleno, parche acotado y alisado opcionales, o aplica una imagen a una pieza. Conserva esqueleto y animación. Sustituye color o malla, limpia motas o alisa por material, con vistas antes y después. Deshacer: articulation_undo.\nSinónimos: reparar huecos y escalones, reproyectar el color de la cara, aplicar tinta al mapa, texturizar una pieza articulada.",
+    "description": "Project retained artwork onto a rig. Proyecta ilustraciones de referencia sobre una articulación.\nPaint local colour, optionally closing holes, adding a bounded patch and smoothing, or map an image to a part. Keeps the rig and animation. Add material-scoped colour replacement, speck cleaning, smoothing, a continuous textured patch or a skinned mesh swap fitted to an independent surface, with before/after views. Undo: articulation_undo. Reproyecta color localizado, con relleno, parche acotado y alisado opcionales, o aplica una imagen a una pieza. Conserva esqueleto y animación. Sustituye color o malla, limpia motas, alisa o reconstruye un parche continuo por material. Ajusta la malla a una superficie de referencia. Incluye vistas antes y después. Deshacer: articulation_undo.\nSinónimos: reparar huecos y escalones, reproyectar el color de la cara, aplicar tinta al mapa, texturizar una pieza articulada.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -18346,6 +18346,40 @@
             "max_spot_m"
           ],
           "title": "Despeckle",
+          "type": "object"
+        },
+        "FitTarget": {
+          "additionalProperties": false,
+          "properties": {
+            "path": {
+              "description": "Absolute path to a self-contained GLB in local rest coordinates. / Ruta absoluta a un GLB autocontenido en coordenadas locales de reposo.",
+              "title": "Path",
+              "type": "string"
+            },
+            "sha256": {
+              "pattern": "^[0-9a-fA-F]{64}$",
+              "title": "Sha256",
+              "type": "string"
+            },
+            "reference": {
+              "anyOf": [
+                {
+                  "maxLength": 500,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Reference"
+            }
+          },
+          "required": [
+            "path",
+            "sha256"
+          ],
+          "title": "FitTarget",
           "type": "object"
         },
         "ImageProjection": {
@@ -18726,6 +18760,138 @@
           "title": "LoftSection",
           "type": "object"
         },
+        "RebuildPatch": {
+          "additionalProperties": false,
+          "properties": {
+            "region": {
+              "$ref": "#/$defs/LocalRegion"
+            },
+            "mode": {
+              "const": "rebuild_patch",
+              "title": "Mode",
+              "type": "string"
+            },
+            "name": {
+              "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,47}$",
+              "title": "Name",
+              "type": "string"
+            },
+            "path": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Absolute path to retained PNG or JPEG. / Ruta absoluta al PNG o JPEG conservado.",
+              "title": "Path"
+            },
+            "sha256": {
+              "anyOf": [
+                {
+                  "pattern": "^[0-9a-fA-F]{64}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Sha256"
+            },
+            "reference": {
+              "anyOf": [
+                {
+                  "maxLength": 500,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Reference"
+            },
+            "crop": {
+              "anyOf": [
+                {
+                  "maxItems": 4,
+                  "minItems": 4,
+                  "prefixItems": [
+                    {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    {
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  ],
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Crop"
+            },
+            "attribute": {
+              "anyOf": [
+                {
+                  "maxLength": 100,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Attribute"
+            },
+            "samples": {
+              "default": 72,
+              "description": "Samples across the longest side. / Muestras a lo ancho del lado más largo.",
+              "maximum": 160,
+              "minimum": 24,
+              "title": "Samples",
+              "type": "integer"
+            },
+            "smooth_m": {
+              "default": 0.002,
+              "description": "Depth smoothing radius in metres. / Radio de alisado de profundidad en metros.",
+              "exclusiveMinimum": 0,
+              "title": "Smooth M",
+              "type": "number"
+            },
+            "feather": {
+              "default": 0.07,
+              "description": "Width of the transition to the original edge in view units. / Anchura de transición al borde original en unidades de la vista.",
+              "maximum": 0.24,
+              "minimum": 0.01,
+              "title": "Feather",
+              "type": "number"
+            }
+          },
+          "required": [
+            "region",
+            "mode",
+            "name"
+          ],
+          "title": "RebuildPatch",
+          "type": "object"
+        },
         "ReplaceMesh": {
           "additionalProperties": false,
           "properties": {
@@ -18925,7 +19091,7 @@
           "additionalProperties": false,
           "properties": {
             "center": {
-              "description": "Point inside the old surface in local rest metres. / Punto dentro de la superficie anterior en metros locales de reposo.",
+              "description": "Point inside the fitting surface in local rest metres. / Punto dentro de la superficie de ajuste en metros locales de reposo.",
               "maxItems": 3,
               "minItems": 3,
               "prefixItems": [
@@ -18941,6 +19107,18 @@
               ],
               "title": "Center",
               "type": "array"
+            },
+            "target": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/FitTarget"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Independent fitting surface in the same rest coordinates. / Superficie de ajuste independiente en las mismas coordenadas de reposo."
             },
             "bounds": {
               "anyOf": [
@@ -19171,6 +19349,7 @@
                 "colour": "#/$defs/ColourProjection",
                 "despeckle": "#/$defs/Despeckle",
                 "image": "#/$defs/ImageProjection",
+                "rebuild_patch": "#/$defs/RebuildPatch",
                 "replace_colour": "#/$defs/LocalPaint",
                 "replace_mesh": "#/$defs/ReplaceMesh",
                 "smooth": "#/$defs/LocalSmooth"
@@ -19192,6 +19371,9 @@
               },
               {
                 "$ref": "#/$defs/LocalSmooth"
+              },
+              {
+                "$ref": "#/$defs/RebuildPatch"
               },
               {
                 "$ref": "#/$defs/ReplaceMesh"

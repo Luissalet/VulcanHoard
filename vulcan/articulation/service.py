@@ -105,6 +105,16 @@ def publish(root, package_id, output, result):
     output.rename(root / package_id)
 
 
+def stage_finish_input(folder, spec, extensions):
+    asset = Path(spec["path"])
+    if not asset.is_absolute() or asset.suffix.lower() not in extensions or not asset.is_file():
+        raise ValueError("Use an absolute path to an existing input file. / Usa la ruta absoluta a un fichero de entrada existente.")
+    folder.mkdir()
+    copy = folder / asset.name
+    pin_file(asset, copy, spec["sha256"])
+    return {**spec, "file": str(copy)}
+
+
 def finish(data_dir, recipe):
     source = Path(recipe["source"])
     if not source.is_absolute() or source.suffix.lower() != ".blend" or not source.is_file():
@@ -118,18 +128,15 @@ def finish(data_dir, recipe):
         digest = pin_file(source, editable, recipe["source_sha256"])
         edits = []
         for index, edit in enumerate(recipe["edits"]):
-            if "path" not in edit:
+            if edit.get("path") is None:
                 edits.append(edit)
                 continue
-            asset = Path(edit["path"])
             extensions = {".glb"} if edit["mode"] == "replace_mesh" else {".png", ".jpg", ".jpeg"}
-            if not asset.is_absolute() or asset.suffix.lower() not in extensions or not asset.is_file():
-                raise ValueError("Use an absolute path to an existing input file. / Usa la ruta absoluta a un fichero de entrada existente.")
-            folder = work / str(index)
-            folder.mkdir()
-            copy = folder / asset.name
-            pin_file(asset, copy, edit["sha256"])
-            edits.append({**edit, "file": str(copy)})
+            staged = stage_finish_input(work / str(index), edit, extensions)
+            fit = staged.get("fit")
+            if fit and fit.get("target"):
+                staged["fit"] = {**fit, "target": stage_finish_input(work / f"{index}-target", fit["target"], {".glb"})}
+            edits.append(staged)
         request = work / "request.json"
         request.write_text(json.dumps({**recipe, "edits": edits}, ensure_ascii=False), encoding="utf-8")
         output = work / "package"

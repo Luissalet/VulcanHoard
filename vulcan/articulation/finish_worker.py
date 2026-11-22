@@ -215,11 +215,12 @@ def main(source, recipe, output):
         if obj.data.users > 1:
             obj.data = obj.data.copy()
         if region:
-            if edit["mode"] == "replace_mesh" and any(obj["articulation_part"] == edit["name"] for obj in objects):
+            replaces_surface = edit["mode"] in {"replace_mesh", "rebuild_patch"}
+            if replaces_surface and any(obj["articulation_part"] == edit["name"] for obj in objects):
                 raise ValueError("Use a new part name. / Usa un nombre de pieza nuevo.")
             if region["face_ranges"] and part in modified_topology:
                 raise ValueError("Face ranges refer to the input scene. / Los tramos de caras se refieren a la escena de entrada.")
-            if edit["mode"] == "replace_mesh" and obj.name in normal_patches:
+            if replaces_surface and obj.name in normal_patches:
                 finish_normals(obj, original_vertices[obj.name], normal_patches.pop(obj.name))
             replacement, change = apply_local(obj, edit, mask_distance, sample)
             changes.append(change)

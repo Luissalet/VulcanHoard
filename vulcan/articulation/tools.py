@@ -360,8 +360,38 @@ class LocalSmooth(LocalEdit):
         return self
 
 
+class RebuildPatch(LocalEdit):
+    mode: Literal["rebuild_patch"]
+    name: Name
+    path: str | None = Field(None, description="Absolute path to retained PNG or JPEG. / Ruta absoluta al PNG o JPEG conservado.")
+    sha256: Digest | None = None
+    reference: str | None = Field(None, max_length=500)
+    crop: tuple[FaceIndex, FaceIndex, FaceIndex, FaceIndex] | None = None
+    attribute: str | None = Field(None, max_length=100)
+    samples: int = Field(72, ge=24, le=160, description="Samples across the longest side. / Muestras a lo ancho del lado más largo.")
+    smooth_m: Positive = Field(0.002, description="Depth smoothing radius in metres. / Radio de alisado de profundidad en metros.")
+    feather: Annotated[FiniteFloat, Field(ge=0.01, le=0.24)] = Field(0.07, description="Width of the transition to the original edge in view units. / Anchura de transición al borde original en unidades de la vista.")
+
+    @model_validator(mode="after")
+    def check_patch(self):
+        if not self.region.view:
+            raise ValueError("A rebuilt patch needs a view. / El parche reconstruido requiere una vista.")
+        if bool(self.path) != bool(self.sha256) or (self.crop and not self.path):
+            raise ValueError("Provide the artwork path and digest together. / Indica juntos la ruta y la huella de la ilustración.")
+        if self.crop and (self.crop[0] >= self.crop[2] or self.crop[1] >= self.crop[3]):
+            raise ValueError("Use a positive image crop. / Usa un recorte de imagen con dimensiones positivas.")
+        return self
+
+
+class FitTarget(Args):
+    path: str = Field(description="Absolute path to a self-contained GLB in local rest coordinates. / Ruta absoluta a un GLB autocontenido en coordenadas locales de reposo.")
+    sha256: Digest
+    reference: str | None = Field(None, max_length=500)
+
+
 class SurfaceFit(Args):
-    center: Vec = Field(description="Point inside the old surface in local rest metres. / Punto dentro de la superficie anterior en metros locales de reposo.")
+    center: Vec = Field(description="Point inside the fitting surface in local rest metres. / Punto dentro de la superficie de ajuste en metros locales de reposo.")
+    target: FitTarget | None = Field(None, description="Independent fitting surface in the same rest coordinates. / Superficie de ajuste independiente en las mismas coordenadas de reposo.")
     bounds: tuple[Vec, Vec] | None = Field(None, description="Low and high corners restricting the new vertices fitted. / Esquinas mínima y máxima que acotan los vértices nuevos que se ajustan.")
     clearance_m: Annotated[FiniteFloat, Field(ge=0)] = Field(0.001, description="Radial clearance over the sampled surface in metres. / Separación radial respecto a la superficie muestreada en metros.")
     max_adjustment_m: Positive = Field(description="Maximum radial movement in metres. / Desplazamiento radial máximo en metros.")
@@ -388,7 +418,7 @@ class Finish(Args):
     source_sha256: Digest
     source_ref: str | None = Field(None, max_length=500)
     frame: int | None = Field(None, description="Projection frame; defaults to the saved frame. / Fotograma de proyección. Por defecto usa el guardado.")
-    edits: list[Annotated[ColourProjection | ImageProjection | LocalPaint | Despeckle | LocalSmooth | ReplaceMesh,
+    edits: list[Annotated[ColourProjection | ImageProjection | LocalPaint | Despeckle | LocalSmooth | RebuildPatch | ReplaceMesh,
                           Field(discriminator="mode")]] = Field(min_length=1, max_length=16)
     cameras: list[Camera] = Field(default_factory=list, max_length=8)
     view_size: int = Field(384, ge=256, le=1024)
@@ -469,9 +499,9 @@ TOOLS = [
          Build, ann(draft_safe=True), build, timeout_s=600, capped=False),
     Tool("articulation_finish", "Project retained artwork onto a rig. Proyecta ilustraciones de referencia sobre una articulación.\n"
          "Paint local colour, optionally closing holes, adding a bounded patch and smoothing, or map an image to a part. Keeps the rig and animation. "
-         "Add material-scoped colour replacement, speck cleaning, smoothing or a skinned mesh swap with before/after views. Undo: articulation_undo. "
+         "Add material-scoped colour replacement, speck cleaning, smoothing, a continuous textured patch or a skinned mesh swap fitted to an independent surface, with before/after views. Undo: articulation_undo. "
          "Reproyecta color localizado, con relleno, parche acotado y alisado opcionales, o aplica una imagen a una pieza. Conserva esqueleto y animación. "
-         "Sustituye color o malla, limpia motas o alisa por material, con vistas antes y después. Deshacer: articulation_undo.\n"
+         "Sustituye color o malla, limpia motas, alisa o reconstruye un parche continuo por material. Ajusta la malla a una superficie de referencia. Incluye vistas antes y después. Deshacer: articulation_undo.\n"
          "Sinónimos: reparar huecos y escalones, reproyectar el color de la cara, aplicar tinta al mapa, texturizar una pieza articulada.",
          Finish, ann(draft_safe=True), finish, timeout_s=600, capped=False),
     Tool("articulation_get", "Read an articulation package. Consulta de articulación.\nReturns its revision, measurements and files. "

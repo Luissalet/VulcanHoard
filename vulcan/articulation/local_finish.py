@@ -9,6 +9,7 @@ from mathutils.kdtree import KDTree
 from mathutils.geometry import barycentric_transform
 
 from mesh import make_mesh, read_array
+from rebuild_patch import reconstruct
 from surface_finish import ATTRIBUTE_FORMAT, fair_depth, smooth_surface, triangulated_mesh
 
 
@@ -54,13 +55,14 @@ def select(obj, edit, mask_distance):
         depth = relative @ normal
         low, high = view["depth"]
         points &= (mask_distance(view, uv) > 0) & (depth >= low) & (depth <= high)
-        incident = loops[faces[corners]]
-        shown = visible_points(obj, positions, points, incident, normal, dg)
-        for direction in edit.get("visibility_directions", ()):
-            direction = np.asarray(direction) / np.linalg.norm(direction)
-            shown |= visible_points(obj, positions, points & ~shown, incident, direction, dg)
-        points = shown
-    if mode == "replace_mesh":
+        if mode != "rebuild_patch":
+            incident = loops[faces[corners]]
+            shown = visible_points(obj, positions, points, incident, normal, dg)
+            for direction in edit.get("visibility_directions", ()):
+                direction = np.asarray(direction) / np.linalg.norm(direction)
+                shown |= visible_points(obj, positions, points & ~shown, incident, direction, dg)
+            points = shown
+    if mode in {"replace_mesh", "rebuild_patch"}:
         faces &= np.logical_and.reduceat(points[loops], starts)
     hits = faces[corners] & points[loops]
     if not hits.any():
@@ -274,17 +276,10 @@ def fit_surface(mesh, tree, settings):
             "max_movement_m": float(np.abs(adjustment[found]).max())}
 
 
-def replace_mesh(obj, faces, edit):
-    source = triangulated_mesh(obj)
-    selected = read_array(source.loops, "vertex_index", 1, np.int32).reshape(-1, 3)[faces]
-    points = read_array(source.vertices, "co", 3)
-    if faces.all() or source.shape_keys:
-        raise ValueError("Keep part of the original mesh and use a mesh without shape keys. / Conserva parte de la malla original y usa una malla sin claves de forma.")
-    used = np.unique(selected)
-    tree = BVHTree.FromPolygons(points[used], np.searchsorted(used, selected), all_triangles=True)
+def import_unrigged_mesh(path):
     existing = set(bpy.context.scene.objects)
     images = set(bpy.data.images)
-    bpy.ops.import_scene.gltf(filepath=edit["file"])
+    bpy.ops.import_scene.gltf(filepath=path)
     imported = [item for item in bpy.context.scene.objects if item not in existing]
     meshes = [item for item in imported if item.type == "MESH"]
     if len(meshes) != 1 or any(item.type not in {"EMPTY", "MESH"} for item in imported) or meshes[0].modifiers:
@@ -300,10 +295,13 @@ def replace_mesh(obj, faces, edit):
             image.filepath = "//" + image.name
     for item in imported:
         bpy.data.objects.remove(item, do_unlink=True)
-    fit = fit_surface(mesh, tree, edit["fit"]) if edit["fit"] else None
+    return mesh
+
+
+def attach_replacement(obj, mesh, name):
     result = obj.copy()
-    result.name = edit["name"]
-    result["articulation_part"] = edit["name"]
+    result.name = name
+    result["articulation_part"] = name
     result.animation_data_clear()
     result.data = mesh
     if not len(result.vertex_groups):
@@ -311,6 +309,33 @@ def replace_mesh(obj, faces, edit):
             result.vertex_groups.new(name=group.name).lock_weight = group.lock_weight
     for collection in obj.users_collection:
         collection.objects.link(result)
+    return result
+
+
+def replace_mesh(obj, faces, edit):
+    source = triangulated_mesh(obj)
+    selected = read_array(source.loops, "vertex_index", 1, np.int32).reshape(-1, 3)[faces]
+    points = read_array(source.vertices, "co", 3)
+    if faces.all() or source.shape_keys:
+        raise ValueError("Keep part of the original mesh and use a mesh without shape keys. / Conserva parte de la malla original y usa una malla sin claves de forma.")
+    used = np.unique(selected)
+    tree = BVHTree.FromPolygons(points[used], np.searchsorted(used, selected), all_triangles=True)
+    mesh = import_unrigged_mesh(edit["file"])
+    fit = None
+    if settings := edit["fit"]:
+        target = tree
+        if settings["target"]:
+            fitting_mesh = import_unrigged_mesh(settings["target"]["file"])
+            fitting_mesh.calc_loop_triangles()
+            coordinates = read_array(fitting_mesh.vertices, "co", 3)
+            triangles = read_array(fitting_mesh.loop_triangles, "vertices", 3, np.int32)
+            target = BVHTree.FromPolygons(coordinates, triangles, all_triangles=True)
+            bpy.data.meshes.remove(fitting_mesh)
+        fit = fit_surface(mesh, target, settings)
+        fit = {**{key: value for key, value in settings.items() if key != "target"},
+               **({"target": {key: value for key, value in settings["target"].items() if key != "file"}}
+                  if settings["target"] else {}), **fit}
+    result = attach_replacement(obj, mesh, edit["name"])
     # Map to the closest removed triangle in rest space. Interpolate its skin
     # weights; vertices on a rigid segment inherit the exact original weight.
     axes = Vector((1, 0, 0)), Vector((0, 1, 0)), Vector((0, 0, 1))
@@ -334,7 +359,7 @@ def replace_mesh(obj, faces, edit):
     retain_faces(obj, ~faces)
     return result, {"faces_removed": len(selected), "faces_added": len(mesh.polygons),
                     "vertices_weighted": len(mesh.vertices), "replacement": result["articulation_part"],
-                    **({"fit": {**edit["fit"], **fit}} if fit else {})}
+                    **({"fit": fit} if fit else {})}
 
 
 def apply(obj, edit, mask_distance, sample):
@@ -342,6 +367,18 @@ def apply(obj, edit, mask_distance, sample):
     positions, uv, faces, loops, hits, exclusive = select(obj, edit, mask_distance)
     if mode == "replace_mesh":
         return replace_mesh(obj, faces, edit)
+    if mode == "rebuild_patch":
+        source = triangulated_mesh(obj)
+        if faces.all() or source.shape_keys:
+            raise ValueError("Keep part of the original mesh and use a mesh without shape keys. / Conserva parte de la malla original y usa una malla sin claves de forma.")
+        used = np.unique(loops[np.repeat(faces, 3)])
+        mesh, report = reconstruct(obj, used, edit, sample, mask_distance)
+        result = attach_replacement(obj, mesh, edit["name"])
+        group = source.vertices[int(used[0])].groups[0].group
+        result.vertex_groups[group].add(list(range(len(mesh.vertices))), 1.0, "REPLACE")
+        retain_faces(obj, ~faces)
+        return result, {**report, "faces_removed": int(np.count_nonzero(faces)), "faces_added": len(mesh.polygons),
+                        "vertices_weighted": len(mesh.vertices), "replacement": result["articulation_part"]}
     if mode == "smooth":
         strength = np.zeros(len(positions))
         strength[loops[hits]] = 1
