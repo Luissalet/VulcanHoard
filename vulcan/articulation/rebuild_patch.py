@@ -5,6 +5,7 @@ from mathutils import Vector
 from mathutils.bvhtree import BVHTree
 from mathutils.geometry import barycentric_transform
 
+from finish_error import FinishError
 from mesh import make_mesh, read_array
 from surface_finish import rigid_matrix
 
@@ -104,7 +105,7 @@ def reconstruct(obj, anchors, edit, sample, mask_distance):
     mesh = obj.data
     colour = mesh.color_attributes.get(edit["attribute"]) if edit["attribute"] else mesh.color_attributes.active_color
     if colour is None or colour.domain not in {"POINT", "CORNER"}:
-        raise ValueError("Choose a point or corner colour attribute. / Elige un atributo de color en vértices o esquinas.")
+        raise FinishError("Choose a point or corner colour attribute. / Elige un atributo de color en vértices o esquinas.")
     rest = np.asarray(rigid_matrix(obj, anchors).inverted())
     view = edit["region"]["view"]
     right, up = np.asarray([view["right"], view["up"]])
@@ -117,7 +118,7 @@ def reconstruct(obj, anchors, edit, sample, mask_distance):
     distance = mask_distance(view, uv)
     smoothed, confidence = smooth_grid(depth, valid, spacing, edit["smooth_m"])
     if not valid.any() or np.any(grid_lookup(confidence, uv) < 0.025):
-        raise ValueError(f"{edit['name']}: The patch contains an unsupported area. / El parche contiene una zona sin superficie de apoyo.")
+        raise FinishError(f"{edit['name']}: The patch contains an unsupported area. / El parche contiene una zona sin superficie de apoyo.")
     blend = np.clip(distance / edit["feather"], 0, 1)
     blend = blend * blend * (3 - 2 * blend)
     captured = grid_lookup(valid.astype(float), uv)
@@ -135,7 +136,7 @@ def reconstruct(obj, anchors, edit, sample, mask_distance):
             bpy.data.images.remove(reference)
         opacity *= art[:, 3] >= 0.5
         if not opacity.any():
-            raise ValueError("No opaque samples reached the patch. / Ninguna muestra opaca alcanza el parche.")
+            raise FinishError("No opaque samples reached the patch. / Ninguna muestra opaca alcanza el parche.")
         skin[:, :3] += opacity[:, None] * (art[:, :3] - skin[:, :3])
     else:
         for channel in range(3):

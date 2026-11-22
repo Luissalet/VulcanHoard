@@ -343,8 +343,16 @@ class Despeckle(LocalEdit):
     mode: Literal["despeckle"]
     attribute: str | None = Field(None, max_length=100)
     radius_m: Positive = Field(description="Neighbour radius in metres. / Radio de la vecindad en metros.")
-    threshold: Annotated[FiniteFloat, Field(gt=0, le=1)] = Field(description="Minimum RGB deviation in linear colour. / Desviación RGB mínima en color lineal.")
+    threshold: Annotated[FiniteFloat, Field(gt=0, le=1)] = Field(description="Minimum contrast in linear RGB, or luminance for bright. / Contraste mínimo en RGB lineal o luminancia para bright.")
     max_spot_m: Positive = Field(description="Maximum spot diameter in metres. / Diámetro máximo de una mota en metros.")
+    polarity: Literal["both", "bright"] = Field("both", description="Remove bright marks only and measure in the selected view. Background ring: half max_spot_m to radius_m. / Quita solo motas claras y mide en la vista seleccionada. Anillo de fondo: de la mitad de max_spot_m a radius_m.")
+
+    @model_validator(mode="after")
+    def check_background_radius(self):
+        if self.polarity == "bright" and self.radius_m <= self.max_spot_m / 2:
+            raise ValueError("The background radius must exceed half the spot diameter. / El radio del fondo debe superar la mitad del diámetro de la mota.")
+        return self
+
 
 
 class LocalSmooth(LocalEdit):

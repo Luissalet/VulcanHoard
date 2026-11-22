@@ -5,6 +5,7 @@ import bpy
 import numpy as np
 from mathutils import Vector
 
+from finish_error import FinishError
 from worker import cameras, render
 
 
@@ -59,7 +60,7 @@ class Preview:
                     camera.location += toward * (farthest + self.clearance)
                     bpy.context.view_layer.update()
                 elif farthest >= -camera.data.clip_start:
-                    raise ValueError("The comparison camera intersects a mesh. / La cámara de comparación cruza una malla.")
+                    raise FinishError("The comparison camera intersects a mesh. / La cámara de comparación cruza una malla.")
                 result = self.metadata["views"][name]
                 result["matrix"] = [list(row) for row in camera.matrix_world]
                 result["location"] = list(camera.location)

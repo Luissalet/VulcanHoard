@@ -8,6 +8,7 @@ from mathutils.bvhtree import BVHTree
 from mathutils.kdtree import KDTree
 from mathutils.geometry import barycentric_transform
 
+from finish_error import FinishError
 from mesh import make_mesh, read_array
 from rebuild_patch import reconstruct
 from surface_finish import ATTRIBUTE_FORMAT, fair_depth, smooth_surface, triangulated_mesh
@@ -18,7 +19,7 @@ def select(obj, edit, mask_distance):
     mesh = obj.data
     slot_ids = [index for index, slot in enumerate(obj.material_slots) if slot.name == region["material"]]
     if not slot_ids:
-        raise ValueError("Unknown material. / Material desconocido.")
+        raise FinishError("Unknown material. / Material desconocido.")
     loops = read_array(mesh.loops, "vertex_index", 1, np.int32).ravel()
     starts = read_array(mesh.polygons, "loop_start", 1, np.int32).ravel()
     corners = np.repeat(np.arange(len(starts)), np.diff(np.append(starts, len(loops))))
@@ -28,7 +29,7 @@ def select(obj, edit, mask_distance):
         ranges = np.zeros(len(faces) + 1, dtype=np.int32)
         for first, last in region["face_ranges"]:
             if last >= len(faces):
-                raise ValueError("Face range outside the mesh. / Tramo de caras fuera de la malla.")
+                raise FinishError("Face range outside the mesh. / Tramo de caras fuera de la malla.")
             ranges[first] += 1
             ranges[last + 1] -= 1
         faces &= np.cumsum(ranges[:-1]) > 0
@@ -36,7 +37,7 @@ def select(obj, edit, mask_distance):
     if region["group"]:
         group = obj.vertex_groups.get(region["group"])
         if group is None:
-            raise ValueError("Unknown vertex group. / Grupo de vértices desconocido.")
+            raise FinishError("Unknown vertex group. / Grupo de vértices desconocido.")
         points[:] = [any(w.group == group.index and w.weight > 0 for w in vertex.groups)
                      for vertex in mesh.vertices]
     dg = bpy.context.evaluated_depsgraph_get()
@@ -44,8 +45,9 @@ def select(obj, edit, mask_distance):
     matrix = np.asarray(evaluated.matrix_world)
     positions = read_array(evaluated.data.vertices, "co", 3) @ matrix[:3, :3].T + matrix[:3, 3]
     if len(positions) != len(points):
-        raise ValueError("The deformation changes vertex indices. / La deformación cambia los índices de vértices.")
+        raise FinishError("The deformation changes vertex indices. / La deformación cambia los índices de vértices.")
     uv = None
+    visible_corners = None
     if view := region["view"]:
         relative = positions - view["origin"]
         right, up = np.asarray([view["right"], view["up"]])
@@ -61,12 +63,25 @@ def select(obj, edit, mask_distance):
             for direction in edit.get("visibility_directions", ()):
                 direction = np.asarray(direction) / np.linalg.norm(direction)
                 shown |= visible_points(obj, positions, points & ~shown, incident, direction, dg)
+            if mode == "despeckle" and edit["polarity"] == "bright":
+                attr = edit["attribute"]
+                layer = mesh.color_attributes.get(attr) if attr else mesh.color_attributes.active_color
+                if layer and layer.domain == "CORNER":
+                    # On folded or overlapping cloth, all three vertices can
+                    # hide while the middle of their triangle is visible.
+                    missed = points[loops] & ~shown[loops]
+                    pending = faces & np.logical_or.reduceat(missed, starts)
+                    centres = read_array(evaluated.data.polygons, "center", 3) @ matrix[:3, :3].T + matrix[:3, 3]
+                    surface = visible_points(obj, centres, pending, np.flatnonzero(pending), normal, dg)
+                    visible_corners = surface[corners] & points[loops]
             points = shown
     if mode in {"replace_mesh", "rebuild_patch"}:
         faces &= np.logical_and.reduceat(points[loops], starts)
     hits = faces[corners] & points[loops]
+    if visible_corners is not None:
+        hits |= visible_corners
     if not hits.any():
-        raise ValueError(f"{mode}: no surface matches the region and material. / Ninguna superficie coincide con la región y el material.")
+        raise FinishError(f"{mode}: no surface matches the region and material. / Ninguna superficie coincide con la región y el material.")
     # A point write affects every face using that point. Keep shared points fixed.
     exclusive = points.copy()
     exclusive[loops[~faces[corners]]] = False
@@ -112,7 +127,7 @@ def visible_points(obj, positions, points, incident, normal, depsgraph):
 def colour_selection(mesh, attribute, loops, hits, exclusive):
     layer = mesh.color_attributes.get(attribute) if attribute else mesh.color_attributes.active_color
     if layer is None or layer.domain not in {"POINT", "CORNER"}:
-        raise ValueError("Choose a point or corner colour attribute. / Elige un atributo de color en vértices o esquinas.")
+        raise FinishError("Choose a point or corner colour attribute. / Elige un atributo de color en vértices o esquinas.")
     if layer.domain == "POINT":
         vertices = np.unique(loops[hits])
         indices = vertices[exclusive[vertices]]
@@ -136,43 +151,81 @@ def replace_colour(layer, indices, points, uv, edit, sample):
     return int(np.count_nonzero(opaque)), {}
 
 
-def despeckle(layer, indices, points, positions, edit):
+def despeckle(layer, indices, points, positions, uv, edit):
     vertices, mapping, counts = np.unique(points, return_inverse=True, return_counts=True)
     colours = read_array(layer.data, "color", 4)[indices]
     rgb = np.zeros((len(vertices), 3))
     np.add.at(rgb, mapping, colours[:, :3])
     rgb /= counts[:, None]
-    positions = positions[vertices]
+    bright = edit["polarity"] == "bright"
+    if bright and uv is not None:
+        view = edit["region"]["view"]
+        metres = np.linalg.norm([view["right"], view["up"]], axis=1)
+        # For visible marks, measure across the view. A fold can put its
+        # clean backdrop farther away in depth than the spot is wide.
+        positions = np.column_stack((uv[vertices] * metres, np.zeros(len(vertices))))
+    else:
+        positions = positions[vertices]
     tree = KDTree(len(vertices))
     for index, position in enumerate(positions):
         tree.insert(position, index)
     tree.balance()
-    radius = edit["radius_m"]
+    radius, diameter = edit["radius_m"], edit["max_spot_m"]
+    inner = diameter / 2 if bright else 1e-7
+    link = min(radius / 2, diameter / 4) if bright else radius / 2
     proposed = rgb.copy()
     for index, position in enumerate(positions):
         nearby = [other for _, other, distance in tree.find_range(position, radius)
-                  if other != index and distance > 1e-7]
+                  if other != index and distance > inner]
         if len(nearby) >= 5:
             proposed[index] = np.median(rgb[nearby], axis=0)
-    candidate = np.linalg.norm(proposed - rgb, axis=1) >= edit["threshold"]
+    threshold = edit["threshold"]
+    if bright:
+        # Corner colours can differ across a seam at the same vertex. A
+        # bright corner must not be averaged away or overwrite the dark side.
+        luminance = np.array([0.2126, 0.7152, 0.0722])
+        bright_samples = (colours[:, :3] - proposed[mapping]) @ luminance >= threshold
+        candidate = np.zeros(len(vertices), dtype=bool)
+        candidate[mapping[bright_samples]] = True
+    else:
+        bright_samples = None
+        candidate = np.linalg.norm(proposed - rgb, axis=1) >= threshold
     pending = set(np.flatnonzero(candidate))
+    accepted = candidate.copy()
     spots = 0
     while pending:
         component = [pending.pop()]
         for index in component:
-            for _, other, _ in tree.find_range(positions[index], radius * 0.5):
+            for _, other, _ in tree.find_range(positions[index], link):
                 if other in pending:
                     pending.remove(other)
                     component.append(other)
-        if np.linalg.norm(np.ptp(positions[component], axis=0)) > edit["max_spot_m"]:
-            candidate[component] = False
+        patch = positions[component]
+        if np.linalg.norm(np.ptp(patch, axis=0)) > diameter:
+            accepted[component] = False
+        elif bright and not surrounded(tree, positions, patch.mean(axis=0), candidate, inner, radius):
+            accepted[component] = False
         else:
             spots += 1
-    changed = candidate[mapping]
+    changed = accepted[mapping]
+    if bright:
+        changed &= bright_samples
     colours[changed, :3] = proposed[mapping[changed]]
     for index, rgba in zip(indices[changed], colours[changed], strict=True):
         layer.data[int(index)].color = rgba
     return int(np.count_nonzero(changed)), {"spots": spots}
+
+
+def surrounded(tree, positions, center, candidate, inner, radius):
+    # A short fragment along a fold or at the region boundary has its darker
+    # neighbours largely on one side. Require background around the mark.
+    neighbours = [(index, distance) for _, index, distance in tree.find_range(center, radius)
+                  if distance > inner and not candidate[index]]
+    if len(neighbours) < 5:
+        return False
+    indices, distances = zip(*neighbours)
+    directions = (positions[list(indices)] - center) / np.asarray(distances)[:, None]
+    return np.linalg.norm(directions.mean(axis=0)) < 0.5
 
 
 def retain_faces(obj, faces):
@@ -194,7 +247,7 @@ def retain_faces(obj, faces):
         if attribute.name in {"position", ".corner_vert", ".corner_edge", ".edge_verts", "custom_normal"}:
             continue
         if attribute.data_type not in ATTRIBUTE_FORMAT:
-            raise ValueError("Unsupported mesh attribute. / Atributo de malla no compatible.")
+            raise FinishError("Unsupported mesh attribute. / Atributo de malla no compatible.")
         field, width, dtype = ATTRIBUTE_FORMAT[attribute.data_type]
         values = read_array(attribute.data, field, width, dtype)[domains[attribute.domain]]
         layer = target.attributes.get(attribute.name)
@@ -254,7 +307,7 @@ def fit_surface(mesh, tree, settings):
             fitted[index] = True
             adjustment[index] = np.clip(near + distance + clearance - radii[index], -limit, limit)
     if not fitted.any():
-        raise ValueError("Fitting rays missed the removed surface. / El ajuste radial no alcanza la superficie retirada.")
+        raise FinishError("Fitting rays missed the removed surface. / El ajuste radial no alcanza la superficie retirada.")
     edges = read_array(mesh.edges, "vertices", 2, np.int32)
     active = eligible[edges].any(axis=1)
     left, right = edges[active].T
@@ -283,12 +336,12 @@ def import_unrigged_mesh(path):
     imported = [item for item in bpy.context.scene.objects if item not in existing]
     meshes = [item for item in imported if item.type == "MESH"]
     if len(meshes) != 1 or any(item.type not in {"EMPTY", "MESH"} for item in imported) or meshes[0].modifiers:
-        raise ValueError("Use a single unrigged replacement mesh. / Usa una sola malla de sustitución sin esqueleto.")
+        raise FinishError("Use a single unrigged replacement mesh. / Usa una sola malla de sustitución sin esqueleto.")
     incoming = meshes[0]
     mesh = incoming.data.copy()
     mesh.transform(incoming.matrix_world)
     if not len(mesh.polygons):
-        raise ValueError("The replacement surface is empty. / La superficie de sustitución está vacía.")
+        raise FinishError("The replacement surface is empty. / La superficie de sustitución está vacía.")
     for image in set(bpy.data.images) - images:
         if image.users and image.source == "FILE" and not image.packed_file and image.has_data:
             image.pack()
@@ -317,7 +370,7 @@ def replace_mesh(obj, faces, edit):
     selected = read_array(source.loops, "vertex_index", 1, np.int32).reshape(-1, 3)[faces]
     points = read_array(source.vertices, "co", 3)
     if faces.all() or source.shape_keys:
-        raise ValueError("Keep part of the original mesh and use a mesh without shape keys. / Conserva parte de la malla original y usa una malla sin claves de forma.")
+        raise FinishError("Keep part of the original mesh and use a mesh without shape keys. / Conserva parte de la malla original y usa una malla sin claves de forma.")
     used = np.unique(selected)
     tree = BVHTree.FromPolygons(points[used], np.searchsorted(used, selected), all_triangles=True)
     mesh = import_unrigged_mesh(edit["file"])
@@ -350,7 +403,7 @@ def replace_mesh(obj, faces, edit):
                 weights[item.group] += item.weight * max(0, factor)
         total = sum(weights.values())
         if total <= 0:
-            raise ValueError("The replaced surface has unweighted vertices. / La superficie sustituida tiene vértices sin pesos.")
+            raise FinishError("The replaced surface has unweighted vertices. / La superficie sustituida tiene vértices sin pesos.")
         for group, weight in weights.items():
             if weight > 0:
                 groups[group, weight / total].append(vertex.index)
@@ -370,7 +423,7 @@ def apply(obj, edit, mask_distance, sample):
     if mode == "rebuild_patch":
         source = triangulated_mesh(obj)
         if faces.all() or source.shape_keys:
-            raise ValueError("Keep part of the original mesh and use a mesh without shape keys. / Conserva parte de la malla original y usa una malla sin claves de forma.")
+            raise FinishError("Keep part of the original mesh and use a mesh without shape keys. / Conserva parte de la malla original y usa una malla sin claves de forma.")
         used = np.unique(loops[np.repeat(faces, 3)])
         mesh, report = reconstruct(obj, used, edit, sample, mask_distance)
         result = attach_replacement(obj, mesh, edit["name"])
@@ -384,7 +437,7 @@ def apply(obj, edit, mask_distance, sample):
         strength[loops[hits]] = 1
         strength[~exclusive] = 0
         if not strength.any():
-            raise ValueError("There are no editable vertices in the region. / No hay vértices editables en la región.")
+            raise FinishError("There are no editable vertices in the region. / No hay vértices editables en la región.")
         settings = {"smooth_iterations": edit["iterations"], "max_displacement_m": edit["max_displacement_m"]}
         if edit["radius_m"]:
             view = edit["region"]["view"]
@@ -397,8 +450,8 @@ def apply(obj, edit, mask_distance, sample):
         return None, smooth_surface(obj, strength, settings)
     layer, indices, points = colour_selection(obj.data, edit["attribute"], loops, hits, exclusive)
     written, details = (replace_colour(layer, indices, points, uv, edit, sample) if mode == "replace_colour"
-                        else despeckle(layer, indices, points, positions, edit))
+                        else despeckle(layer, indices, points, positions, uv, edit))
     if mode == "replace_colour" and not written:
-        raise ValueError("No opaque samples reached the region. / Ninguna muestra opaca alcanza la región.")
+        raise FinishError("No opaque samples reached the region. / Ninguna muestra opaca alcanza la región.")
     obj.data.update()
     return None, {"attribute": layer.name, "samples_written": written, **details}

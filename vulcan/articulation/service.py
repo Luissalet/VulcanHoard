@@ -61,6 +61,10 @@ def run_worker(worker, args, receipt, timeout):
     except subprocess.TimeoutExpired as exc:
         raise AppError("unavailable", "The mesh engine timed out. / El motor de mallas agotó el plazo.") from exc
     if done.returncode or not receipt.is_file():
+        if worker == FINISH_WORKER:
+            error = receipt.with_name("error.txt")
+            if error.is_file():
+                raise AppError("invalid", error.read_text(encoding="utf-8"))
         details = proc.tail_lines((done.stdout or "") + "\n" + (done.stderr or ""))
         raise AppError("invalid", "Articulation could not finish. / No se pudo terminar la articulación.",
                        details={"engine": details})

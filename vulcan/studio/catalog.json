@@ -18325,7 +18325,7 @@
               "type": "number"
             },
             "threshold": {
-              "description": "Minimum RGB deviation in linear colour. / Desviación RGB mínima en color lineal.",
+              "description": "Minimum contrast in linear RGB, or luminance for bright. / Contraste mínimo en RGB lineal o luminancia para bright.",
               "exclusiveMinimum": 0,
               "maximum": 1,
               "title": "Threshold",
@@ -18336,6 +18336,16 @@
               "exclusiveMinimum": 0,
               "title": "Max Spot M",
               "type": "number"
+            },
+            "polarity": {
+              "default": "both",
+              "description": "Remove bright marks only and measure in the selected view. Background ring: half max_spot_m to radius_m. / Quita solo motas claras y mide en la vista seleccionada. Anillo de fondo: de la mitad de max_spot_m a radius_m.",
+              "enum": [
+                "both",
+                "bright"
+              ],
+              "title": "Polarity",
+              "type": "string"
             }
           },
           "required": [

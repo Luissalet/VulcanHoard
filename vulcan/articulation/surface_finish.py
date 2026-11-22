@@ -8,6 +8,7 @@ from mathutils import Vector
 from mathutils.geometry import tessellate_polygon
 from mathutils.kdtree import KDTree
 
+from finish_error import FinishError
 from mesh import edge_keys, make_mesh, read_array, separate_cap_diagonals, with_interpolated
 from seams import cycles
 
@@ -56,7 +57,7 @@ def triangulated_mesh(obj):
     if mesh.shape_keys or len(mesh.loops) != 3 * len(mesh.polygons) or np.any(
         read_array(mesh.polygons, "loop_total", 1, np.int32) != 3
     ):
-        raise ValueError("Use a triangulated surface without shape keys. / Usa una superficie triangulada sin claves de forma.")
+        raise FinishError("Use a triangulated surface without shape keys. / Usa una superficie triangulada sin claves de forma.")
     return mesh
 
 
@@ -68,7 +69,7 @@ def back_cap(obj, coords, ring, faces, thickness, start):
     linear = np.asarray(obj.matrix_world, dtype=np.float64)[:3, :3]
     magnitude = np.linalg.norm(linear @ normal)
     if magnitude <= 1e-12:
-        raise ValueError("The rim has no surface normal. / El contorno no tiene una normal de superficie.")
+        raise FinishError("The rim has no surface normal. / El contorno no tiene una normal de superficie.")
     offset = normal * (thickness / magnitude)
     front = np.asarray([[index[i] + start for i in face] for face in faces], dtype=np.int32)
     sides = []
@@ -145,7 +146,7 @@ def fill_surface(obj, points, selected, settings):
     before = uses[order[positions[matched]]]
     after = before + counts[matched]
     if np.any(after > 2):
-        raise ValueError("The patch would add a non-manifold edge. / El parche añadiría una arista con más de dos caras.")
+        raise FinishError("The patch would add a non-manifold edge. / El parche añadiría una arista con más de dos caras.")
     closed = int(np.count_nonzero((before == 1) & (after == 2)))
     corners = {a: corner for (a, _), corner in directed.items()}
     for (_, b), corner in directed.items():
@@ -192,14 +193,14 @@ def rigid_matrix(obj, anchors):
     mesh = obj.data
     groups = [[(group.group, group.weight) for group in mesh.vertices[index].groups] for index in anchors]
     if any(len(group) != 1 or not np.isclose(group[0][1], 1) for group in groups) or len({group[0][0] for group in groups}) != 1:
-        raise ValueError("Use vertices bound to one rigid bone. / Usa vértices ligados a un solo hueso rígido.")
+        raise FinishError("Use vertices bound to one rigid bone. / Usa vértices ligados a un solo hueso rígido.")
     rig_modifiers = [modifier for modifier in obj.modifiers if modifier.type == "ARMATURE" and modifier.show_viewport]
     if len(rig_modifiers) != 1 or not rig_modifiers[0].object or not rig_modifiers[0].use_vertex_groups:
-        raise ValueError("Use a single armature with vertex weights. / Usa un solo esqueleto con pesos por vértice.")
+        raise FinishError("Use a single armature with vertex weights. / Usa un solo esqueleto con pesos por vértice.")
     evaluated = rig_modifiers[0].object.evaluated_get(bpy.context.evaluated_depsgraph_get())
     bone = evaluated.pose.bones.get(obj.vertex_groups[groups[0][0][0]].name)
     if bone is None or not bone.bone.use_deform:
-        raise ValueError("Use a deforming bone for the patch. / Usa un hueso deformante para el parche.")
+        raise FinishError("Use a deforming bone for the patch. / Usa un hueso deformante para el parche.")
     armature = evaluated.matrix_world
     return armature @ bone.matrix @ bone.bone.matrix_local.inverted() @ armature.inverted() @ obj.matrix_world
 
@@ -211,7 +212,7 @@ def add_loft(obj, edit, points, triangles, uv, depth, selected):
     metres = np.array([right.length, up.length, 1])
     choices = np.flatnonzero(selected)
     if not len(choices):
-        raise ValueError("The patch needs nearby surface in the chosen region. / El parche necesita superficie cercana dentro de la zona.")
+        raise FinishError("The patch needs nearby surface in the chosen region. / El parche necesita superficie cercana dentro de la zona.")
     tree = KDTree(len(choices))
     for index in choices:
         tree.insert((*tuple(uv[index] * metres[:2]), depth[index]), int(index))
@@ -259,7 +260,7 @@ def append_faces(obj, faces, triangles, inserted, corners, positions=None):
     order = np.argsort(new_keys)
     edge_mapping = order[np.searchsorted(new_keys, old_keys, sorter=order)]
     if not np.array_equal(new_keys[edge_mapping], old_keys):
-        raise ValueError("The patch lost an original edge. / El parche perdió una arista original.")
+        raise FinishError("The patch lost an original edge. / El parche perdió una arista original.")
     transfer_attributes(source, target, inserted, source_corners, parent_faces, edge_mapping)
     target.color_attributes.active_color_name = source.color_attributes.active_color_name
     target.color_attributes.default_color_name = source.color_attributes.default_color_name
@@ -314,10 +315,12 @@ ATTRIBUTE_FORMAT = {
 def transfer_attributes(source, target, inserted, corners, faces, edges):
     parents = {"POINT": [indices[0] for indices in inserted], "FACE": faces, "CORNER": corners}
     for attr in source.attributes:
-        if attr.name in {"position", ".corner_vert", ".corner_edge", ".edge_verts"}:
+        # Blender encodes custom normals relative to its corner fans. Reapply
+        # the decoded vectors in append_faces after rebuilding the mesh.
+        if attr.name in {"position", ".corner_vert", ".corner_edge", ".edge_verts", "custom_normal"}:
             continue
         if attr.data_type not in ATTRIBUTE_FORMAT:
-            raise ValueError("The surface has an unsupported mesh attribute. / La superficie tiene un atributo de malla no compatible.")
+            raise FinishError(f"Cannot copy a mesh attribute of type {attr.data_type}. / No se puede copiar un atributo de malla de tipo {attr.data_type}.")
         field, width, dtype = ATTRIBUTE_FORMAT[attr.data_type]
         values = read_array(attr.data, field, width, dtype)
         if attr.domain == "EDGE":

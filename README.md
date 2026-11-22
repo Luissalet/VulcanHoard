@@ -16,7 +16,7 @@ The library stays on the machine: SQLite with FTS5 and WebP thumbnails, no accou
 
 **Library**
 
-- Articulation of inferred meshes through MCP, with source-linked contact marks from the viewer, comparable pose close-ups, local seam repair, material-scoped colour and surface retouching from retained artwork, reversible replacement of rigged regions, separately reconstructed parts, clipped panels built from a pinned dossier and rigged game exports within a triangle budget.
+- Articulation of inferred meshes through MCP, with source-linked contact marks from the viewer, comparable pose close-ups, local seam repair, material-scoped colour and surface retouching from retained artwork, configurable removal of isolated bright speckles, reversible replacement of rigged regions, separately reconstructed parts, clipped panels built from a pinned dossier and rigged game exports within a triangle budget.
 - [Primitive blocking](docs/blocking.md) through MCP. Build an editable take with two simple hands and optional props, export a rigged GLB, and get matching camera passes, transparent part layers and grip contacts at each key.
 - [Detailed blocking composition](docs/blocking.md#detailed-composition). Render matching colour and depth of a textured rig on the retained camera, stairs and one-hand sheet keys.
 - [Sheet handoffs on detailed models](docs/blocking-pass.md) through MCP, with separate joints for both hands, measured grips, frozen poses and motion guides.
