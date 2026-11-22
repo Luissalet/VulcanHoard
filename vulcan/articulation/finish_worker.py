@@ -104,7 +104,7 @@ def paint_colour(mesh, image, edit, uv, depth, facing, loft_start=None):
     return {"attribute": colour.name, "samples_written": len(indices)}
 
 
-def repair_surface(obj, edit, uv, depth, facing):
+def repair_surface(obj, edit, uv, depth, facing, progress):
     settings = edit["surface"]
     low, high = settings["depth"] or edit["depth"]
     distance = mask_distance(edit, uv)
@@ -112,6 +112,7 @@ def repair_surface(obj, edit, uv, depth, facing):
     result = {}
     loft_start = None
     if settings["max_hole_m"]:
+        progress["step"] = "surface.fill"
         metres = np.linalg.norm([edit["right"], edit["up"]], axis=1)
         result.update(fill_surface(obj, np.column_stack((uv * metres, depth)), selected, settings))
         if result["faces_added"]:
@@ -120,6 +121,7 @@ def repair_surface(obj, edit, uv, depth, facing):
             distance = mask_distance(edit, uv)
             selected = (distance > 0) & (depth >= low) & (depth <= high)
     if settings.get("loft"):
+        progress["step"] = "surface.loft"
         points, triangles = loft_geometry(settings["loft"])
         if np.any(mask_distance(edit, points[:, :2]) <= 0) or np.any((points[:, 2] < low) | (points[:, 2] > high)):
             raise FinishError("The patch must fit inside the selected region. / El parche debe quedar dentro de la zona elegida.")
@@ -134,6 +136,7 @@ def repair_surface(obj, edit, uv, depth, facing):
         selected = np.arange(len(uv)) >= loft_start
         distance = mask_distance(edit, uv)
     if settings["smooth_iterations"]:
+        progress["step"] = "surface.smooth"
         strength = np.where(selected & (facing >= edit["min_facing"]), 1.0, 0.0)
         if edit["feather"]:
             fade = np.clip(distance / edit["feather"], 0, 1)
@@ -185,7 +188,8 @@ def finish_normals(obj, initial_vertices, requests):
         geometry["corner_normals_blended"] = count
 
 
-def main(source, recipe, output):
+def main(source, recipe, output, progress):
+    progress["step"] = "open_scene"
     bpy.ops.wm.open_mainfile(filepath=str(source), use_scripts=False)
     scene = bpy.context.scene
     saved_frame = scene.frame_current, scene.frame_subframe
@@ -198,15 +202,17 @@ def main(source, recipe, output):
     rigs = [obj for obj in scene.objects if obj in bound]
     if not rigs:
         raise FinishError("Use an editable articulation with a rig. / Usa una articulación editable con un esqueleto.")
+    progress["step"] = "preview.before"
     preview = Preview(scene, recipe, objects, rigs) if recipe.get("cameras") else None
     views = preview.capture(output, "before") if preview else []
     changes = []
     original_vertices = {obj.name: len(obj.data.vertices) for obj in objects}
     normal_patches = {}
     modified_topology = set()
-    for edit in recipe["edits"]:
+    for index, edit in enumerate(recipe["edits"], start=1):
         region = edit.get("region")
         part = region["part"] if region else edit["part"]
+        progress.update(step="select_part", edit=index, mode=edit["mode"], part=part)
         matches = [obj for obj in objects if obj["articulation_part"] == part]
         if len(matches) != 1:
             raise FinishError("Expected one matching articulated part. / Se esperaba una única pieza articulada con ese nombre.")
@@ -222,7 +228,9 @@ def main(source, recipe, output):
             if region["face_ranges"] and part in modified_topology:
                 raise FinishError("Face ranges refer to the input scene. / Los tramos de caras se refieren a la escena de entrada.")
             if replaces_surface and obj.name in normal_patches:
+                progress["step"] = "surface.normals"
                 finish_normals(obj, original_vertices[obj.name], normal_patches.pop(obj.name))
+            progress["step"] = edit["mode"]
             replacement, change = apply_local(obj, edit, mask_distance, sample)
             changes.append(change)
             if replacement:
@@ -232,14 +240,17 @@ def main(source, recipe, output):
                 original_vertices[replacement.name] = len(replacement.data.vertices)
             bpy.context.view_layer.update()
             continue
+        progress["step"] = "load_image"
         image = bpy.data.images.load(edit["file"])
+        progress["step"] = "projection"
         uv, depth, facing = projection(obj, edit)
         if edit["mode"] == "colour":
             geometry, loft_start = {}, None
             surface = edit.get("surface")
             first_face = len(obj.data.polygons)
             if surface:
-                geometry, uv, depth, facing, loft_start = repair_surface(obj, edit, uv, depth, facing)
+                geometry, uv, depth, facing, loft_start = repair_surface(obj, edit, uv, depth, facing, progress)
+            progress["step"] = "colour"
             change = paint_colour(obj.data, image, edit, uv, depth, facing, loft_start)
             if len(obj.data.polygons) != first_face:
                 modified_topology.add(part)
@@ -251,19 +262,27 @@ def main(source, recipe, output):
             changes.append(change)
             bpy.data.images.remove(image)
         else:
+            progress["step"] = "image"
             changes.append(apply_image(obj, image, uv))
         obj.data.update()
+    progress.clear()
     for obj in objects:
         if obj.name in normal_patches:
+            progress.update(step="surface.normals", part=obj["articulation_part"])
             finish_normals(obj, original_vertices[obj.name], normal_patches[obj.name])
+    progress.clear()
+    progress["step"] = "preview.after"
     if preview:
         views += preview.capture(output, "after")
         preview.close()
+    progress["step"] = "save_scene"
     scene.frame_set(saved_frame[0], subframe=saved_frame[1])
     bpy.ops.wm.save_as_mainfile(filepath=str(output / "editable.blend"), relative_remap=False)
+    progress["step"] = "export_glb"
     for obj in [*rigs, *objects]:
         obj.hide_set(False)
     export_glb(output / "rigged.glb", [*rigs, *objects], animation=True)
+    progress["step"] = "write_receipt"
     receipt = {
         "frame": projection_frame,
         "engine": bpy.app.version_string,
@@ -278,8 +297,16 @@ def main(source, recipe, output):
 
 if __name__ == "__main__":
     source_path, recipe_path, output_path = map(Path, sys.argv[sys.argv.index("--") + 1:])
+    progress = {"step": "read_recipe"}
     try:
-        main(source_path, json.loads(recipe_path.read_text(encoding="utf-8")), output_path)
-    except FinishError as exc:
-        (output_path / "error.txt").write_text(str(exc), encoding="utf-8")
+        main(source_path, json.loads(recipe_path.read_text(encoding="utf-8")), output_path, progress)
+    except Exception as exc:
+        staging = output_path.parent
+        message = str(exc).replace(str(staging), "<staging>").replace(staging.as_posix(), "<staging>")
+        error = {
+            **progress,
+            "code": "finish_rejected" if isinstance(exc, FinishError) else "finish_engine_error",
+            "engine": {"type": type(exc).__name__, "message": " ".join(message.split())[:500]},
+        }
+        (output_path / "error.json").write_text(json.dumps(error, ensure_ascii=False), encoding="utf-8")
         raise
