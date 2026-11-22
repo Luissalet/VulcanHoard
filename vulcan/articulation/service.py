@@ -98,6 +98,9 @@ def publish(root, package_id, output, result):
         name: {"sha256": sha256_of(output / file), "size": (output / file).stat().st_size}
         for name, file in result["files"].items()
     }
+    if result.get("views"):
+        result["view_artifacts"] = {file: {"sha256": sha256_of(output / file), "size": (output / file).stat().st_size}
+                                    for file in result["views"]}
     (output / "receipt.json").write_text(json.dumps(result, ensure_ascii=False), encoding="utf-8")
     output.rename(root / package_id)
 
@@ -115,13 +118,17 @@ def finish(data_dir, recipe):
         digest = pin_file(source, editable, recipe["source_sha256"])
         edits = []
         for index, edit in enumerate(recipe["edits"]):
-            image = Path(edit["path"])
-            if not image.is_absolute() or image.suffix.lower() not in {".png", ".jpg", ".jpeg"} or not image.is_file():
-                raise ValueError("Use an absolute PNG or JPEG path. / Usa una ruta absoluta a un PNG o JPEG.")
+            if "path" not in edit:
+                edits.append(edit)
+                continue
+            asset = Path(edit["path"])
+            extensions = {".glb"} if edit["mode"] == "replace_mesh" else {".png", ".jpg", ".jpeg"}
+            if not asset.is_absolute() or asset.suffix.lower() not in extensions or not asset.is_file():
+                raise ValueError("Use an absolute path to an existing input file. / Usa la ruta absoluta a un fichero de entrada existente.")
             folder = work / str(index)
             folder.mkdir()
-            copy = folder / image.name
-            pin_file(image, copy, edit["sha256"])
+            copy = folder / asset.name
+            pin_file(asset, copy, edit["sha256"])
             edits.append({**edit, "file": str(copy)})
         request = work / "request.json"
         request.write_text(json.dumps({**recipe, "edits": edits}, ensure_ascii=False), encoding="utf-8")

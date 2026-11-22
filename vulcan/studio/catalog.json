@@ -17986,7 +17986,7 @@
     "module": "library",
     "native_name": "articulation_finish",
     "name": "articulation_finish",
-    "description": "Project retained artwork onto a rig. Proyecta ilustraciones de referencia sobre una articulación.\nPaint local colour, optionally closing holes, adding a bounded patch and smoothing, or map an image to a part. Keeps the rig and animation. Returns an editable scene and skinned GLB. Undo: articulation_undo. Reproyecta color localizado, con relleno, parche acotado y alisado opcionales, o aplica una imagen a una pieza. Conserva esqueleto y animación. Devuelve escena editable y GLB articulado. Deshacer: articulation_undo.\nSinónimos: reparar huecos y escalones, reproyectar el color de la cara, aplicar tinta al mapa, texturizar una pieza articulada.",
+    "description": "Project retained artwork onto a rig. Proyecta ilustraciones de referencia sobre una articulación.\nPaint local colour, optionally closing holes, adding a bounded patch and smoothing, or map an image to a part. Keeps the rig and animation. Add material-scoped colour replacement, speck cleaning, smoothing or a skinned mesh swap with before/after views. Undo: articulation_undo. Reproyecta color localizado, con relleno, parche acotado y alisado opcionales, o aplica una imagen a una pieza. Conserva esqueleto y animación. Sustituye color o malla, limpia motas o alisa por material, con vistas antes y después. Deshacer: articulation_undo.\nSinónimos: reparar huecos y escalones, reproyectar el color de la cara, aplicar tinta al mapa, texturizar una pieza articulada.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -17996,39 +17996,83 @@
     },
     "inputSchema": {
       "$defs": {
-        "ColourProjection": {
+        "Camera": {
           "additionalProperties": false,
           "properties": {
-            "part": {
-              "description": "Name of the articulated mesh. / Nombre de la malla articulada.",
-              "maxLength": 100,
-              "minLength": 1,
-              "title": "Part",
+            "name": {
+              "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,47}$",
+              "title": "Name",
               "type": "string"
             },
-            "path": {
-              "description": "Absolute PNG or JPEG path. / Ruta absoluta a un PNG o JPEG.",
-              "title": "Path",
-              "type": "string"
+            "direction": {
+              "description": "World offset from the common focus, looking towards the subject.",
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "title": "Direction",
+              "type": "array"
             },
-            "sha256": {
-              "pattern": "^[0-9a-fA-F]{64}$",
-              "title": "Sha256",
-              "type": "string"
-            },
-            "reference": {
+            "focus": {
               "anyOf": [
                 {
-                  "maxLength": 500,
-                  "type": "string"
+                  "maxItems": 3,
+                  "minItems": 3,
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "type": "array"
                 },
                 {
                   "type": "null"
                 }
               ],
               "default": null,
-              "title": "Reference"
+              "description": "Optional camera target in source space. / Punto de mira en el espacio de origen.",
+              "title": "Focus"
             },
+            "view_scale": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Optional orthographic span in metres. / Anchura ortográfica en metros.",
+              "title": "View Scale"
+            }
+          },
+          "required": [
+            "name",
+            "direction"
+          ],
+          "title": "Camera",
+          "type": "object"
+        },
+        "ColourProjection": {
+          "additionalProperties": false,
+          "properties": {
             "origin": {
               "description": "Lower left of the projection in world metres. / Esquina inferior izquierda de la proyección en metros de escena.",
               "maxItems": 3,
@@ -18082,6 +18126,36 @@
               ],
               "title": "Up",
               "type": "array"
+            },
+            "part": {
+              "description": "Name of the articulated mesh. / Nombre de la malla articulada.",
+              "maxLength": 100,
+              "minLength": 1,
+              "title": "Part",
+              "type": "string"
+            },
+            "path": {
+              "description": "Absolute PNG or JPEG path. / Ruta absoluta a un PNG o JPEG.",
+              "title": "Path",
+              "type": "string"
+            },
+            "sha256": {
+              "pattern": "^[0-9a-fA-F]{64}$",
+              "title": "Sha256",
+              "type": "string"
+            },
+            "reference": {
+              "anyOf": [
+                {
+                  "maxLength": 500,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Reference"
             },
             "mode": {
               "const": "colour",
@@ -18208,42 +18282,33 @@
             }
           },
           "required": [
-            "part",
-            "path",
-            "sha256",
             "origin",
             "right",
             "up",
+            "part",
+            "path",
+            "sha256",
             "mode",
             "depth"
           ],
           "title": "ColourProjection",
           "type": "object"
         },
-        "ImageProjection": {
+        "Despeckle": {
           "additionalProperties": false,
           "properties": {
-            "part": {
-              "description": "Name of the articulated mesh. / Nombre de la malla articulada.",
-              "maxLength": 100,
-              "minLength": 1,
-              "title": "Part",
+            "region": {
+              "$ref": "#/$defs/LocalRegion"
+            },
+            "mode": {
+              "const": "despeckle",
+              "title": "Mode",
               "type": "string"
             },
-            "path": {
-              "description": "Absolute PNG or JPEG path. / Ruta absoluta a un PNG o JPEG.",
-              "title": "Path",
-              "type": "string"
-            },
-            "sha256": {
-              "pattern": "^[0-9a-fA-F]{64}$",
-              "title": "Sha256",
-              "type": "string"
-            },
-            "reference": {
+            "attribute": {
               "anyOf": [
                 {
-                  "maxLength": 500,
+                  "maxLength": 100,
                   "type": "string"
                 },
                 {
@@ -18251,8 +18316,41 @@
                 }
               ],
               "default": null,
-              "title": "Reference"
+              "title": "Attribute"
             },
+            "radius_m": {
+              "description": "Neighbour radius in metres. / Radio de la vecindad en metros.",
+              "exclusiveMinimum": 0,
+              "title": "Radius M",
+              "type": "number"
+            },
+            "threshold": {
+              "description": "Minimum RGB deviation in linear colour. / Desviación RGB mínima en color lineal.",
+              "exclusiveMinimum": 0,
+              "maximum": 1,
+              "title": "Threshold",
+              "type": "number"
+            },
+            "max_spot_m": {
+              "description": "Maximum spot diameter in metres. / Diámetro máximo de una mota en metros.",
+              "exclusiveMinimum": 0,
+              "title": "Max Spot M",
+              "type": "number"
+            }
+          },
+          "required": [
+            "region",
+            "mode",
+            "radius_m",
+            "threshold",
+            "max_spot_m"
+          ],
+          "title": "Despeckle",
+          "type": "object"
+        },
+        "ImageProjection": {
+          "additionalProperties": false,
+          "properties": {
             "origin": {
               "description": "Lower left of the projection in world metres. / Esquina inferior izquierda de la proyección en metros de escena.",
               "maxItems": 3,
@@ -18307,6 +18405,36 @@
               "title": "Up",
               "type": "array"
             },
+            "part": {
+              "description": "Name of the articulated mesh. / Nombre de la malla articulada.",
+              "maxLength": 100,
+              "minLength": 1,
+              "title": "Part",
+              "type": "string"
+            },
+            "path": {
+              "description": "Absolute PNG or JPEG path. / Ruta absoluta a un PNG o JPEG.",
+              "title": "Path",
+              "type": "string"
+            },
+            "sha256": {
+              "pattern": "^[0-9a-fA-F]{64}$",
+              "title": "Sha256",
+              "type": "string"
+            },
+            "reference": {
+              "anyOf": [
+                {
+                  "maxLength": 500,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Reference"
+            },
             "mode": {
               "const": "image",
               "title": "Mode",
@@ -18314,15 +18442,221 @@
             }
           },
           "required": [
-            "part",
-            "path",
-            "sha256",
             "origin",
             "right",
             "up",
+            "part",
+            "path",
+            "sha256",
             "mode"
           ],
           "title": "ImageProjection",
+          "type": "object"
+        },
+        "LocalPaint": {
+          "additionalProperties": false,
+          "properties": {
+            "region": {
+              "$ref": "#/$defs/LocalRegion"
+            },
+            "mode": {
+              "const": "replace_colour",
+              "title": "Mode",
+              "type": "string"
+            },
+            "path": {
+              "description": "Absolute path to retained PNG or JPEG. / Ruta absoluta al PNG o JPEG conservado.",
+              "title": "Path",
+              "type": "string"
+            },
+            "sha256": {
+              "pattern": "^[0-9a-fA-F]{64}$",
+              "title": "Sha256",
+              "type": "string"
+            },
+            "reference": {
+              "anyOf": [
+                {
+                  "maxLength": 500,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Reference"
+            },
+            "crop": {
+              "anyOf": [
+                {
+                  "maxItems": 4,
+                  "minItems": 4,
+                  "prefixItems": [
+                    {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    {
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  ],
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Crop"
+            },
+            "attribute": {
+              "anyOf": [
+                {
+                  "maxLength": 100,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Attribute"
+            }
+          },
+          "required": [
+            "region",
+            "mode",
+            "path",
+            "sha256"
+          ],
+          "title": "LocalPaint",
+          "type": "object"
+        },
+        "LocalRegion": {
+          "additionalProperties": false,
+          "properties": {
+            "part": {
+              "maxLength": 100,
+              "minLength": 1,
+              "title": "Part",
+              "type": "string"
+            },
+            "material": {
+              "description": "Exact material name. / Nombre exacto del material.",
+              "maxLength": 100,
+              "minLength": 1,
+              "title": "Material",
+              "type": "string"
+            },
+            "view": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ViewBox"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "group": {
+              "anyOf": [
+                {
+                  "maxLength": 100,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Existing vertex group. / Grupo de vértices existente.",
+              "title": "Group"
+            },
+            "face_ranges": {
+              "description": "Inclusive face ranges in the pinned editable scene. / Tramos inclusivos de caras en la escena editable fijada.",
+              "items": {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                ],
+                "type": "array"
+              },
+              "maxItems": 20000,
+              "title": "Face Ranges",
+              "type": "array"
+            }
+          },
+          "required": [
+            "part",
+            "material"
+          ],
+          "title": "LocalRegion",
+          "type": "object"
+        },
+        "LocalSmooth": {
+          "additionalProperties": false,
+          "properties": {
+            "region": {
+              "$ref": "#/$defs/LocalRegion"
+            },
+            "mode": {
+              "const": "smooth",
+              "title": "Mode",
+              "type": "string"
+            },
+            "iterations": {
+              "default": 8,
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Iterations",
+              "type": "integer"
+            },
+            "max_displacement_m": {
+              "exclusiveMinimum": 0,
+              "title": "Max Displacement M",
+              "type": "number"
+            },
+            "radius_m": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Fit depths across disconnected triangles in a view, in metres. / Ajusta la profundidad entre triángulos desconectados en la vista, en metros.",
+              "title": "Radius M"
+            }
+          },
+          "required": [
+            "region",
+            "mode",
+            "max_displacement_m"
+          ],
+          "title": "LocalSmooth",
           "type": "object"
         },
         "LoftSection": {
@@ -18368,6 +18702,56 @@
             "radius_depth_m"
           ],
           "title": "LoftSection",
+          "type": "object"
+        },
+        "ReplaceMesh": {
+          "additionalProperties": false,
+          "properties": {
+            "region": {
+              "$ref": "#/$defs/LocalRegion"
+            },
+            "mode": {
+              "const": "replace_mesh",
+              "title": "Mode",
+              "type": "string"
+            },
+            "path": {
+              "description": "Absolute path to one unrigged GLB mesh in the part's local rest coordinates. / Ruta absoluta a un GLB sin rig en coordenadas locales de reposo de la pieza.",
+              "title": "Path",
+              "type": "string"
+            },
+            "sha256": {
+              "pattern": "^[0-9a-fA-F]{64}$",
+              "title": "Sha256",
+              "type": "string"
+            },
+            "reference": {
+              "anyOf": [
+                {
+                  "maxLength": 500,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Reference"
+            },
+            "name": {
+              "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,47}$",
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          "required": [
+            "region",
+            "mode",
+            "path",
+            "sha256",
+            "name"
+          ],
+          "title": "ReplaceMesh",
           "type": "object"
         },
         "SurfaceFinish": {
@@ -18502,6 +18886,111 @@
           },
           "title": "SurfaceFinish",
           "type": "object"
+        },
+        "ViewBox": {
+          "additionalProperties": false,
+          "properties": {
+            "origin": {
+              "description": "Lower left of the projection in world metres. / Esquina inferior izquierda de la proyección en metros de escena.",
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "title": "Origin",
+              "type": "array"
+            },
+            "right": {
+              "description": "Full width vector towards image right. / Vector de anchura completa hacia la derecha de la imagen.",
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "title": "Right",
+              "type": "array"
+            },
+            "up": {
+              "description": "Full height vector towards image top. / Vector de altura completa hacia arriba en la imagen.",
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "title": "Up",
+              "type": "array"
+            },
+            "depth": {
+              "description": "Signed depth bounds along right × up. / Límites de profundidad con signo en la dirección right × up.",
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "title": "Depth",
+              "type": "array"
+            },
+            "mask": {
+              "description": "Convex counterclockwise mask in view coordinates. / Máscara convexa antihoraria en coordenadas de la vista.",
+              "items": {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "maximum": 1,
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  {
+                    "maximum": 1,
+                    "minimum": 0,
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              "maxItems": 32,
+              "title": "Mask",
+              "type": "array"
+            }
+          },
+          "required": [
+            "origin",
+            "right",
+            "up",
+            "depth"
+          ],
+          "title": "ViewBox",
+          "type": "object"
         }
       },
       "additionalProperties": false,
@@ -18547,7 +19036,11 @@
             "discriminator": {
               "mapping": {
                 "colour": "#/$defs/ColourProjection",
-                "image": "#/$defs/ImageProjection"
+                "despeckle": "#/$defs/Despeckle",
+                "image": "#/$defs/ImageProjection",
+                "replace_colour": "#/$defs/LocalPaint",
+                "replace_mesh": "#/$defs/ReplaceMesh",
+                "smooth": "#/$defs/LocalSmooth"
               },
               "propertyName": "mode"
             },
@@ -18557,6 +19050,18 @@
               },
               {
                 "$ref": "#/$defs/ImageProjection"
+              },
+              {
+                "$ref": "#/$defs/LocalPaint"
+              },
+              {
+                "$ref": "#/$defs/Despeckle"
+              },
+              {
+                "$ref": "#/$defs/LocalSmooth"
+              },
+              {
+                "$ref": "#/$defs/ReplaceMesh"
               }
             ]
           },
@@ -18564,6 +19069,21 @@
           "minItems": 1,
           "title": "Edits",
           "type": "array"
+        },
+        "cameras": {
+          "items": {
+            "$ref": "#/$defs/Camera"
+          },
+          "maxItems": 8,
+          "title": "Cameras",
+          "type": "array"
+        },
+        "view_size": {
+          "default": 384,
+          "maximum": 1024,
+          "minimum": 256,
+          "title": "View Size",
+          "type": "integer"
         }
       },
       "required": [

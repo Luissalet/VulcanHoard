@@ -8,6 +8,8 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent))
 from worker import export_glb  # noqa: E402
+from local_finish import apply as apply_local  # noqa: E402
+from finish_preview import Preview  # noqa: E402
 from surface_finish import add_loft, blend_patch_normals, fair_depth, fill_surface, loft_geometry, smooth_surface  # noqa: E402
 
 
@@ -176,8 +178,14 @@ def apply_image(obj, image, uv):
     return {"uv_layer": layer.name, "faces_mapped": len(mesh.polygons)}
 
 
+def finish_normals(obj, initial_vertices, requests):
+    counts = blend_patch_normals(obj, initial_vertices, [patch for patch, _ in requests])
+    for (_, geometry), count in zip(requests, counts, strict=True):
+        geometry["corner_normals_blended"] = count
+
+
 def main(source, recipe, output):
-    bpy.ops.wm.open_mainfile(filepath=str(source))
+    bpy.ops.wm.open_mainfile(filepath=str(source), use_scripts=False)
     scene = bpy.context.scene
     saved_frame = scene.frame_current, scene.frame_subframe
     if recipe["frame"] is not None:
@@ -189,11 +197,16 @@ def main(source, recipe, output):
     rigs = [obj for obj in scene.objects if obj in bound]
     if not rigs:
         raise ValueError("Use an editable articulation with a rig. / Usa una articulación editable con un esqueleto.")
+    preview = Preview(scene, recipe, objects, rigs) if recipe.get("cameras") else None
+    views = preview.capture(output, "before") if preview else []
     changes = []
     original_vertices = {obj.name: len(obj.data.vertices) for obj in objects}
     normal_patches = {}
+    modified_topology = set()
     for edit in recipe["edits"]:
-        matches = [obj for obj in objects if obj["articulation_part"] == edit["part"]]
+        region = edit.get("region")
+        part = region["part"] if region else edit["part"]
+        matches = [obj for obj in objects if obj["articulation_part"] == part]
         if len(matches) != 1:
             raise ValueError("Expected one matching articulated part. / Se esperaba una única pieza articulada con ese nombre.")
         obj = matches[0]
@@ -201,6 +214,22 @@ def main(source, recipe, output):
             raise ValueError("Use a part with only armature deformation. / Usa una pieza cuya única deformación sea la del esqueleto.")
         if obj.data.users > 1:
             obj.data = obj.data.copy()
+        if region:
+            if edit["mode"] == "replace_mesh" and any(obj["articulation_part"] == edit["name"] for obj in objects):
+                raise ValueError("Use a new part name. / Usa un nombre de pieza nuevo.")
+            if region["face_ranges"] and part in modified_topology:
+                raise ValueError("Face ranges refer to the input scene. / Los tramos de caras se refieren a la escena de entrada.")
+            if edit["mode"] == "replace_mesh" and obj.name in normal_patches:
+                finish_normals(obj, original_vertices[obj.name], normal_patches.pop(obj.name))
+            replacement, change = apply_local(obj, edit, mask_distance, sample)
+            changes.append(change)
+            if replacement:
+                modified_topology.add(part)
+                objects.append(replacement)
+                modified_topology.add(replacement["articulation_part"])
+                original_vertices[replacement.name] = len(replacement.data.vertices)
+            bpy.context.view_layer.update()
+            continue
         image = bpy.data.images.load(edit["file"])
         uv, depth, facing = projection(obj, edit)
         if edit["mode"] == "colour":
@@ -210,6 +239,8 @@ def main(source, recipe, output):
             if surface:
                 geometry, uv, depth, facing, loft_start = repair_surface(obj, edit, uv, depth, facing)
             change = paint_colour(obj.data, image, edit, uv, depth, facing, loft_start)
+            if len(obj.data.polygons) != first_face:
+                modified_topology.add(part)
             if geometry:
                 change["geometry"] = geometry
             if surface and surface.get("normal_blend_radius_m"):
@@ -222,10 +253,10 @@ def main(source, recipe, output):
         obj.data.update()
     for obj in objects:
         if obj.name in normal_patches:
-            requests = normal_patches[obj.name]
-            counts = blend_patch_normals(obj, original_vertices[obj.name], [patch for patch, _ in requests])
-            for (_, geometry), count in zip(requests, counts, strict=True):
-                geometry["corner_normals_blended"] = count
+            finish_normals(obj, original_vertices[obj.name], normal_patches[obj.name])
+    if preview:
+        views += preview.capture(output, "after")
+        preview.close()
     scene.frame_set(saved_frame[0], subframe=saved_frame[1])
     bpy.ops.wm.save_as_mainfile(filepath=str(output / "editable.blend"), relative_remap=False)
     for obj in [*rigs, *objects]:
@@ -237,7 +268,8 @@ def main(source, recipe, output):
         "poses": {item.name: item.frame for item in scene.timeline_markers},
         "edits": changes,
         "files": {"scene": "editable.blend", "rigged": "rigged.glb", "recipe": "recipe.json"},
-        "views": [],
+        "views": views,
+        **({"cameras": preview.metadata} if preview else {}),
     }
     (output / "receipt.json").write_text(json.dumps(receipt), encoding="utf-8")
 
