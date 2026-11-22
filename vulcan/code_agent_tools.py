@@ -18,7 +18,7 @@ class CodeModelRunArgs(BaseModel):
     code: str | None = Field(None, max_length=30000, description="A sand3d program (import sand3d as s3d ... model = <solid>). Omit it with id to rebuild a saved part from its stored program.")
     id: int | None = Field(None, ge=1, description="A part made with code_model: rebuild this library model in place (same id).")
     name: str | None = Field(None, max_length=80, description="Library name for a new part.")
-    description: str | None = Field(None, max_length=2000, description="What the part is (stored with it).")
+    description: str | None = Field(None, max_length=2000, description="Part description, stored with it and checked for dimensions unless requirements is supplied.")
     save: bool = Field(True, description="false only builds and measures; nothing is written to the library.")
     params: dict[str, float] | None = Field(None, description="Named parameters of the program to set first, e.g. {'t': 4, 'w': 90} (see code_model_status id).")
     requirements: str | None = Field(None, max_length=500, description="Measures to check on the built part, e.g. '60 x 40 x 30 mm, 2 mm walls, hole 5 mm'.")
@@ -103,7 +103,7 @@ CODE_TOOLS: list[Tool] = [
          CodeModelArgs, ann(False, False, False), run_code_model, timeout_s=1800, capped=False),
     Tool("code_model_run", "Run a sand3d program (no language model) and save or measure the part (write). Keywords: ejecutar código 3D.\n"
          "Runs the program in the isolated engine, exports STL (mm) and GLB, validates the GLB and saves a new library model, or rebuilds the "
-         "part with id in place (no code: reruns the stored one). params sets named parameters; requirements checks measures. save=false only measures.\n"
+         "part with id in place (no code: reruns the stored one). params sets named parameters. Checks dimensions from requirements or the description. save=false only measures.\n"
          "Sinónimos: regenerar pieza, ejecutar programa sand3d, editar código, medir pieza, rehacer modelo.",
          CodeModelRunArgs, ann(False, False, False), run_code_model_run, timeout_s=300),
     Tool("code_model_edit", "Change a part made with code by an instruction in plain words (write). Keywords: editar modelo con código.\n"

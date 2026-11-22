@@ -10,7 +10,7 @@ export to GLB, STL, OBJ, USDA and URDF. The reference that goes into the prompt 
 | MCP tool | REST (under `/library/api` in the owner, `/api` in the plain app) | What it does |
 |---|---|---|
 | `code_model(description, name?, wait=true)` | `POST /code-model/from-text` (returns a job) | Picks the closest tested examples, parses the measures asked for, the language model writes the program, it runs, errors go back (3 attempts), the mesh is measured and a miss goes back once more, exports, validates, saves. |
-| `code_model_run(code?, id?, name?, description?, save=true, params?, requirements?)` | `POST /code-model/run`, `POST /code-model/{id}/regenerate` | Runs a given program (no language model). With `id` the same library model is rebuilt; without `code` the stored program runs again. `params` sets named parameters first; `requirements` ("60 x 40 x 30 mm, 2 mm walls") is checked on the result. `save=false` only measures. |
+| `code_model_run(code?, id?, name?, description?, save=true, params?, requirements?)` | `POST /code-model/run`, `POST /code-model/{id}/regenerate` | Runs a given program (no language model). With `id` the same library model is rebuilt; without `code` the stored program runs again. `params` sets named parameters first. Checks dimensions from `requirements` ("60 x 40 x 30 mm, 2 mm walls"), then `description` if supplied, or the saved requirements on a rebuild. `save=false` only measures. |
 | `code_model_edit(id, instruction, wait=true)` | `POST /code-model/{id}/edit` (returns a job) | An instruction that is only a measure changes the matching named parameter with no language model; anything else goes to the model with the program and its parameters (last five programs kept). |
 | `code_model_status(job_id?, id?, cancel?, install?, api_reference?, examples?, example?)` | `GET /code-model/status`, `/jobs/{id}`, `/{id}`, `POST /code-model/install`, `/jobs/{id}/cancel`, `GET /code-model/reference`, `GET /code-model/examples`, `/examples/{id}` | Engine and language model readiness, job stage/result, the program of a part with its parameters and measure check, the example library, install. |
 | — | `POST /code-model/requirements` `{text, code?}` | What a description asks for (measures, examples it would pick) and, with `code`, the parameter change an instruction maps to. |
@@ -51,12 +51,16 @@ Si la última respuesta sigue incompleta, Vulcan conserva la malla que ya haya g
 
 ## Library interface / Interfaz de la biblioteca
 
-The **Code** page (`/library/#/codigo`) follows the browser language. It shows English for English locales and
-Spanish (Spain) by default. Model names, saved code, and technical output from the engine or job are shown as received.
+The library header, sidebar and **Code** page (`/library/#/codigo`) follow the browser language. They show English for
+English locales and Spanish (Spain) by default. If a job fails, its progress list marks the stage where it stopped.
+**Run this code** checks the dimensions in the description just like **Measure only** and saves the check with the part.
+Model names, saved code, and technical output from the engine or job are shown as received.
 
-La página **Código** (`/library/#/codigo`) sigue el idioma del navegador. Se muestra en inglés si el navegador usa
-ese idioma y en castellano de España por defecto. Los nombres de los modelos, el código guardado y la salida técnica
-del motor o del trabajo se muestran tal como se reciben.
+La cabecera, el lateral de la biblioteca y la página **Código** (`/library/#/codigo`) siguen el idioma del navegador.
+Se muestran en inglés si el navegador usa ese idioma y en castellano de España por defecto. Cuando un trabajo falla,
+la lista de progreso indica en qué etapa se detuvo. **Ejecutar este código** comprueba las medidas de la descripción
+igual que **Solo medir** y guarda la comprobación con la pieza. Los nombres de los modelos, el código guardado
+y la salida técnica del motor o del trabajo se muestran tal como se reciben.
 
 ## Example library
 

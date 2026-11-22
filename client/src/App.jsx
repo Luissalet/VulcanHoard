@@ -21,19 +21,19 @@ const Mesa = lazy(() => import("./pages/Mesa.jsx")); // three.js loads only when
 const Habitacion = lazy(() => import("./pages/Habitacion.jsx"));
 
 const PAGES = [
-  { path: "galeria", label: "Galería", icon: "M4 5h6v6H4zM14 5h6v6h-6zM4 15h6v6H4zM14 15h6v6h-6z", component: Galeria },
-  { path: "colecciones", label: "Colecciones", icon: "M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2z", component: Colecciones },
-  { path: "fichas", label: "Fichas", icon: "M7 3h7l4 4v14a1 1 0 01-1 1H7a1 1 0 01-1-1V4a1 1 0 011-1zM13 3v5h5M9 12h6M9 16h6M9 8h1", component: Fichas },
-  { path: "organizar", label: "Organizar", icon: "M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v2M3 13h10m0 0l-3-3m3 3l-3 3M3 19h6", component: Organizar },
-  { path: "carpetas", label: "Carpetas", icon: "M4 20V10m5 10V6m5 14v-9m5 9V4M3 20h18", component: Carpetas },
-  { path: "estadisticas", label: "Estadísticas", icon: "M4 20V10m5 10V4m5 16v-8m5 8V7", component: Estadisticas },
-  { path: "disenar", label: "Diseñar", icon: "M4 20h16M6 16l9-9 3 3-9 9H6zM14 8l3 3", component: Disenar },
+  { path: "galeria", label: tr("Galería", "Gallery"), icon: "M4 5h6v6H4zM14 5h6v6h-6zM4 15h6v6H4zM14 15h6v6h-6z", component: Galeria },
+  { path: "colecciones", label: tr("Colecciones", "Collections"), icon: "M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2z", component: Colecciones },
+  { path: "fichas", label: tr("Fichas", "Listings"), icon: "M7 3h7l4 4v14a1 1 0 01-1 1H7a1 1 0 01-1-1V4a1 1 0 011-1zM13 3v5h5M9 12h6M9 16h6M9 8h1", component: Fichas },
+  { path: "organizar", label: tr("Organizar", "Organize"), icon: "M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v2M3 13h10m0 0l-3-3m3 3l-3 3M3 19h6", component: Organizar },
+  { path: "carpetas", label: tr("Carpetas", "Folders"), icon: "M4 20V10m5 10V6m5 14v-9m5 9V4M3 20h18", component: Carpetas },
+  { path: "estadisticas", label: tr("Estadísticas", "Statistics"), icon: "M4 20V10m5 10V4m5 16v-8m5 8V7", component: Estadisticas },
+  { path: "disenar", label: tr("Diseñar", "Design"), icon: "M4 20h16M6 16l9-9 3 3-9 9H6zM14 8l3 3", component: Disenar },
   { path: "codigo", label: tr("Código", "Code"), icon: "M8 8l-4 4 4 4M16 8l4 4-4 4M14 5l-4 14", component: Codigo },
-  { path: "habitacion", label: "Habitación", icon: "M3 21V8l9-5 9 5v13H3zM9 21v-8h6v8M3 8l9 5 9-5", component: Habitacion },
-  { path: "mesa", label: "Mesa 3D", icon: "M3 9l9-5 9 5-9 5zM3 9v6l9 5 9-5V9M12 14v6", component: Mesa },
-  { path: "animar", label: "Animaciones", icon: "M12 4a2 2 0 100 4 2 2 0 000-4zM12 8v5m0 0l-4 6m4-6l4 6M7 10l5 1 5-1", component: Animar },
-  { path: "espacial", label: "Espacial", icon: "M12 21s-7-6.2-7-11a7 7 0 1114 0c0 4.8-7 11-7 11zM12 12a2.5 2.5 0 100-5 2.5 2.5 0 000 5z", component: Espacial },
-  { path: "ajustes", label: "Ajustes", icon: "M12 15a3 3 0 100-6 3 3 0 000 6zM19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z", component: Ajustes },
+  { path: "habitacion", label: tr("Habitación", "Room"), icon: "M3 21V8l9-5 9 5v13H3zM9 21v-8h6v8M3 8l9 5 9-5", component: Habitacion },
+  { path: "mesa", label: tr("Mesa 3D", "3D Table"), icon: "M3 9l9-5 9 5-9 5zM3 9v6l9 5 9-5V9M12 14v6", component: Mesa },
+  { path: "animar", label: tr("Animaciones", "Animations"), icon: "M12 4a2 2 0 100 4 2 2 0 000-4zM12 8v5m0 0l-4 6m4-6l4 6M7 10l5 1 5-1", component: Animar },
+  { path: "espacial", label: tr("Espacial", "Spatial Analysis"), icon: "M12 21s-7-6.2-7-11a7 7 0 1114 0c0 4.8-7 11-7 11zM12 12a2.5 2.5 0 100-5 2.5 2.5 0 000 5z", component: Espacial },
+  { path: "ajustes", label: tr("Ajustes", "Settings"), icon: "M12 15a3 3 0 100-6 3 3 0 000 6zM19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z", component: Ajustes },
 ];
 
 const AppContext = createContext(null);
@@ -56,7 +56,7 @@ function useHashRoute() {
 
 function scanLine(status) {
   const running = Object.values(status.worker.progress || {}).find((p) => p.phase === "parsing");
-  if (!running) return "escaneando…";
+  if (!running) return tr("escaneando…", "scanning…");
   const rate = running.rate ? ` · ${running.rate >= 10 ? Math.round(running.rate) : running.rate.toFixed(1)}/s` : "";
   return `${running.files_done}/${running.files_total}${rate}`;
 }
@@ -114,15 +114,15 @@ export default function App() {
   return (
     <AppContext.Provider value={value}>
       <div className="min-h-dvh md:grid md:grid-cols-[224px_minmax(0,1fr)]">
-        <aside className="sticky top-0 z-10 border-b md:h-dvh md:border-b-0 md:border-r" style={{ background: "var(--sidebar)", borderColor: "var(--line)" }}>
+        <aside lang={tr("es", "en")} className="sticky top-0 z-10 border-b md:h-dvh md:border-b-0 md:border-r" style={{ background: "var(--sidebar)", borderColor: "var(--line)" }}>
           <a href="#/galeria" className="flex items-center gap-2 px-4 py-3 text-inherit no-underline md:px-5 md:py-5">
             <img src="/icon-192.png" alt="" className="h-8 w-8 rounded-md" width="32" height="32" />
             <div className="leading-tight">
               <div className="text-[15px] font-semibold">Vulcan's Hoard</div>
-              <div className="help text-[11px]">Modelos 3D</div>
+              <div className="help text-[11px]">{tr("Modelos 3D", "3D Models")}</div>
             </div>
           </a>
-          <nav aria-label="Secciones" className="flex gap-1 overflow-x-auto px-3 pb-2 md:flex-col md:px-3">
+          <nav aria-label={tr("Secciones", "Sections")} className="flex gap-1 overflow-x-auto px-3 pb-2 md:flex-col md:px-3">
             {PAGES.map((p) => (
               <a key={p.path} href={`#/${p.path}`} className="nav-link shrink-0 text-[13px]" aria-current={p.path === page.path && route.page !== "modelo" ? "page" : undefined}>
                 <Icon d={p.icon} />
@@ -132,21 +132,32 @@ export default function App() {
           </nav>
           {status && (
             <div className="hidden px-5 pt-4 md:block">
-              <div className="help text-[11px]">Biblioteca</div>
-              <div className="text-[13px]"><span className="num font-semibold">{num(status.counts.models)}</span> modelos · <span className="num">{num(status.counts.listings)}</span> fichas</div>
-              <div className="help mt-2 text-[11px]">Escáner</div>
-              <div className="text-[13px]">{busy ? scanLine(status) : "en reposo"}</div>
-              {status.counts.duplicates > 0 && <div className="help mt-2 text-[11px]"><a className="btn-link" href="#/galeria?dupes=1">{status.counts.duplicates} duplicados</a></div>}
+              <div className="help text-[11px]">{tr("Biblioteca", "Library")}</div>
+              <div className="text-[13px]">
+                <span className="num font-semibold">{num(status.counts.models)}</span>{" "}
+                {status.counts.models === 1 ? tr("modelo", "model") : tr("modelos", "models")} ·{" "}
+                <span className="num">{num(status.counts.listings)}</span>{" "}
+                {status.counts.listings === 1 ? tr("ficha", "listing") : tr("fichas", "listings")}
+              </div>
+              <div className="help mt-2 text-[11px]">{tr("Escáner", "Scanner")}</div>
+              <div className="text-[13px]">{busy ? scanLine(status) : tr("en reposo", "idle")}</div>
+              {status.counts.duplicates > 0 && (
+                <div className="help mt-2 text-[11px]">
+                  <a className="btn-link" href="#/galeria?dupes=1">
+                    {status.counts.duplicates} {status.counts.duplicates === 1 ? tr("duplicado", "duplicate") : tr("duplicados", "duplicates")}
+                  </a>
+                </div>
+              )}
             </div>
           )}
         </aside>
         <main className="min-w-0 px-4 py-4 md:px-10 md:py-8">
           {error && (
-            <div className="mb-4 rounded-md border p-4 text-[13px]" style={{ background: "var(--danger-bg)", color: "var(--danger-ink)", borderColor: "var(--danger-line)" }} role="alert">
-              No se pudo contactar con Vulcan: {error}. <button type="button" className="btn-link" onClick={refresh}>Reintentar</button>
+            <div className="mb-4 rounded-md border p-4 text-[13px]" style={{ background: "var(--danger-bg)", color: "var(--danger-ink)", borderColor: "var(--danger-line)" }} role="alert" lang={tr("es", "en")}>
+              {tr("No se pudo contactar con Vulcan", "Could not reach Vulcan")}: {error}. <button type="button" className="btn-link" onClick={refresh}>{tr("Reintentar", "Retry")}</button>
             </div>
           )}
-          <Suspense fallback={<p className="help">Cargando…</p>}>
+          <Suspense fallback={<p className="help" lang={tr("es", "en")}>{tr("Cargando…", "Loading…")}</p>}>
             <Component param={route.param} query={route.query} />
           </Suspense>
         </main>

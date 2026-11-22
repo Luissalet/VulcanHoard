@@ -725,8 +725,8 @@ def run_code(services, code: str, name: str | None = None, model_id: int | None 
              params: dict | None = None, requirements: str | None = None) -> dict:
     """Run a given program (no language model). With ``model_id`` the part is rebuilt in place (same library id); without ``code`` the
     stored program is run again (regenerate). ``params`` sets named parameters of the program first. ``requirements`` (text such as
-    "60 x 40 x 30 mm, 2 mm walls") is checked against the built part; with ``model_id`` and no text, the part's stored ones are.
-    ``save=False`` only builds and measures."""
+    "60 x 40 x 30 mm, 2 mm walls") takes precedence over the dimensions in ``description``. When neither is supplied,
+    a rebuild checks the part's stored requirements. ``save=False`` only builds and measures."""
     previous = None
     if model_id is not None:
         _, previous = _stem_and_record(services, model_id)
@@ -738,7 +738,8 @@ def run_code(services, code: str, name: str | None = None, model_id: int | None 
     changed = []
     if params:
         code, changed = checks.set_parameters(code, params)
-    reqs = checks.parse_requirements(requirements) if requirements else list((previous or {}).get("requirements") or [])
+    dimensions = requirements or (description or "").strip()
+    reqs = checks.parse_requirements(dimensions) if dimensions else list((previous or {}).get("requirements") or [])
     run = run_engine(services.config.data_dir, code)
     try:
         check = check_run(run, reqs)[1] if reqs else None

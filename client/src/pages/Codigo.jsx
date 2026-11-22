@@ -16,15 +16,16 @@ model = plate
 `;
 const STAGES = [
   ["queued", tr("En cola", "Queued")],
-  ["writing", tr("El modelo de lenguaje escribe el programa", "The language model is writing the program")],
-  ["running", tr("Ejecutando el programa en el motor aislado", "Running the program in the isolated engine")],
-  ["measuring", tr("Midiendo la pieza y comparándola con las medidas pedidas", "Checking the part against the requested dimensions")],
-  ["exporting", tr("Exportando STL y GLB", "Exporting STL and GLB")],
-  ["validating", tr("Validando el glTF", "Validating glTF")],
-  ["saving", tr("Guardando en la biblioteca", "Saving to the library")],
+  ["writing", tr("Escritura del programa", "Writing the program")],
+  ["running", tr("Ejecución en el motor aislado", "Running the program in the isolated engine")],
+  ["measuring", tr("Comprobación de las medidas pedidas", "Checking the requested dimensions")],
+  ["exporting", tr("Exportación de STL y GLB", "Exporting STL and GLB")],
+  ["validating", tr("Validación de glTF", "glTF validation")],
+  ["saving", tr("Guardado en la biblioteca", "Saving to the library")],
   ["done", tr("Terminado", "Finished")],
 ];
 const FINAL = ["done", "failed", "cancelled"];
+const STAGE_OUTCOME = { failed: tr("Falló", "Failed"), cancelled: tr("Cancelada", "Cancelled") };
 const REFUSALS = {
   model_timeout: tr("Se agotó el tiempo de espera del modelo.", "The language model request timed out."),
   model_unavailable: tr("No se pudo obtener un programa del modelo de lenguaje.", "Could not get a program from the language model."),
@@ -242,11 +243,21 @@ export default function Codigo({ param }) {
         {job && (
           <div role="status" aria-live="polite" className="space-y-1">
             <ol className="text-[13px]" style={{ listStyle: "none", padding: 0 }}>
-              {STAGES.map(([key, text], index) => (
-                <li key={key} style={{ opacity: index > stageIndex && job.status !== "done" ? 0.45 : 1, fontWeight: index === stageIndex && !FINAL.includes(job.status) ? 600 : 400 }}>
-                  {index < stageIndex || job.status === "done" ? "✓" : index === stageIndex && !FINAL.includes(job.status) ? "…" : "·"} {text}{key === "writing" || key === "running" ? ` (${tr("intento", "attempt")} ${Math.max(job.attempt || 1, 1)} ${tr("de", "of")} ${job.max_attempts})` : ""}
-                </li>
-              ))}
+              {STAGES.map(([key, text], index) => {
+                const current = index === stageIndex;
+                const active = current && !FINAL.includes(job.status);
+                const outcome = current && STAGE_OUTCOME[job.status];
+                const complete = index < stageIndex || job.status === "done";
+                const attempt = index <= stageIndex && (key === "writing" || key === "running");
+                return (
+                  <li key={key} aria-current={active ? "step" : undefined}
+                    style={{ opacity: index > stageIndex ? 0.45 : 1, fontWeight: active || outcome ? 600 : 400 }}>
+                    <span aria-hidden="true">{complete ? "✓" : active ? "…" : "·"}</span>{" "}{text}
+                    {attempt && ` (${tr("intento", "attempt")} ${Math.max(job.attempt || 1, 1)} ${tr("de", "of")} ${job.max_attempts})`}
+                    {outcome && ` · ${outcome}`}
+                  </li>
+                );
+              })}
             </ol>
             {job.log?.length > 0 && <details><summary className="help">{tr("Registro", "Log")}</summary><pre className="help" style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{job.log.join("\n")}</pre></details>}
           </div>

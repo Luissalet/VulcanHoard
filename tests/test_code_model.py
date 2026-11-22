@@ -681,6 +681,25 @@ def test_run_code_sets_parameters_and_checks_requirements(sim):
     assert call_tool(sim, "code_model_status", {"example": "nope"})["ok"] is False
 
 
+def test_run_code_checks_the_description_when_saving(sim):
+    description = "Test plate 80 x 40 mm"
+    measured = call_tool(sim, "code_model_run", {"code": GOOD, "requirements": description, "save": False})
+    saved = call_tool(sim, "code_model_run", {"code": GOOD, "description": description})
+    assert saved["saved"] and measured["requirements_check"]["ok"] is True
+    assert saved["requirements_check"] == measured["requirements_check"]
+    detail = cm.info(sim, saved["id"])
+    assert detail["description"] == description
+    assert detail["requirements_check"] == measured["requirements_check"]
+
+    checked = call_tool(sim, "code_model_run", {"id": saved["id"], "save": False})
+    assert checked["requirements_check"] == measured["requirements_check"]
+    override = call_tool(sim, "code_model_run", {
+        "code": GOOD, "description": description, "requirements": "100 x 50 mm", "save": False,
+    })
+    assert override["requirements_check"]["ok"] is False
+    assert override["requirements_check"]["items"][0]["wanted"] == [100.0, 50.0]
+
+
 def test_rest_examples_and_requirements(client):
     rows = client.get("/api/code-model/examples").json()["examples"]
     assert [r["id"] for r in rows][:2] == ["wall_bracket", "box_with_lid"]

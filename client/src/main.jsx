@@ -1,7 +1,19 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.jsx";
+import { tr } from "./components/animationI18n.js";
 import "./index.css";
+
+const studioBar = document.querySelector(".fusion-bar");
+if (studioBar) {
+  const title = tr("Biblioteca 3D", "3D Library");
+  const moduleName = studioBar.querySelector("span");
+  const functionsLink = studioBar.querySelector(".fusion-functions");
+  if (moduleName) moduleName.textContent = title;
+  if (functionsLink) functionsLink.textContent = tr("Funciones", "Functions");
+  studioBar.lang = tr("es", "en");
+  document.title = `${studioBar.getAttribute("aria-label")} · ${title}`;
+}
 
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>
