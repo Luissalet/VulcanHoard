@@ -8,6 +8,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent))
 from worker import export_glb  # noqa: E402
+from surface_finish import fill_surface, smooth_surface  # noqa: E402
 
 
 def mesh_values(items, field, width, dtype=np.float32):
@@ -56,16 +57,21 @@ def sample(image, uv, crop):
             + (raster[top, left] * (1 - fx) + raster[top, right] * fx) * fy)
 
 
-def paint_colour(mesh, image, edit, uv, depth, facing):
-    colour = mesh.color_attributes.get(edit["attribute"]) if edit["attribute"] else mesh.color_attributes.active_color
-    if colour is None or colour.domain not in {"POINT", "CORNER"}:
-        raise ValueError("Choose an existing point or corner colour attribute. / Elige un atributo de color en vértices o esquinas.")
-    low, high = edit["depth"]
+def mask_distance(edit, uv):
     distance = np.minimum(uv, 1 - uv).min(axis=1)
     for start, end in zip(edit["mask"], edit["mask"][1:] + edit["mask"][:1]):
         delta = uv - start
         dx, dy = np.subtract(end, start)
         distance = np.minimum(distance, (dx * delta[:, 1] - dy * delta[:, 0]) / np.hypot(dx, dy))
+    return distance
+
+
+def paint_colour(mesh, image, edit, uv, depth, facing):
+    colour = mesh.color_attributes.get(edit["attribute"]) if edit["attribute"] else mesh.color_attributes.active_color
+    if colour is None or colour.domain not in {"POINT", "CORNER"}:
+        raise ValueError("Choose an existing point or corner colour attribute. / Elige un atributo de color en vértices o esquinas.")
+    low, high = edit["depth"]
+    distance = mask_distance(edit, uv)
     chosen = (distance > 0) & (depth >= low) & (depth <= high) & (facing >= edit["min_facing"])
     selected = np.flatnonzero(chosen)
     if not len(selected):
@@ -91,6 +97,31 @@ def paint_colour(mesh, image, edit, uv, depth, facing):
     for index, value in zip(indices, original):
         colour.data[int(index)].color = value
     return {"attribute": colour.name, "samples_written": len(indices)}
+
+
+def repair_surface(obj, edit, uv, depth, facing):
+    settings = edit["surface"]
+    low, high = settings["depth"] or edit["depth"]
+    distance = mask_distance(edit, uv)
+    selected = (distance > 0) & (depth >= low) & (depth <= high)
+    result = {}
+    if settings["max_hole_m"]:
+        metres = np.linalg.norm([edit["right"], edit["up"]], axis=1)
+        result.update(fill_surface(obj, np.column_stack((uv * metres, depth)), selected, settings))
+        if result["faces_added"]:
+            bpy.context.view_layer.update()
+            uv, depth, facing = projection(obj, edit)
+            distance = mask_distance(edit, uv)
+            selected = (distance > 0) & (depth >= low) & (depth <= high)
+    if settings["smooth_iterations"]:
+        strength = np.where(selected & (facing >= edit["min_facing"]), 1.0, 0.0)
+        if edit["feather"]:
+            fade = np.clip(distance / edit["feather"], 0, 1)
+            strength *= fade * fade * (3 - 2 * fade)
+        result.update(smooth_surface(obj, strength, settings))
+        bpy.context.view_layer.update()
+        uv, depth, facing = projection(obj, edit)
+    return result, uv, depth, facing
 
 
 def apply_image(obj, image, uv):
@@ -148,7 +179,13 @@ def main(source, recipe, output):
         image = bpy.data.images.load(edit["file"])
         uv, depth, facing = projection(obj, edit)
         if edit["mode"] == "colour":
-            changes.append(paint_colour(obj.data, image, edit, uv, depth, facing))
+            geometry = {}
+            if edit.get("surface"):
+                geometry, uv, depth, facing = repair_surface(obj, edit, uv, depth, facing)
+            change = paint_colour(obj.data, image, edit, uv, depth, facing)
+            if geometry:
+                change["geometry"] = geometry
+            changes.append(change)
             bpy.data.images.remove(image)
         else:
             changes.append(apply_image(obj, image, uv))

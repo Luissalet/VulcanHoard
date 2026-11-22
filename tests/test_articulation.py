@@ -252,3 +252,64 @@ def test_articulation_finish_keeps_rig_and_limits_writes_to_the_selected_parts(s
     assert not Path(result["files"]["scene"]).exists()
     call_tool(services, "articulation_undo", removed["undo"])
     assert call_tool(services, "articulation_get", {"id": result["id"]}) == result
+
+
+
+@pytest.mark.skipif(find_blender() is None, reason="Blender is not installed")
+def test_articulation_finish_closes_local_hole_and_bounds_displacement(services, tmp_path):
+    source = tmp_path / "surface.glb"
+    vertices = np.array([(x, 0.15 if (x, y) == (-1, -1) else 0, -y) for y in range(-2, 3)
+                         for x in range(-2, 3)])
+    triangles = []
+    for row in range(4):
+        for column in range(4):
+            if (row, column) != (2, 2):
+                a = row * 5 + column
+                triangles.extend(((a, a + 1, a + 6), (a, a + 6, a + 5)))
+    patch = trimesh.Trimesh(vertices=vertices, faces=triangles, process=False)
+    patch.visual.vertex_colors = [192, 192, 192, 255]
+    patch.export(source)
+    rig = call_tool(services, "articulation_build", {
+        "source": str(source), "selection_views": False, "body_bone": "root",
+        "bones": [{"name": "root", "head": [0, 0, 0], "tail": [0, 0, 1]}],
+        "panels": [{"name": "map", "outline": [[3, 0, 0], [4, 0, 0], [4, 1, 0], [3, 1, 0]],
+                    "thickness": 0.01, "rgb": [0.5, 0.5, 0.5], "bone": "root", "reference": "Paper"}],
+        "poses": [{"name": "turned", "rotations": {"root": [0, 0, 90]}, "export": False, "cameras": []}],
+    })
+    artwork = tmp_path / "reference.png"
+    Image.new("RGB", (8, 8), (128, 64, 32)).save(artwork)
+    result = call_tool(services, "articulation_finish", {
+        "source": rig["files"]["scene"], "source_sha256": rig["artifacts"]["scene"]["sha256"],
+        "edits": [{"mode": "colour", "part": "body", "path": str(artwork),
+                   "sha256": sha256(artwork.read_bytes()).hexdigest(), "min_facing": -1,
+                   "origin": [-1.6, -1.6, 0], "right": [3.2, 0, 0], "up": [0, 3.2, 0],
+                   "depth": [-0.25, 0.25], "surface": {"max_hole_m": 1.5, "smooth_iterations": 3,
+                                                       "max_displacement_m": 0.08}}],
+    })
+    change = result["edits"][0]
+    assert change["geometry"]["holes_filled"] == 1
+    assert change["geometry"]["boundary_edges_closed"] == 4
+    assert change["geometry"]["faces_added"] == 2
+    assert 0 < change["geometry"]["max_movement_m"] <= 0.080001
+    assert change["geometry"]["vertices_moved"] > 0
+    assert change["samples_written"] > 0
+    assert result["source"]["sha256"] == rig["artifacts"]["scene"]["sha256"]
+
+    before = trimesh.load(rig["files"]["rigged"], force="scene", process=False)
+    after = trimesh.load(result["files"]["rigged"], force="scene", process=False)
+    first = before.geometry[before.graph["body"][1]]
+    final = after.geometry[after.graph["body"][1]]
+    assert len(final.faces) == len(first.faces) + 2
+    original_boundary = {tuple(vertex) for vertex in first.vertices if np.max(np.abs(vertex)) == 2}
+    final_boundary = {tuple(vertex) for vertex in final.vertices if np.max(np.abs(vertex)) == 2}
+    assert original_boundary == final_boundary
+    first_map = before.geometry[before.graph["map"][1]]
+    final_map = after.geometry[after.graph["map"][1]]
+    assert np.array_equal(first_map.faces, final_map.faces)
+    assert np.array_equal(first_map.vertices, final_map.vertices)
+    for package in (rig, result):
+        gltf, _ = read_gltf(Path(package["files"]["rigged"]))
+        assert len(gltf["skins"][0]["joints"]) == 1
+        assert len(gltf["animations"][0]["channels"]) == 4
+    assert list(result["poses"]) == rig["poses"]
+    assert list(result["poses"].values()) == [1, 25]

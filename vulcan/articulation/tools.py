@@ -189,6 +189,31 @@ class Projection(Args):
         return self
 
 
+class SurfaceFinish(Args):
+    depth: tuple[FiniteFloat, FiniteFloat] | None = Field(
+        None, description="Optional narrower depth interval for geometry, in metres. / Intervalo de profundidad más estrecho para la geometría, en metros.")
+    max_hole_m: Positive | None = Field(
+        None, description="Fill boundary rings up to this diameter in metres. / Rellena contornos abiertos hasta este diámetro en metros.")
+    max_gap_m: Annotated[FiniteFloat, Field(ge=0)] = Field(
+        0, description="Maximum new edge between nearby ends of an interrupted ring. / Longitud máxima de una arista nueva entre extremos de un contorno interrumpido.")
+    smooth_iterations: int = Field(
+        0, ge=0, le=50, description="Passes of local surface smoothing. / Pasadas de alisado de la superficie local.")
+    max_displacement_m: Positive | None = Field(
+        None, description="Maximum movement of existing vertices in metres. / Desplazamiento máximo de los vértices existentes en metros.")
+
+    @model_validator(mode="after")
+    def check_operation(self):
+        if self.depth and self.depth[0] > self.depth[1]:
+            raise ValueError("Geometry depth bounds are reversed. / Los límites de profundidad de la geometría están invertidos.")
+        if not self.max_hole_m and not self.smooth_iterations:
+            raise ValueError("Choose hole filling or smoothing. / Elige rellenar huecos o alisar la superficie.")
+        if self.max_gap_m and (not self.max_hole_m or self.max_gap_m >= self.max_hole_m):
+            raise ValueError("A gap must be smaller than the hole diameter. / El tramo abierto debe ser menor que el diámetro del hueco.")
+        if self.smooth_iterations and not self.max_displacement_m:
+            raise ValueError("Set a maximum smoothing displacement. / Indica el desplazamiento máximo del alisado.")
+        return self
+
+
 class ColourProjection(Projection):
     mode: Literal["colour"]
     depth: tuple[FiniteFloat, FiniteFloat] = Field(
@@ -201,11 +226,17 @@ class ColourProjection(Projection):
         description="Convex counterclockwise polygon in projection UV (v points up). / Polígono convexo antihorario en UV de proyección (v hacia arriba).")
     feather: Unit = Field(0.08, description="Inward edge blend in normalized projection units. / Fundido hacia dentro en unidades normalizadas de proyección.")
     opacity: Annotated[FiniteFloat, Field(gt=0, le=1)] = 1.0
+    surface: SurfaceFinish | None = Field(
+        None, description="Repair and smooth this region before applying colour. / Repara y alisa esta zona antes de aplicar el color.")
 
     @model_validator(mode="after")
     def check_region(self):
         if self.depth[0] > self.depth[1]:
             raise ValueError("Depth bounds are reversed. / Los límites de profundidad están invertidos.")
+        if self.surface and self.surface.depth and not (
+            self.depth[0] <= self.surface.depth[0] <= self.surface.depth[1] <= self.depth[1]
+        ):
+            raise ValueError("Geometry depth must be inside colour depth. / La profundidad de la geometría debe quedar dentro de la del color.")
         if self.crop and (self.crop[0] >= self.crop[2] or self.crop[1] >= self.crop[3]):
             raise ValueError("The crop must have a positive width and height. / El recorte debe tener anchura y altura positivas.")
         if self.mask:
@@ -296,11 +327,11 @@ TOOLS = [
          "Selecciona por región, plano, color, semilla o caras de origen. Repara encastres, articula piezas y construye paneles desde un expediente fijado.",
          Build, ann(draft_safe=True), build, timeout_s=600, capped=False),
     Tool("articulation_finish", "Project retained artwork onto a rig. Proyecta ilustraciones de referencia sobre una articulación.\n"
-         "Paint a localized vertex-colour patch or map an image to a named part. Keeps geometry, rig and animation. "
+         "Paint local colour, optionally filling holes and smoothing inside the patch, or map an image to a part. Keeps the rig and animation. "
          "Returns an editable scene and skinned GLB. Undo: articulation_undo. "
-         "Reproyecta color localizado o aplica una imagen a una pieza nombrada. Conserva geometría, esqueleto y animación. "
+         "Reproyecta color localizado, con relleno y alisado opcionales, o aplica una imagen a una pieza. Conserva esqueleto y animación. "
          "Devuelve escena editable y GLB articulado. Deshacer: articulation_undo.\n"
-         "Sinónimos: reproyectar el color de la cara, aplicar tinta al mapa, texturizar una pieza articulada.",
+         "Sinónimos: reparar huecos y escalones, reproyectar el color de la cara, aplicar tinta al mapa, texturizar una pieza articulada.",
          Finish, ann(draft_safe=True), finish, timeout_s=600, capped=False),
     Tool("articulation_get", "Read an articulation package. Consulta de articulación.\nReturns its revision, measurements and files. "
          "Consulta la procedencia, las medidas y los archivos de la articulación.\n"

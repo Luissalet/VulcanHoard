@@ -17986,7 +17986,7 @@
     "module": "library",
     "native_name": "articulation_finish",
     "name": "articulation_finish",
-    "description": "Project retained artwork onto a rig. Proyecta ilustraciones de referencia sobre una articulación.\nPaint a localized vertex-colour patch or map an image to a named part. Keeps geometry, rig and animation. Returns an editable scene and skinned GLB. Undo: articulation_undo. Reproyecta color localizado o aplica una imagen a una pieza nombrada. Conserva geometría, esqueleto y animación. Devuelve escena editable y GLB articulado. Deshacer: articulation_undo.\nSinónimos: reproyectar el color de la cara, aplicar tinta al mapa, texturizar una pieza articulada.",
+    "description": "Project retained artwork onto a rig. Proyecta ilustraciones de referencia sobre una articulación.\nPaint local colour, optionally filling holes and smoothing inside the patch, or map an image to a part. Keeps the rig and animation. Returns an editable scene and skinned GLB. Undo: articulation_undo. Reproyecta color localizado, con relleno y alisado opcionales, o aplica una imagen a una pieza. Conserva esqueleto y animación. Devuelve escena editable y GLB articulado. Deshacer: articulation_undo.\nSinónimos: reparar huecos y escalones, reproyectar el color de la cara, aplicar tinta al mapa, texturizar una pieza articulada.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -18193,6 +18193,18 @@
               "maximum": 1,
               "title": "Opacity",
               "type": "number"
+            },
+            "surface": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/SurfaceFinish"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Repair and smooth this region before applying colour. / Repara y alisa esta zona antes de aplicar el color."
             }
           },
           "required": [
@@ -18311,6 +18323,79 @@
             "mode"
           ],
           "title": "ImageProjection",
+          "type": "object"
+        },
+        "SurfaceFinish": {
+          "additionalProperties": false,
+          "properties": {
+            "depth": {
+              "anyOf": [
+                {
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Optional narrower depth interval for geometry, in metres. / Intervalo de profundidad más estrecho para la geometría, en metros.",
+              "title": "Depth"
+            },
+            "max_hole_m": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Fill boundary rings up to this diameter in metres. / Rellena contornos abiertos hasta este diámetro en metros.",
+              "title": "Max Hole M"
+            },
+            "max_gap_m": {
+              "default": 0,
+              "description": "Maximum new edge between nearby ends of an interrupted ring. / Longitud máxima de una arista nueva entre extremos de un contorno interrumpido.",
+              "minimum": 0,
+              "title": "Max Gap M",
+              "type": "number"
+            },
+            "smooth_iterations": {
+              "default": 0,
+              "description": "Passes of local surface smoothing. / Pasadas de alisado de la superficie local.",
+              "maximum": 50,
+              "minimum": 0,
+              "title": "Smooth Iterations",
+              "type": "integer"
+            },
+            "max_displacement_m": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Maximum movement of existing vertices in metres. / Desplazamiento máximo de los vértices existentes en metros.",
+              "title": "Max Displacement M"
+            }
+          },
+          "title": "SurfaceFinish",
           "type": "object"
         }
       },
