@@ -24,9 +24,12 @@ const STAGES = [
   ["done", "Terminado"],
 ];
 const FINAL = ["done", "failed", "cancelled"];
+const MODEL_REFUSALS = {
+  model_timeout: { es: "Se agotó el tiempo de espera del modelo.", en: "The language model request timed out." },
+  model_unavailable: { es: "El modelo de lenguaje no respondió.", en: "The language model did not answer." },
+};
 const REFUSALS = {
   engine_missing: "El motor sand3d no está instalado. Pulsa «Instalar el motor».",
-  model_unavailable: "No hay modelo de lenguaje disponible ahora mismo. Puedes escribir el programa a mano y pulsar «Ejecutar este código».",
   model_invalid: "El modelo no consiguió un programa que funcione en 3 intentos. Corrige el código a mano o describe la pieza de otra forma.",
   program: "El programa falló al ejecutarse.",
   rejected: "El programa usa algo que no está permitido (solo sand3d y módulos matemáticos).",
@@ -139,7 +142,7 @@ export default function Codigo({ param }) {
       setModelId(done.result.id);
       if (window.location.hash !== `#/codigo/${done.result.id}`) window.history.replaceState(null, "", `#/codigo/${done.result.id}`);
       await loadPart(done.result.id).catch(() => {});
-    } else if (done.status === "failed") setError({ error: done.error, code: done.error_code });
+    } else if (done.status === "failed") setError({ error: done.error, error_es: done.error_es, code: done.error_code });
   }, [loadPart]);
   const watch = useCallback((id) => {
     clearTimeout(timer.current);
@@ -177,6 +180,7 @@ export default function Codigo({ param }) {
   const stageIndex = job ? Math.max(0, STAGES.findIndex(([key]) => key === job.stage)) : -1;
   const badge = info?.validation ? gltfBadge(info.validation) : null;
   const ready = status?.ready;
+  const english = (navigator.language || "es").toLowerCase().startsWith("en");
 
   return (
     <div className="mx-auto max-w-5xl space-y-4">
@@ -220,8 +224,8 @@ export default function Codigo({ param }) {
         )}
         {error && (
           <div role="alert" className="text-[13px]" style={{ color: "var(--danger-ink)", overflowWrap: "anywhere" }}>
-            <p className="font-semibold">{REFUSALS[error.code] || "No se pudo completar."}</p>
-            <p>{error.error}</p>
+            <p className="font-semibold">{MODEL_REFUSALS[error.code]?.[english ? "en" : "es"] || REFUSALS[error.code] || "No se pudo completar."}</p>
+            <p>{english ? error.error : error.error_es || error.error}</p>
             {error.line && <p>Línea {error.line}{error.code_line ? `: ${error.code_line}` : ""}</p>}
           </div>
         )}

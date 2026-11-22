@@ -17,6 +17,23 @@ export to GLB, STL, OBJ, USDA and URDF. The reference that goes into the prompt 
 
 Files of a part: `GET /code-model/{id}/preview.png`, `/model.glb`, `/code`. They live in `data/code_models/<slug>-<id>.{stl,glb,s3d.py,preview.png,code.json}`; the library indexes the STL (millimetres, tags `codigo` and `sand3d`).
 
+### Waiting for the model / Espera del modelo
+
+Use `wait=false` with `code_model` or `code_model_edit` for long jobs and poll `code_model_status(job_id=...)`.
+Vulcan gives each language model call 600 seconds, including model selection. Set `VULCAN_CODE_LLM_TIMEOUT` to a positive
+number of seconds to change that limit. `code_model_status` reports it in `limits.llm_timeout_s`. The mesh engine has
+its own limit, `VULCAN_CODE_TIMEOUT`. A model read timeout or HTTP 504 reports `model_timeout` with recovery guidance
+in `error` (English) and `error_es` (Spanish). Check the service before retrying, simplify the request, or run a known
+program with `code_model_run`. A timeout during the measurement repair keeps the best mesh already built.
+
+Para trabajos largos usa `wait=false` en `code_model` o `code_model_edit` y consulta `code_model_status(job_id=...)`.
+Cada petición al modelo de lenguaje dispone de 600 segundos, incluida la selección del modelo. Puedes ajustar el plazo
+con `VULCAN_CODE_LLM_TIMEOUT` y consultarlo en `limits.llm_timeout_s`. El motor de mallas tiene su propio plazo,
+`VULCAN_CODE_TIMEOUT`. Si se agota la espera del modelo o el servicio devuelve HTTP 504, el trabajo informa de
+`model_timeout` y de cómo continuar en `error_es` (castellano) y `error` (inglés). Comprueba el estado del servicio
+antes de reintentar, simplifica la petición o ejecuta un programa conocido con `code_model_run`. Si el plazo vence
+durante una corrección de medidas, se conserva la mejor malla ya generada.
+
 ## Example library
 
 `vulcan/sand3d_examples/` holds eight tested programs, one per family of part, each with named, commented parameters at the top and its

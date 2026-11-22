@@ -3,15 +3,18 @@ the MCP tools and REST routes, and a real run of a fixed program when the sand3d
 
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 import shutil
 import sys
 import tempfile
+import threading
 import time
 from importlib import import_module
 from pathlib import Path
 
+import httpx
 import pytest
 import trimesh
 
@@ -169,6 +172,93 @@ def test_without_a_language_model_the_tool_points_to_code_model_run(sim):
     sim.link = FakeChat([RuntimeError("no backend")])
     job = call_tool(sim, "code_model", {"description": "a plate"})
     assert job["status"] == "failed" and job["error_code"] == "model_unavailable" and "code_model_run" in job["error"]
+    assert "code_model_run" in job["error_es"]
+
+
+@pytest.mark.parametrize("outcome", ["slow_answer", "read_timeout", "gateway_timeout", "connection_refused"])
+def test_global_model_job_uses_its_configured_deadline(sim, monkeypatch, outcome):
+    from vulcan.hoard_link.config import LinkConfig
+    from vulcan.studio import global_http
+    from vulcan.studio.global_link import GlobalLink
+
+    monkeypatch.setattr(cm, "LLM_TIMEOUT_S", 300.0)
+    selection = dict(url="http://127.0.0.1:9999/api/global-model/v1/chat/completions", model="test-model",
+                     endpoint_id="test-endpoint", connection_revision="test-revision", headers={})
+    monkeypatch.setattr(global_http, "select_global", lambda *_: selection)
+    calls = []
+
+    def respond(request):
+        body = json.loads(request.content)
+        read_timeout = request.extensions["timeout"]["read"]
+        calls.append((body, read_timeout))
+        if read_timeout < 250 or outcome == "read_timeout":
+            raise httpx.ReadTimeout("test backend details", request=request)
+        if outcome == "connection_refused":
+            raise httpx.ConnectError("test backend details", request=request)
+        if outcome == "gateway_timeout":
+            return httpx.Response(504, json={"error": "test backend details"})
+        return httpx.Response(200, json={"choices": [{"message": {"content": fence(GOOD)}, "finish_reason": "stop"}]})
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(respond))
+    sim.link = GlobalLink(LinkConfig(app="fixture"), client=client)
+    try:
+        started = call_tool(sim, "code_model", {"description": "plate 80 x 40 x 6 mm", "wait": False})
+        job = wait_job(sim, started["job_id"])
+        assert call_tool(sim, "code_model_status", {"job_id": started["job_id"]}) == job
+        assert call_tool(sim, "code_model_status", {})["limits"]["llm_timeout_s"] == 300
+    finally:
+        sim.link.sync.close()
+        asyncio.run(client.aclose())
+
+    [(body, read_timeout)] = calls
+    assert 250 < read_timeout <= 300
+    assert body["expected_connection_revision"] == "test-revision"
+    assert body["expected_model"] == body["model"] == "test-model"
+    assert body["expected_endpoint_id"] == "test-endpoint"
+    if outcome == "slow_answer":
+        assert job["status"] == "done"
+        assert job["result"]["measures"]["bbox_mm"] == [80.0, 40.0, 6.0]
+        assert cm.file_path(sim, job["result"]["id"], "model.glb").read_bytes().startswith(b"glTF")
+    else:
+        expected = "model_unavailable" if outcome == "connection_refused" else "model_timeout"
+        assert job["status"] == "failed" and job["error_code"] == expected
+        assert job["result"] is None and sim.stats.counts()["models"] == 0
+        for message in (job["error"], job["error_es"]):
+            assert "code_model_run" in message
+            assert "test backend details" not in message and "127.0.0.1" not in message
+            if outcome == "gateway_timeout":
+                assert "HTTP 504" in message
+            elif outcome == "read_timeout":
+                assert "300 s" in message
+
+
+def test_model_timeout_during_measurement_repair_keeps_the_mesh(sim):
+    sim.link = FakeChat([fence(GOOD), TimeoutError()])
+    job = call_tool(sim, "code_model", {"description": "plate 80 x 40 x 11 mm"})
+    assert job["status"] == "done" and len(sim.link.calls) == 2
+    assert job["result"]["measures"]["bbox_mm"] == [80.0, 40.0, 6.0]
+    assert any("model_timeout" in entry for entry in job["log"])
+
+
+def test_cancelling_while_the_model_is_writing_prevents_saving(sim, monkeypatch):
+    entered = threading.Event()
+    resume = threading.Event()
+
+    def delayed_answer(*_):
+        entered.set()
+        assert resume.wait(5)
+        return fence(GOOD)
+
+    monkeypatch.setattr(cm, "_ask", delayed_answer)
+    started = call_tool(sim, "code_model", {"description": "a plate", "wait": False})
+    try:
+        assert entered.wait(5)
+        call_tool(sim, "code_model_status", {"job_id": started["job_id"], "cancel": True})
+    finally:
+        resume.set()
+    job = wait_job(sim, started["job_id"])
+    assert job["status"] == "cancelled" and job["result"] is None
+    assert sim.stats.counts()["models"] == 0
 
 
 def test_without_the_engine_nothing_starts(services, monkeypatch):
