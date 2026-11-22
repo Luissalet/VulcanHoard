@@ -4050,7 +4050,7 @@
   },
   {
     "name": "code_model_run",
-    "description": "Run a sand3d program (no language model) and save or measure the part (write). Keywords: ejecutar código 3D.\nRuns the program in the isolated engine, exports STL (mm) and GLB, validates the GLB and saves a new library model, or rebuilds the part with id in place (no code: reruns the stored one). params sets named parameters; requirements checks measures. save=false only measures.\nSinónimos: regenerar pieza, ejecutar programa sand3d, editar código, medir pieza, rehacer modelo.",
+    "description": "Run a sand3d program (no language model) and save or measure the part (write). Keywords: ejecutar código 3D.\nRuns the program in the isolated engine, exports STL (mm) and GLB, validates the GLB and saves a new library model, or rebuilds the part with id in place (no code: reruns the stored one). params sets named parameters. Checks dimensions from requirements or the description. save=false only measures.\nSinónimos: regenerar pieza, ejecutar programa sand3d, editar código, medir pieza, rehacer modelo.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -4112,7 +4112,7 @@
             }
           ],
           "default": null,
-          "description": "What the part is (stored with it).",
+          "description": "Part description, stored with it and checked for dimensions unless requirements is supplied.",
           "title": "Description"
         },
         "save": {
