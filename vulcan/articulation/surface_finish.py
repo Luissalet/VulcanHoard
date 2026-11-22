@@ -410,3 +410,57 @@ def fair_depth(obj, strength, settings, locations, normal):
     distance = np.linalg.norm((coords[selected] - original) @ linear.T, axis=1)
     return {"vertices_moved": int(np.count_nonzero(distance)),
             "max_movement_m": float(distance.max(initial=0))}
+
+
+def blend_patch_normals(obj, original_vertices, patches):
+    """Blend nearby, consistently oriented normals only into new face corners."""
+    mesh = triangulated_mesh(obj)
+    linear = np.asarray(obj.matrix_world, dtype=np.float64)[:3, :3]
+    points = read_array(mesh.vertices, "co", 3) @ linear.T
+    loop_vertices = read_array(mesh.loops, "vertex_index", 1, np.int32)
+    normal = read_array(mesh.corner_normals, "vector", 3)
+    retained = points[:original_vertices]
+    source_normals = read_array(mesh.vertices, "normal", 3)[:original_vertices]
+    target = normal.copy() if mesh.has_custom_normals else np.zeros_like(normal)
+    counts = []
+    for start, stop, radius in patches:
+        if start == stop:
+            counts.append(0)
+            continue
+        corners = points[loop_vertices[start * 3:stop * 3]]
+        lower, upper = corners.min(axis=0) - radius, corners.max(axis=0) + radius
+        eligible = np.flatnonzero(np.all((retained >= lower) & (retained <= upper), axis=1))
+        if not len(eligible):
+            counts.append(0)
+            continue
+        tree = KDTree(len(eligible))
+        for index in eligible:
+            tree.insert(retained[index], int(index))
+        tree.balance()
+        changed = 0
+        for i, position in enumerate(corners, start * 3):
+            nearby = tree.find_range(position, radius)
+            if not nearby:
+                continue
+            indices = [index for _, index, _ in nearby]
+            strength = np.asarray([1 - distance / radius for _, _, distance in nearby])
+            neighbours = source_normals[indices]
+            same_side = neighbours @ normal[i]
+            compatible = (same_side > 0.45) & (strength > 0)
+            if not compatible.any():
+                continue
+            strength = strength[compatible]
+            directions = neighbours[compatible]
+            weights = (strength * same_side[compatible]) ** 2
+            average = weights @ directions
+            average /= np.linalg.norm(average)
+            amount = 0.92 * strength.max()
+            blended = (1 - amount) * normal[i] + amount * average
+            blended /= np.linalg.norm(blended)
+            if np.linalg.norm(blended - normal[i]) > 1e-4:
+                target[i] = blended
+                changed += 1
+        counts.append(changed)
+    if any(counts):
+        mesh.normals_split_custom_set(target)
+    return counts

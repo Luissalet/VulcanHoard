@@ -8,7 +8,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent))
 from worker import export_glb  # noqa: E402
-from surface_finish import add_loft, fair_depth, fill_surface, loft_geometry, smooth_surface  # noqa: E402
+from surface_finish import add_loft, blend_patch_normals, fair_depth, fill_surface, loft_geometry, smooth_surface  # noqa: E402
 
 
 def mesh_values(items, field, width, dtype=np.float32):
@@ -190,6 +190,8 @@ def main(source, recipe, output):
     if not rigs:
         raise ValueError("Use an editable articulation with a rig. / Usa una articulación editable con un esqueleto.")
     changes = []
+    original_vertices = {obj.name: len(obj.data.vertices) for obj in objects}
+    normal_patches = {}
     for edit in recipe["edits"]:
         matches = [obj for obj in objects if obj["articulation_part"] == edit["part"]]
         if len(matches) != 1:
@@ -203,16 +205,27 @@ def main(source, recipe, output):
         uv, depth, facing = projection(obj, edit)
         if edit["mode"] == "colour":
             geometry, loft_start = {}, None
-            if edit.get("surface"):
+            surface = edit.get("surface")
+            first_face = len(obj.data.polygons)
+            if surface:
                 geometry, uv, depth, facing, loft_start = repair_surface(obj, edit, uv, depth, facing)
             change = paint_colour(obj.data, image, edit, uv, depth, facing, loft_start)
             if geometry:
                 change["geometry"] = geometry
+            if surface and surface.get("normal_blend_radius_m"):
+                patch = first_face, len(obj.data.polygons), surface["normal_blend_radius_m"]
+                normal_patches.setdefault(obj.name, []).append((patch, geometry))
             changes.append(change)
             bpy.data.images.remove(image)
         else:
             changes.append(apply_image(obj, image, uv))
         obj.data.update()
+    for obj in objects:
+        if obj.name in normal_patches:
+            requests = normal_patches[obj.name]
+            counts = blend_patch_normals(obj, original_vertices[obj.name], [patch for patch, _ in requests])
+            for (_, geometry), count in zip(requests, counts, strict=True):
+                geometry["corner_normals_blended"] = count
     scene.frame_set(saved_frame[0], subframe=saved_frame[1])
     bpy.ops.wm.save_as_mainfile(filepath=str(output / "editable.blend"), relative_remap=False)
     for obj in [*rigs, *objects]:

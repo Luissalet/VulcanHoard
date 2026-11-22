@@ -209,6 +209,8 @@ class SurfaceFinish(Args):
         0, description="Maximum new edge between nearby ends of an interrupted ring. / Longitud máxima de una arista nueva entre extremos de un contorno interrumpido.")
     backing_m: Positive | None = Field(
         None, description="Back an interrupted rim patch with a closed shell of this thickness. / Cierra el parche de un contorno interrumpido con este grosor de respaldo.")
+    normal_blend_radius_m: Positive | None = Field(
+        None, description="Blend shading normals on new repair faces with nearby original vertices, in metres. / Funde las normales de sombreado de las caras nuevas con los vértices originales próximos, en metros.")
     smooth_iterations: int = Field(
         0, ge=0, le=50, description="Passes of local surface smoothing. / Pasadas de alisado de la superficie local.")
     smooth_radius_m: Positive | None = Field(
@@ -228,6 +230,8 @@ class SurfaceFinish(Args):
             raise ValueError("A gap must be smaller than the hole diameter. / El tramo abierto debe ser menor que el diámetro del hueco.")
         if self.backing_m and (not self.max_gap_m or self.backing_m >= self.max_hole_m):
             raise ValueError("A backing needs gap repair and must be thinner than the hole diameter. / El respaldo requiere reparar tramos abiertos y debe ser más fino que el diámetro del hueco.")
+        if self.normal_blend_radius_m and not (self.max_hole_m or self.loft):
+            raise ValueError("Normal blending needs a surface patch. / El fundido de normales requiere un parche de superficie.")
         if self.smooth_radius_m and not self.smooth_iterations:
             raise ValueError("A smoothing radius needs smoothing passes. / El radio de alisado requiere pasadas de alisado.")
         if self.smooth_iterations and not self.max_displacement_m:

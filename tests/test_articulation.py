@@ -319,9 +319,10 @@ def test_articulation_finish_closes_local_hole_and_bounds_displacement(services,
 
 
 @pytest.mark.skipif(find_blender() is None, reason="Blender is not installed")
-def test_articulation_finish_backs_an_interrupted_cap_without_open_edges(services, tmp_path):
+@pytest.mark.parametrize("normal_blend", [None, 1.7])
+def test_articulation_finish_backs_an_interrupted_cap_without_open_edges(services, tmp_path, normal_blend):
     source = tmp_path / "surface.glb"
-    vertices = [(x, 0, -y) for y in range(-2, 3) for x in range(-2, 3)]
+    vertices = [(x, 0.06 if (x, y) == (1, 0) else 0, -y) for y in range(-2, 3) for x in range(-2, 3)]
     triangles = []
     for row in range(4):
         for column in range(4):
@@ -343,9 +344,11 @@ def test_articulation_finish_backs_an_interrupted_cap_without_open_edges(service
         "edits": [{"mode": "colour", "part": "body", "path": str(image), "sha256": sha256(image.read_bytes()).hexdigest(),
                    "origin": [-1.6, -1.6, 0], "right": [3.2, 0, 0], "up": [0, 3.2, 0], "depth": [-0.1, 0.1],
                    "mask": [[0.01, 0.01], [0.99, 0.01], [0.99, 0.56], [0.56, 0.99], [0.01, 0.99]],
-                   "surface": {"max_hole_m": 3.3, "max_gap_m": 1.5, "backing_m": 0.03}}],
+                   "surface": {"max_hole_m": 3.3, "max_gap_m": 1.5, "backing_m": 0.03, "normal_blend_radius_m": normal_blend}}],
     })
-    geometry = result["edits"][0]["geometry"]
+    geometry = dict(result["edits"][0]["geometry"])
+    if normal_blend:
+        assert 0 < geometry.pop("corner_normals_blended") <= 24
     assert geometry == {"holes_filled": 1, "boundary_edges_closed": 0, "backed_caps": 1,
                         "gap_edges_added": 0, "faces_added": 8, "vertices_added": 6}
     scene = trimesh.load(result["files"]["rigged"], force="scene", process=False)

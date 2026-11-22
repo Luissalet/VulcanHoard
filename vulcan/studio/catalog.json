@@ -18449,6 +18449,20 @@
               "description": "Back an interrupted rim patch with a closed shell of this thickness. / Cierra el parche de un contorno interrumpido con este grosor de respaldo.",
               "title": "Backing M"
             },
+            "normal_blend_radius_m": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Blend shading normals on new repair faces with nearby original vertices, in metres. / Funde las normales de sombreado de las caras nuevas con los vértices originales próximos, en metros.",
+              "title": "Normal Blend Radius M"
+            },
             "smooth_iterations": {
               "default": 0,
               "description": "Passes of local surface smoothing. / Pasadas de alisado de la superficie local.",
