@@ -20,6 +20,31 @@ Para registrar las salidas, usa `hub_agora_piece_add` con el trabajo de bloqueo 
 
 `blocking_freeze {id, frame}` evalúa un fotograma de la escena editable y exporta las mallas estáticas con sus transformaciones aplicadas. Para el GLB animado registrado en una orden, usa `{source, source_sha256, frame, fps}` con la ruta fijada, su huella y los fotogramas por segundo (24 en los bloqueos). El recibo identifica la fuente y el resultado, enumera las partes y mide la distancia de vértices de mano o dedos a la hoja y al tubo en metros, en XYZ con Z arriba. Si el fotograma corresponde a una clave de un paquete con geometría, también devuelve sus contactos declarados. Para recuperar o retirar la exportación usa `blocking_pose_get` y `blocking_pose_undo`.
 
+### Composición detallada
+
+`blocking_compose` combina una articulación conservada con las claves de un
+bloqueo con hoja, tubo, escalera y una misma mano en el mapa. Fija las entradas
+con `articulation_id`, `source_sha256`, `blocking_id`,
+`blocking_scene_sha256` y `blocking_recipe_sha256`. Consulta las rutas con
+`articulation_get` y `blocking_get` y calcula las huellas antes de componer.
+Elige las claves existentes en `frames` y el tamaño cuadrado en `size`.
+
+Indica las mallas visibles `body`, `sheet`, `tube` y `arm.grip_part` del
+modelo. La hoja aporta la imagen empaquetada y el bloqueo aporta la silueta
+recortada, la pose y la cámara. `yaw`, `scale` y `offset_xy` sitúan el
+rig, con sus suelas a la altura del peldaño superior. Marca hombro, codo y
+contacto del brazo en metros de la escena de origen. Los dos radios marcan
+cuánto tejido acompaña al brazo. `arm.bend` dirige el codo en el espacio
+del bloqueo. La mano libre conserva la pose de origen. Ajusta el tubo con
+`tube_offset` si su forma detallada pide otra colocación.
+
+El recibo da el color RGBA, la profundidad de 16 bits en la misma rejilla,
+las medidas del agarre y del apoyo y las huellas de entradas y salidas. La
+escena editable conserva las claves de la composición. Comprueba los PNG
+y las medidas en las claves que vayas a pasar al siguiente puesto.
+`blocking_compose_get` reabre el paquete y `blocking_compose_undo` lo
+retira o restaura por ID.
+
 ## English
 
 In the 3D Library, `blocking_build` creates a CPU-only take with separate head, torso, short cape, arms, hands and legs, rigidly bound to a rig with named joints. Props are optional: `sheet`, `tube` and `stairs`. It requires Blender 4.3 or later and runs headlessly.
@@ -39,3 +64,27 @@ Register outputs with `hub_agora_piece_add` under the blocking job and its order
 `blocking_get` reads the package by `id`. `blocking_undo` withdraws it and returns the inverse call to restore it. This operates on the package retained by Vulcan.
 
 `blocking_freeze {id, frame}` evaluates a frame from the editable scene and bakes its mesh transforms into a static GLB. For an animated GLB registered in an order, use `{source, source_sha256, frame, fps}` with its pinned path, hash and source rate (24 fps for blocking takes). The receipt pins both files, names the parts and measures hand or digit vertex distances to the sheet and tube in metres in XYZ, Z up. The declared contacts are also included at a keyframe when the package has a geometry receipt. Use `blocking_pose_get` to recover the export and `blocking_pose_undo` to withdraw or restore it.
+
+### Detailed composition
+
+`blocking_compose` combines a retained articulation with keys from a
+blocking that has a sheet, tube, stairs and the same hand holding the map.
+Pin the inputs with `articulation_id`, `source_sha256`, `blocking_id`,
+`blocking_scene_sha256` and `blocking_recipe_sha256`. Read the paths from
+`articulation_get` and `blocking_get` and hash the files before composing.
+Select retained keys in `frames` and the square PNG size in `size`.
+
+Choose the visible source meshes `body`, `sheet`, `tube`, and
+`arm.grip_part`. The source sheet supplies its packed artwork. The blocking
+supplies the cut outline, key poses and camera. Set `yaw`, `scale` and
+`offset_xy` to place the rig at the height of the top step. Mark the arm's
+shoulder, elbow and contact in source world metres. The two radii control
+sleeve weighting, and `arm.bend` directs the elbow in blocking space.
+The free hand holds its source pose. Adjust `tube_offset` if the detailed
+tube needs a different fit against the character.
+
+The receipt includes RGBA colour and registered 16-bit depth, contact
+and support measurements, and input and output hashes. The editable
+scene retains the composition keys. Check the images and measurements at
+the keys you intend to hand off. Use `blocking_compose_get` to reopen the
+package and `blocking_compose_undo` to withdraw or restore it by ID.

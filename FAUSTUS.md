@@ -48,6 +48,12 @@ encontrada y la solicitada.
 
 `blocking_build` crea una toma en CPU con piezas separadas, articulación rígida y dos manos. Admite claves propias, hoja, tubo y escalera opcionales y cuatro gestos de mapa preparados: desenrollar, enderezar, pasar de mano y girar al dorso. El pase va de izquierda a derecha desde el punto de vista del personaje y admite el sentido inverso mediante `pass_direction`. Devuelve la escena editable, el GLB animado y mapas de color, profundidad y normales por clave con cámara común. Cada clave incluye profundidad sin hoja ni tubo, capas RGBA y máscaras aisladas y visibles, un mapa de IDs, orden de oclusión y puntos de agarre de mano y dedos. Estas salidas se pueden registrar como piezas de una orden. `blocking_get` consulta el resultado y `blocking_undo` lo retira o restaura. `blocking_freeze` evalúa un fotograma de la escena o del GLB animado y entrega un GLB estático y las distancias de los agarres. `blocking_pose_undo` retira o restaura una pose exportada. `blocking_guide` exporta el [vídeo guía](docs/blocking-guide.md) con la misma cámara y todas las poses hasta la última clave. Véase [Bloqueo de primitivas](docs/blocking.md).
 
+`blocking_compose` cruza una articulación y un bloqueo fijados por huella.
+Reutiliza la cámara, la escalera y el gesto de una mano y aplica la tinta
+empaquetada del rig. Entrega escena editable, color y profundidad por clave,
+medidas de apoyo y agarre y huellas de los artefactos. Consulta con
+`blocking_compose_get` y retira o restaura con `blocking_compose_undo`.
+
 `blocking_pass` usa una escena detallada de revisión fija para dirigir el
 [pase de una hoja](docs/blocking-pass.md) con huesos propios de brazos y manos.
 Entrega las vistas y las distancias de agarre por clave, una escena editable

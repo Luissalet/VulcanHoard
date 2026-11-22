@@ -19960,5 +19960,352 @@
       "x-timeout-s": 175.0
     },
     "x-timeout-s": 175.0
+  },
+  {
+    "module": "library",
+    "native_name": "blocking_compose",
+    "name": "blocking_compose",
+    "description": "Render a detailed rig on pinned blocking keys. Compone un rig detallado sobre claves de un bloqueo fijado.\nUses the retained camera, stairs and single-hand map gesture. Returns colour and depth. Usa la cámara, escalera y gesto de una mano conservados. Devuelve color y profundidad. Undo / Deshacer: blocking_compose_undo.\nSinónimos: componer una toma detallada, renderizar un rig sobre un bloqueo.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "draftSafeHint": true
+    },
+    "inputSchema": {
+      "$defs": {
+        "Arm": {
+          "additionalProperties": false,
+          "properties": {
+            "shoulder": {
+              "description": "Shoulder in source world metres. Hombro en metros en la escena de origen.",
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "title": "Shoulder",
+              "type": "array"
+            },
+            "elbow": {
+              "description": "Elbow in source world metres. Codo en metros en la escena de origen.",
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "title": "Elbow",
+              "type": "array"
+            },
+            "contact": {
+              "description": "Point on the gripping mesh in the source. Punto de agarre en la malla de origen.",
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "title": "Contact",
+              "type": "array"
+            },
+            "grip_part": {
+              "description": "Rigid distal arm mesh. Malla rígida del extremo del brazo.",
+              "maxLength": 100,
+              "minLength": 1,
+              "title": "Grip Part",
+              "type": "string"
+            },
+            "radii": {
+              "description": "Upper and lower arm influence radii on the body in source metres. Radios de influencia del brazo y antebrazo sobre el cuerpo, en metros de origen.",
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "exclusiveMinimum": 0,
+                  "maximum": 1,
+                  "type": "number"
+                },
+                {
+                  "exclusiveMinimum": 0,
+                  "maximum": 1,
+                  "type": "number"
+                }
+              ],
+              "title": "Radii",
+              "type": "array"
+            },
+            "bend": {
+              "description": "Elbow direction in blocking space. Dirección del codo en el espacio del bloqueo.",
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "title": "Bend",
+              "type": "array"
+            }
+          },
+          "required": [
+            "shoulder",
+            "elbow",
+            "contact",
+            "grip_part",
+            "radii",
+            "bend"
+          ],
+          "title": "Arm",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "articulation_id": {
+          "pattern": "^[a-f0-9]{32}$",
+          "title": "Articulation Id",
+          "type": "string"
+        },
+        "source_sha256": {
+          "pattern": "^[a-fA-F0-9]{64}$",
+          "title": "Source Sha256",
+          "type": "string"
+        },
+        "blocking_id": {
+          "pattern": "^[a-f0-9]{32}$",
+          "title": "Blocking Id",
+          "type": "string"
+        },
+        "blocking_scene_sha256": {
+          "pattern": "^[a-fA-F0-9]{64}$",
+          "title": "Blocking Scene Sha256",
+          "type": "string"
+        },
+        "blocking_recipe_sha256": {
+          "pattern": "^[a-fA-F0-9]{64}$",
+          "title": "Blocking Recipe Sha256",
+          "type": "string"
+        },
+        "source_frame": {
+          "default": 1,
+          "maximum": 100000,
+          "minimum": 0,
+          "title": "Source Frame",
+          "type": "integer"
+        },
+        "frames": {
+          "items": {
+            "maximum": 96,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "title": "Frames",
+          "type": "array"
+        },
+        "size": {
+          "default": 768,
+          "maximum": 768,
+          "minimum": 128,
+          "title": "Size",
+          "type": "integer"
+        },
+        "body": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Body",
+          "type": "string"
+        },
+        "sheet": {
+          "description": "Source map mesh with one packed image. Malla del mapa con una imagen empaquetada.",
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Sheet",
+          "type": "string"
+        },
+        "tube": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Tube",
+          "type": "string"
+        },
+        "yaw": {
+          "description": "Rotate the rig into blocking space, about +Z. Giro del rig sobre +Z.",
+          "maximum": 360,
+          "minimum": -360,
+          "title": "Yaw",
+          "type": "number"
+        },
+        "scale": {
+          "description": "Uniform rig scale. Escala uniforme del rig.",
+          "exclusiveMinimum": 0,
+          "maximum": 20,
+          "title": "Scale",
+          "type": "number"
+        },
+        "offset_xy": {
+          "default": [
+            0,
+            0
+          ],
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "maximum": 5,
+              "minimum": -5,
+              "type": "number"
+            },
+            {
+              "maximum": 5,
+              "minimum": -5,
+              "type": "number"
+            }
+          ],
+          "title": "Offset Xy",
+          "type": "array"
+        },
+        "tube_offset": {
+          "default": [
+            0,
+            0,
+            0
+          ],
+          "description": "Fit the detailed tube to the character, in blocking metres. Ajusta el tubo detallado al personaje, en metros del bloqueo.",
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "maximum": 5,
+              "minimum": -5,
+              "type": "number"
+            },
+            {
+              "maximum": 5,
+              "minimum": -5,
+              "type": "number"
+            },
+            {
+              "maximum": 5,
+              "minimum": -5,
+              "type": "number"
+            }
+          ],
+          "title": "Tube Offset",
+          "type": "array"
+        },
+        "arm": {
+          "$ref": "#/$defs/Arm"
+        }
+      },
+      "required": [
+        "articulation_id",
+        "source_sha256",
+        "blocking_id",
+        "blocking_scene_sha256",
+        "blocking_recipe_sha256",
+        "frames",
+        "body",
+        "sheet",
+        "tube",
+        "yaw",
+        "scale",
+        "arm"
+      ],
+      "title": "Compose",
+      "type": "object",
+      "x-timeout-s": 240.0
+    },
+    "x-timeout-s": 240.0
+  },
+  {
+    "module": "library",
+    "native_name": "blocking_compose_get",
+    "name": "blocking_compose_get",
+    "description": "Read a detailed composition by ID. Consulta una composición detallada por ID.\nSinónimos: recuperar color y profundidad, consultar una toma compuesta.",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[a-f0-9]{32}$",
+          "title": "Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "Lookup",
+      "type": "object"
+    }
+  },
+  {
+    "module": "library",
+    "native_name": "blocking_compose_undo",
+    "name": "blocking_compose_undo",
+    "description": "Withdraw or restore a detailed composition. Retira o restaura una composición detallada.\nSinónimos: deshacer la composición, restaurar un render por claves.",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    },
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[a-f0-9]{32}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "restore": {
+          "default": false,
+          "title": "Restore",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "Undo",
+      "type": "object"
+    }
   }
 ]
