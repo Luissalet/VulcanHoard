@@ -6,6 +6,7 @@ import bpy
 import numpy as np
 from mathutils import Vector
 from mathutils.geometry import tessellate_polygon
+from mathutils.kdtree import KDTree
 
 from mesh import edge_keys, make_mesh, read_array, separate_cap_diagonals, with_interpolated
 from seams import cycles
@@ -59,6 +60,26 @@ def triangulated_mesh(obj):
     return mesh
 
 
+def back_cap(obj, coords, ring, faces, thickness, start):
+    index = {vertex: i for i, vertex in enumerate(ring)}
+    outline = coords[ring]
+    a, b, c = coords[faces].transpose(1, 0, 2)
+    normal = np.cross(b - a, c - a).sum(axis=0)
+    linear = np.asarray(obj.matrix_world, dtype=np.float64)[:3, :3]
+    magnitude = np.linalg.norm(linear @ normal)
+    if magnitude <= 1e-12:
+        raise ValueError("The rim has no surface normal. / El contorno no tiene una normal de superficie.")
+    offset = normal * (thickness / magnitude)
+    front = np.asarray([[index[i] + start for i in face] for face in faces], dtype=np.int32)
+    sides = []
+    count = len(ring)
+    for i in range(count):
+        a, b = start + i, start + (i + 1) % count
+        sides.extend(((b, a, a + count), (b, a + count, b + count)))
+    closed = np.concatenate((front, front[:, ::-1] + count, np.asarray(sides, dtype=np.int32)))
+    return closed, [(i,) for i in ring + ring], np.concatenate((outline, outline - offset))
+
+
 def fill_surface(obj, points, selected, settings):
     mesh = triangulated_mesh(obj)
     limit, gap = settings["max_hole_m"], settings["max_gap_m"]
@@ -75,7 +96,7 @@ def fill_surface(obj, points, selected, settings):
     keys = keys[order]
     directed = {tuple(edge): int(index * 3 + corner)
                 for edge, index, corner in zip(border.tolist(), face_index, side)}
-    caps, added_edges = [], set()
+    caps, backed, added_edges = [], [], set()
     holes = 0
     for ring, bridges in local_rings(border, points, keys, limit, gap):
         if len(ring) < 3:
@@ -101,13 +122,18 @@ def fill_surface(obj, points, selected, settings):
         positive = (ring_winding > 0) == (matches <= reversals) if matches != reversals else True
         if (area[0] > 0) != positive:
             patch = patch[:, ::-1]
-        added_edges.update({tuple(sorted(edge)) for edge in rim} & bridges)
-        caps.append(patch)
+        gaps = {tuple(sorted(edge)) for edge in rim} & bridges
+        if gaps and settings.get("backing_m"):
+            backed.append((ring if (ring_winding > 0) == positive else ring[::-1], patch))
+        else:
+            added_edges.update(gaps)
+            caps.append(patch)
         holes += 1
-    if not caps:
+    if not caps and not backed:
         return {"holes_filled": 0, "boundary_edges_closed": 0, "gap_edges_added": 0,
                 "faces_added": 0, "vertices_added": 0}
-    triangles, inserted = separate_cap_diagonals(np.concatenate(caps), keys, stride)
+    attached = np.concatenate(caps) if caps else np.empty((0, 3), dtype=np.int32)
+    triangles, inserted = separate_cap_diagonals(attached, keys, stride)
     # Compare against original edge uses so the receipt counts actual joins.
     edge_starts, edge_ends = triangles, np.roll(triangles, -1, axis=1)
     existing = np.maximum(edge_starts, edge_ends) < stride
@@ -121,18 +147,92 @@ def fill_surface(obj, points, selected, settings):
     if np.any(after > 2):
         raise ValueError("The patch would add a non-manifold edge. / El parche añadiría una arista con más de dos caras.")
     closed = int(np.count_nonzero((before == 1) & (after == 2)))
-    append_faces(obj, faces, triangles, inserted, directed)
-    return {"holes_filled": holes, "boundary_edges_closed": closed,
+    corners = {a: corner for (a, _), corner in directed.items()}
+    for (_, b), corner in directed.items():
+        start, offset = divmod(corner, 3)
+        corners.setdefault(b, start * 3 + (offset + 1) % 3)
+    metrics = {}
+    positions = None
+    if backed:
+        coords = read_array(mesh.vertices, "co", 3)
+        new_points = [with_interpolated(coords, inserted)[stride:]]
+        new_faces = [triangles]
+        for ring, patch in backed:
+            shell, parents, points = back_cap(obj, coords, ring, patch, settings["backing_m"], stride + len(inserted))
+            inserted.extend(parents)
+            new_faces.append(shell)
+            new_points.append(points)
+        positions = np.concatenate(new_points)
+        triangles = np.concatenate(new_faces)
+        metrics["backed_caps"] = len(backed)
+    append_faces(obj, faces, triangles, inserted, corners, positions=positions)
+    return {"holes_filled": holes, "boundary_edges_closed": closed, **metrics,
             "gap_edges_added": len(added_edges), "faces_added": len(triangles), "vertices_added": len(inserted)}
 
 
-def append_faces(obj, faces, triangles, inserted, directed):
-    source = obj.data
+def loft_geometry(sections):
+    sides = 32
+    angle = np.arange(sides) * (2 * np.pi / sides)
+    points = np.concatenate([
+        np.column_stack((row["u"] + row["radius_u"] * np.cos(angle),
+                         np.full(sides, row["v"]), row["depth"] - row["radius_depth_m"] * np.sin(angle)))
+        for row in sections
+    ])
+    faces = []
+    for offset in range(0, len(points) - sides, sides):
+        for i in range(sides):
+            a, b = offset + i, offset + (i + 1) % sides
+            faces.extend(((a, b, b + sides), (a, b + sides, a + sides)))
+    for i in range(1, sides - 1):
+        faces.extend(((0, i + 1, i), (len(points) - sides, len(points) - sides + i, len(points) - sides + i + 1)))
+    return points, np.asarray(faces, dtype=np.int32)
+
+
+def add_loft(obj, edit, points, triangles, uv, depth, selected):
+    mesh = triangulated_mesh(obj)
+    right, up = map(Vector, (edit["right"], edit["up"]))
+    normal = right.cross(up).normalized()
+    metres = np.array([right.length, up.length, 1])
+    choices = np.flatnonzero(selected)
+    if not len(choices):
+        raise ValueError("The patch needs nearby surface in the chosen region. / El parche necesita superficie cercana dentro de la zona.")
+    tree = KDTree(len(choices))
+    for index in choices:
+        tree.insert((*tuple(uv[index] * metres[:2]), depth[index]), int(index))
+    tree.balance()
+    anchors = [tree.find(point)[1] for point in points * metres]
+    groups = [[(group.group, group.weight) for group in mesh.vertices[index].groups] for index in anchors]
+    if any(len(group) != 1 or not np.isclose(group[0][1], 1) for group in groups) or len({group[0][0] for group in groups}) != 1:
+        raise ValueError("Anchor the patch on one rigid bone. / Ancla el parche a un solo hueso rígido.")
+    rig_modifiers = [modifier for modifier in obj.modifiers if modifier.type == "ARMATURE" and modifier.show_viewport]
+    if len(rig_modifiers) != 1 or not rig_modifiers[0].object or not rig_modifiers[0].use_vertex_groups:
+        raise ValueError("Use a single armature with vertex weights. / Usa un solo esqueleto con pesos por vértice.")
+    evaluated = rig_modifiers[0].object.evaluated_get(bpy.context.evaluated_depsgraph_get())
+    bone = evaluated.pose.bones.get(obj.vertex_groups[groups[0][0][0]].name)
+    if bone is None or not bone.bone.use_deform:
+        raise ValueError("Use a deforming bone for the patch. / Usa un hueso deformante para el parche.")
+    armature = evaluated.matrix_world
+    world_to_local = (armature @ bone.matrix @ bone.bone.matrix_local.inverted()
+                      @ armature.inverted() @ obj.matrix_world).inverted()
+    origin = Vector(edit["origin"])
+    local = np.asarray([world_to_local @ (origin + right * float(u) + up * float(v) + normal * float(d)) for u, v, d in points],
+                       dtype=np.float32)
+    loops = read_array(mesh.loops, "vertex_index", 1, np.int32)
     corners = {}
-    for (a, b), corner in directed.items():
-        corners.setdefault(a, corner)
-        start, offset = divmod(corner, 3)
-        corners.setdefault(b, start * 3 + (offset + 1) % 3)
+    needed = set(anchors)
+    for i, vertex in enumerate(loops):
+        if vertex in needed:
+            corners[vertex] = i
+            needed.remove(vertex)
+            if not needed:
+                break
+    append_faces(obj, loops.reshape(-1, 3), triangles + len(mesh.vertices),
+                 [(index,) for index in anchors], corners, positions=local)
+    return {"loft_faces": len(triangles), "loft_vertices": len(points), "loft_boundary_edges": 0}
+
+
+def append_faces(obj, faces, triangles, inserted, corners, positions=None):
+    source = obj.data
     for index, parents in enumerate(inserted, len(source.vertices)):
         corners[index] = corners[parents[0]]
     source_corners = np.asarray([corners[int(index)] for index in triangles.ravel()])
@@ -140,7 +240,8 @@ def append_faces(obj, faces, triangles, inserted, directed):
 
     # Start with an empty mesh: resizing existing corner/edge arrays in-place can
     # invalidate Blender's storage. Order the original vertices and faces first.
-    coords = with_interpolated(read_array(source.vertices, "co", 3), inserted)
+    coords = read_array(source.vertices, "co", 3)
+    coords = with_interpolated(coords, inserted) if positions is None else np.concatenate((coords, positions))
     target = make_mesh(source.name, coords, np.concatenate((faces, triangles)))
     for material in source.materials:
         target.materials.append(material)

@@ -189,13 +189,26 @@ class Projection(Args):
         return self
 
 
+class LoftSection(Args):
+    v: Unit = Field(description="Height in the projection, from bottom to top. / Altura en la proyección, de abajo arriba.")
+    u: Unit = Field(description="Horizontal centre in the projection. / Centro horizontal en la proyección.")
+    depth: FiniteFloat = Field(description="Signed centre depth in metres. / Profundidad con signo del centro en metros.")
+    radius_u: Positive = Field(description="Horizontal radius in projection units. / Radio horizontal en unidades de proyección.")
+    radius_depth_m: Positive = Field(description="Depth radius in metres. / Radio en profundidad en metros.")
+
+
 class SurfaceFinish(Args):
     depth: tuple[FiniteFloat, FiniteFloat] | None = Field(
         None, description="Optional narrower depth interval for geometry, in metres. / Intervalo de profundidad más estrecho para la geometría, en metros.")
+    loft: list[LoftSection] | None = Field(
+        None, min_length=2, max_length=32,
+        description="Closed patch between elliptical sections on a part bound to one bone. / Parche cerrado entre secciones elípticas de una pieza ligada a un hueso.")
     max_hole_m: Positive | None = Field(
         None, description="Fill boundary rings up to this diameter in metres. / Rellena contornos abiertos hasta este diámetro en metros.")
     max_gap_m: Annotated[FiniteFloat, Field(ge=0)] = Field(
         0, description="Maximum new edge between nearby ends of an interrupted ring. / Longitud máxima de una arista nueva entre extremos de un contorno interrumpido.")
+    backing_m: Positive | None = Field(
+        None, description="Back an interrupted rim patch with a closed shell of this thickness. / Cierra el parche de un contorno interrumpido con este grosor de respaldo.")
     smooth_iterations: int = Field(
         0, ge=0, le=50, description="Passes of local surface smoothing. / Pasadas de alisado de la superficie local.")
     max_displacement_m: Positive | None = Field(
@@ -205,10 +218,14 @@ class SurfaceFinish(Args):
     def check_operation(self):
         if self.depth and self.depth[0] > self.depth[1]:
             raise ValueError("Geometry depth bounds are reversed. / Los límites de profundidad de la geometría están invertidos.")
-        if not self.max_hole_m and not self.smooth_iterations:
-            raise ValueError("Choose hole filling or smoothing. / Elige rellenar huecos o alisar la superficie.")
+        if self.loft and any(a.v >= b.v for a, b in zip(self.loft, self.loft[1:])):
+            raise ValueError("Order sections by increasing height. / Ordena las secciones por altura ascendente.")
+        if not self.max_hole_m and not self.smooth_iterations and not self.loft:
+            raise ValueError("Choose hole filling, a closed patch or smoothing. / Elige rellenar huecos, un parche cerrado o alisar la superficie.")
         if self.max_gap_m and (not self.max_hole_m or self.max_gap_m >= self.max_hole_m):
             raise ValueError("A gap must be smaller than the hole diameter. / El tramo abierto debe ser menor que el diámetro del hueco.")
+        if self.backing_m and (not self.max_gap_m or self.backing_m >= self.max_hole_m):
+            raise ValueError("A backing needs gap repair and must be thinner than the hole diameter. / El respaldo requiere reparar tramos abiertos y debe ser más fino que el diámetro del hueco.")
         if self.smooth_iterations and not self.max_displacement_m:
             raise ValueError("Set a maximum smoothing displacement. / Indica el desplazamiento máximo del alisado.")
         return self
@@ -327,9 +344,9 @@ TOOLS = [
          "Selecciona por región, plano, color, semilla o caras de origen. Repara encastres, articula piezas y construye paneles desde un expediente fijado.",
          Build, ann(draft_safe=True), build, timeout_s=600, capped=False),
     Tool("articulation_finish", "Project retained artwork onto a rig. Proyecta ilustraciones de referencia sobre una articulación.\n"
-         "Paint local colour, optionally filling holes and smoothing inside the patch, or map an image to a part. Keeps the rig and animation. "
+         "Paint local colour, optionally closing holes, adding a bounded patch and smoothing, or map an image to a part. Keeps the rig and animation. "
          "Returns an editable scene and skinned GLB. Undo: articulation_undo. "
-         "Reproyecta color localizado, con relleno y alisado opcionales, o aplica una imagen a una pieza. Conserva esqueleto y animación. "
+         "Reproyecta color localizado, con relleno, parche acotado y alisado opcionales, o aplica una imagen a una pieza. Conserva esqueleto y animación. "
          "Devuelve escena editable y GLB articulado. Deshacer: articulation_undo.\n"
          "Sinónimos: reparar huecos y escalones, reproyectar el color de la cara, aplicar tinta al mapa, texturizar una pieza articulada.",
          Finish, ann(draft_safe=True), finish, timeout_s=600, capped=False),

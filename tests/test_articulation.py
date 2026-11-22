@@ -313,3 +313,75 @@ def test_articulation_finish_closes_local_hole_and_bounds_displacement(services,
         assert len(gltf["animations"][0]["channels"]) == 4
     assert list(result["poses"]) == rig["poses"]
     assert list(result["poses"].values()) == [1, 25]
+
+
+@pytest.mark.skipif(find_blender() is None, reason="Blender is not installed")
+def test_articulation_finish_backs_an_interrupted_cap_without_open_edges(services, tmp_path):
+    source = tmp_path / "surface.glb"
+    vertices = [(x, 0, -y) for y in range(-2, 3) for x in range(-2, 3)]
+    triangles = []
+    for row in range(4):
+        for column in range(4):
+            if (row, column) == (2, 2):
+                continue
+            a = row * 5 + column
+            triangles.extend(((a, a + 1, a + 6), (a, a + 6, a + 5)))
+    mesh = trimesh.Trimesh(vertices=vertices, faces=triangles, process=False)
+    mesh.visual.vertex_colors = [192, 192, 192, 255]
+    mesh.export(source)
+    rig = call_tool(services, "articulation_build", {
+        "source": str(source), "selection_views": False, "body_bone": "root",
+        "bones": [{"name": "root", "head": [0, 0, 0], "tail": [0, 0, 1]}],
+    })
+    image = tmp_path / "art.png"
+    Image.new("RGB", (8, 8), (128, 64, 32)).save(image)
+    result = call_tool(services, "articulation_finish", {
+        "source": rig["files"]["scene"], "source_sha256": rig["artifacts"]["scene"]["sha256"],
+        "edits": [{"mode": "colour", "part": "body", "path": str(image), "sha256": sha256(image.read_bytes()).hexdigest(),
+                   "origin": [-1.6, -1.6, 0], "right": [3.2, 0, 0], "up": [0, 3.2, 0], "depth": [-0.1, 0.1],
+                   "mask": [[0.01, 0.01], [0.99, 0.01], [0.99, 0.56], [0.56, 0.99], [0.01, 0.99]],
+                   "surface": {"max_hole_m": 3.3, "max_gap_m": 1.5, "backing_m": 0.03}}],
+    })
+    geometry = result["edits"][0]["geometry"]
+    assert geometry == {"holes_filled": 1, "boundary_edges_closed": 0, "backed_caps": 1,
+                        "gap_edges_added": 0, "faces_added": 8, "vertices_added": 6}
+    scene = trimesh.load(result["files"]["rigged"], force="scene", process=False)
+    geom = scene.geometry[scene.graph["body"][1]]
+    shell = trimesh.Trimesh(vertices=geom.vertices, faces=geom.faces[len(triangles):], process=True)
+    assert shell.is_watertight and shell.is_winding_consistent and shell.volume > 0
+
+
+@pytest.mark.skipif(find_blender() is None, reason="Blender is not installed")
+def test_articulation_finish_adds_closed_loft_in_selected_pose(services, tmp_path):
+    source = tmp_path / "box.glb"
+    box = trimesh.creation.box()
+    box.visual.vertex_colors = [192, 192, 192, 255]
+    box.export(source)
+    rig = call_tool(services, "articulation_build", {
+        "source": str(source), "selection_views": False, "body_bone": "root",
+        "bones": [{"name": "root", "head": [0, 0, 0], "tail": [0, 0, 1]}],
+        "poses": [{"name": "turned", "rotations": {"root": [0, 0, 90]}, "export": False, "cameras": []}],
+    })
+    image = tmp_path / "art.png"
+    Image.new("RGB", (8, 8), (128, 64, 32)).save(image)
+    result = call_tool(services, "articulation_finish", {
+        "source": rig["files"]["scene"], "source_sha256": rig["artifacts"]["scene"]["sha256"], "frame": 25,
+        "edits": [{"mode": "colour", "part": "body", "path": str(image), "sha256": sha256(image.read_bytes()).hexdigest(),
+                   "origin": [-0.65, -0.65, 0], "right": [1.3, 0, 0], "up": [0, 1.3, 0],
+                   "depth": [-0.55, 0.8], "min_facing": -1, "surface": {"loft": [
+                       {"v": 0.4, "u": 0.6, "depth": 0.55, "radius_u": 0.09, "radius_depth_m": 0.1},
+                       {"v": 0.7, "u": 0.68, "depth": 0.56, "radius_u": 0.07, "radius_depth_m": 0.1},
+                   ]}}],
+    })
+    change = result["edits"][0]
+    assert result["frame"] == 25
+    assert change["geometry"] == {"loft_faces": 124, "loft_vertices": 64, "loft_boundary_edges": 0}
+    scene = trimesh.load(result["files"]["rigged"], force="scene", process=False)
+    geom = scene.geometry[scene.graph["body"][1]]
+    assert len(geom.faces) == len(box.faces) + 124
+    colours = geom.visual.vertex_attributes["color"]
+    box_faces, loft_faces = np.split(geom.faces, [len(box.faces)])
+    assert len(np.unique(colours[box_faces], axis=0)) == 1
+    assert np.allclose(colours[loft_faces], [0.21586, 0.05127, 0.01444], atol=2e-5)
+    shell = trimesh.Trimesh(vertices=geom.vertices, faces=loft_faces, process=True)
+    assert shell.is_watertight and shell.is_winding_consistent and shell.volume > 0

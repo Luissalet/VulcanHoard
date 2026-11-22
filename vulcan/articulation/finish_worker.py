@@ -8,7 +8,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent))
 from worker import export_glb  # noqa: E402
-from surface_finish import fill_surface, smooth_surface  # noqa: E402
+from surface_finish import add_loft, fill_surface, loft_geometry, smooth_surface  # noqa: E402
 
 
 def mesh_values(items, field, width, dtype=np.float32):
@@ -66,13 +66,15 @@ def mask_distance(edit, uv):
     return distance
 
 
-def paint_colour(mesh, image, edit, uv, depth, facing):
+def paint_colour(mesh, image, edit, uv, depth, facing, loft_start=None):
     colour = mesh.color_attributes.get(edit["attribute"]) if edit["attribute"] else mesh.color_attributes.active_color
     if colour is None or colour.domain not in {"POINT", "CORNER"}:
         raise ValueError("Choose an existing point or corner colour attribute. / Elige un atributo de color en vértices o esquinas.")
     low, high = edit["depth"]
     distance = mask_distance(edit, uv)
     chosen = (distance > 0) & (depth >= low) & (depth <= high) & (facing >= edit["min_facing"])
+    if loft_start is not None:
+        chosen[:loft_start] = False
     selected = np.flatnonzero(chosen)
     if not len(selected):
         raise ValueError("The colour patch missed the surface. / La proyección de color no alcanza la superficie.")
@@ -105,6 +107,7 @@ def repair_surface(obj, edit, uv, depth, facing):
     distance = mask_distance(edit, uv)
     selected = (distance > 0) & (depth >= low) & (depth <= high)
     result = {}
+    loft_start = None
     if settings["max_hole_m"]:
         metres = np.linalg.norm([edit["right"], edit["up"]], axis=1)
         result.update(fill_surface(obj, np.column_stack((uv * metres, depth)), selected, settings))
@@ -113,6 +116,20 @@ def repair_surface(obj, edit, uv, depth, facing):
             uv, depth, facing = projection(obj, edit)
             distance = mask_distance(edit, uv)
             selected = (distance > 0) & (depth >= low) & (depth <= high)
+    if settings.get("loft"):
+        points, triangles = loft_geometry(settings["loft"])
+        if np.any(mask_distance(edit, points[:, :2]) <= 0) or np.any((points[:, 2] < low) | (points[:, 2] > high)):
+            raise ValueError("The patch must fit inside the selected region. / El parche debe quedar dentro de la zona elegida.")
+        loft_start = len(obj.data.vertices)
+        result.update(add_loft(obj, edit, points, triangles, uv, depth, selected))
+        bpy.context.view_layer.update()
+        uv, depth, facing = projection(obj, edit)
+        if len(uv) != loft_start + len(points) or not np.allclose(
+            np.column_stack((uv[loft_start:], depth[loft_start:])), points, atol=1e-5
+        ):
+            raise ValueError("The patch does not match the selected pose. / El parche no coincide con la pose elegida.")
+        selected = np.arange(len(uv)) >= loft_start
+        distance = mask_distance(edit, uv)
     if settings["smooth_iterations"]:
         strength = np.where(selected & (facing >= edit["min_facing"]), 1.0, 0.0)
         if edit["feather"]:
@@ -121,7 +138,7 @@ def repair_surface(obj, edit, uv, depth, facing):
         result.update(smooth_surface(obj, strength, settings))
         bpy.context.view_layer.update()
         uv, depth, facing = projection(obj, edit)
-    return result, uv, depth, facing
+    return result, uv, depth, facing, loft_start
 
 
 def apply_image(obj, image, uv):
@@ -179,10 +196,10 @@ def main(source, recipe, output):
         image = bpy.data.images.load(edit["file"])
         uv, depth, facing = projection(obj, edit)
         if edit["mode"] == "colour":
-            geometry = {}
+            geometry, loft_start = {}, None
             if edit.get("surface"):
-                geometry, uv, depth, facing = repair_surface(obj, edit, uv, depth, facing)
-            change = paint_colour(obj.data, image, edit, uv, depth, facing)
+                geometry, uv, depth, facing, loft_start = repair_surface(obj, edit, uv, depth, facing)
+            change = paint_colour(obj.data, image, edit, uv, depth, facing, loft_start)
             if geometry:
                 change["geometry"] = geometry
             changes.append(change)
