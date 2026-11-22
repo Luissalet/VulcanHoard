@@ -1,6 +1,7 @@
 import React, { Suspense, createContext, lazy, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { api } from "./api.js";
 import { Toast } from "./components/ui.jsx";
+import { tr } from "./components/animationI18n.js";
 import { num } from "./format.js";
 import Galeria from "./pages/Galeria.jsx";
 import Modelo from "./pages/Modelo.jsx";
@@ -27,7 +28,7 @@ const PAGES = [
   { path: "carpetas", label: "Carpetas", icon: "M4 20V10m5 10V6m5 14v-9m5 9V4M3 20h18", component: Carpetas },
   { path: "estadisticas", label: "Estadísticas", icon: "M4 20V10m5 10V4m5 16v-8m5 8V7", component: Estadisticas },
   { path: "disenar", label: "Diseñar", icon: "M4 20h16M6 16l9-9 3 3-9 9H6zM14 8l3 3", component: Disenar },
-  { path: "codigo", label: "Código", icon: "M8 8l-4 4 4 4M16 8l4 4-4 4M14 5l-4 14", component: Codigo },
+  { path: "codigo", label: tr("Código", "Code"), icon: "M8 8l-4 4 4 4M16 8l4 4-4 4M14 5l-4 14", component: Codigo },
   { path: "habitacion", label: "Habitación", icon: "M3 21V8l9-5 9 5v13H3zM9 21v-8h6v8M3 8l9 5 9-5", component: Habitacion },
   { path: "mesa", label: "Mesa 3D", icon: "M3 9l9-5 9 5-9 5zM3 9v6l9 5 9-5V9M12 14v6", component: Mesa },
   { path: "animar", label: "Animaciones", icon: "M12 4a2 2 0 100 4 2 2 0 000-4zM12 8v5m0 0l-4 6m4-6l4 6M7 10l5 1 5-1", component: Animar },

@@ -1,3 +1,4 @@
+import { tr } from "./animationI18n.js";
 import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
@@ -49,7 +50,7 @@ async function makeRenderer(dense) {
     await renderer.init();
     if (!renderer.backend?.isWebGPUBackend) { // three falls back to WebGL2 when the GPU device cannot be created
       renderer.dispose();
-      throw new Error("el navegador no pudo crear el dispositivo WebGPU");
+      throw new Error(tr("el navegador no pudo crear el dispositivo WebGPU", "the browser could not create a WebGPU device"));
     }
     return renderer;
   }
@@ -82,7 +83,6 @@ export default function Viewer({ model, glbUrl = null, onCloseGlb, overlay = nul
   const markingRef = useRef(false);
   const restoreCamera = useRef(null);
   const [cameraError, setCameraError] = useState(false);
-  const english = (navigator.language || "es").startsWith("en");
   const denseOffer = hasWebGPU() && (model?.triangles || 0) >= DENSE_TRIANGLES;
   useEffect(() => { setDense(false); setDenseNote(""); }, [model?.id]);
 
@@ -201,7 +201,7 @@ export default function Viewer({ model, glbUrl = null, onCloseGlb, overlay = nul
       try {
         renderer = await makeRenderer(dense);
       } catch (error) {
-        if (!disposed && dense) { setDenseNote(`Modo denso no disponible (${error.message}); se usa el visor normal.`); setDense(false); }
+        if (!disposed && dense) { setDenseNote(tr(`Modo denso no disponible (${error.message}). Se usa el visor normal.`, `Dense mode unavailable (${error.message}). Using the standard viewer.`)); setDense(false); }
         return;
       }
       if (disposed) { renderer.dispose(); return; }
@@ -357,9 +357,9 @@ export default function Viewer({ model, glbUrl = null, onCloseGlb, overlay = nul
           const { VirtualGeometry } = await import("three-virtual-geometry");
           vg = new VirtualGeometry();
           await vg.add(object);
-          if (!disposed) setDenseNote("Modo denso activo: WebGPU + geometría virtual (detalle por clústeres según la distancia).");
+          if (!disposed) setDenseNote(tr("Modo denso activo: WebGPU + geometría virtual (detalle por clústeres según la distancia).", "Dense mode active: WebGPU and virtual geometry (cluster detail varies by distance)."));
         } catch (error) {
-          if (!disposed) { setDenseNote(`La geometría virtual falló (${error.message}); se usa el visor normal.`); setDense(false); }
+          if (!disposed) { setDenseNote(tr(`La geometría virtual falló (${error.message}). Se usa el visor normal.`, `Virtual geometry failed (${error.message}). Using the standard viewer.`)); setDense(false); }
           return;
         }
       }
@@ -477,10 +477,10 @@ export default function Viewer({ model, glbUrl = null, onCloseGlb, overlay = nul
   return (
     <div>
       {roomView && <label className="room-cutaway"><input type="checkbox" checked={cutaway} onChange={(event) => setCutaway(event.target.checked)} /> Sección de inspección (oculta techo y paredes cercanas)</label>}
-      <div className="viewer" ref={host} aria-label="Visor 3D" data-viewer-mode={dense ? "dense" : glbUrl ? "glb" : "normal"}>
+      <div className="viewer" ref={host} aria-label={tr("Visor 3D", "3D viewer")} data-viewer-mode={dense ? "dense" : glbUrl ? "glb" : "normal"}>
         <div className="hud">
-          {state.phase === "loading" && "Cargando modelo…"}
-          {state.phase === "ready" && "Arrastra para girar · rueda para acercar · botón derecho para desplazar"}
+          {state.phase === "loading" && tr("Cargando modelo…", "Loading model…")}
+          {state.phase === "ready" && tr("Arrastra para girar · rueda para acercar · botón derecho para desplazar", "Drag to rotate · scroll to zoom · right-drag to pan")}
           {state.phase === "error" && <span style={{ color: "var(--danger-ink)" }}>{state.error}</span>}
         </div>
       </div>
@@ -489,9 +489,9 @@ export default function Viewer({ model, glbUrl = null, onCloseGlb, overlay = nul
           <button type="button" className="btn btn-sm" aria-pressed={marking} onClick={() => {
             markingRef.current = !marking;
             setMarking(!marking);
-          }}>{english ? "Mark contact" : "Marcar contacto"}</button>
+          }}>{tr("Marcar contacto", "Mark contact")}</button>
           <label className="btn btn-sm">
-            {english ? "Load camera" : "Cargar cámara"}
+            {tr("Cargar cámara", "Load camera")}
             <input className="sr-only" type="file" accept=".json,application/json" onChange={async (event) => {
               const input = event.currentTarget;
               const file = input.files[0];
@@ -506,10 +506,10 @@ export default function Viewer({ model, glbUrl = null, onCloseGlb, overlay = nul
               }
             }} />
           </label>
-          {cameraError && <span role="status">{english ? "Invalid camera file." : "Archivo de cámara no válido."}</span>}
-          {marking && <span role="status">{english ? "Select a point on the mesh." : "Selecciona un punto en la malla."}</span>}
+          {cameraError && <span role="status">{tr("Archivo de cámara no válido.", "Invalid camera file.")}</span>}
+          {marking && <span role="status">{tr("Selecciona un punto en la malla.", "Select a point on the mesh.")}</span>}
           {markUrl && <a className="btn btn-sm" data-contact-receipt download="mesh-contact.json" href={markUrl}>
-            {english ? "Download contact and crop" : "Descargar contacto y recorte"}</a>}
+            {tr("Descargar contacto y recorte", "Download contact and crop")}</a>}
         </div>
       )}
       {clips.length > 0 && (
@@ -529,12 +529,12 @@ export default function Viewer({ model, glbUrl = null, onCloseGlb, overlay = nul
         {glbUrl && !glbNote && glbUrl.includes("/texture/jobs/") && <span className="help" data-glb-shown-size={shownSize ? shownSize.join("x") : ""}>Viendo la variante texturizada con IA{shownSize ? ` (${shownSize.join(" × ")} mm)` : ""} · <button type="button" className="btn-link" onClick={onCloseGlb}>volver al archivo original</button></span>}
         {glbUrl && !glbNote && !glbUrl.includes("/texture/jobs/") && <span className="help" data-glb-shown-size={shownSize ? shownSize.join("x") : ""}>Viendo el GLB web comprimido (en metros, mostrado en mm{shownSize ? `: ${shownSize.join(" × ")} mm` : ""}) · <button type="button" className="btn-link" onClick={onCloseGlb}>volver al archivo original</button></span>}
         {denseOffer && (
-          <label className="inline-flex items-center gap-1" title="WebGPU + three-virtual-geometry: dibuja solo el detalle que se ve">
-            <input type="checkbox" checked={dense} onChange={(e) => { setDenseNote(""); setDense(e.target.checked); }} />Modo denso (WebGPU)
+          <label className="inline-flex items-center gap-1" title={tr("WebGPU + three-virtual-geometry: dibuja solo el detalle que se ve", "WebGPU + three-virtual-geometry: draws visible detail only")}>
+            <input type="checkbox" checked={dense} onChange={(e) => { setDenseNote(""); setDense(e.target.checked); }} />{tr("Modo denso (WebGPU)", "Dense mode (WebGPU)")}
           </label>
         )}
         {!denseOffer && (model?.triangles || 0) >= DENSE_TRIANGLES && (
-          <span className="help">Malla muy densa y este navegador no tiene WebGPU: crea una variante en «Simplificar (LOD)» para moverla con fluidez.</span>
+          <span className="help">{tr("Malla muy densa y este navegador no tiene WebGPU: crea una variante en «Simplificar (LOD)» para moverla con fluidez.", "This dense mesh needs WebGPU for smooth movement. Create a lower-detail variant with Simplify (LOD).")}</span>
         )}
         {denseNote && <span className="help" data-dense-note>{denseNote}</span>}
       </div>

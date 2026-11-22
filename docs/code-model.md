@@ -49,6 +49,15 @@ las medidas y las indicaciones de corrección. Las respuestas incompletas se des
 Si la última respuesta sigue incompleta, Vulcan conserva la malla que ya haya generado o devuelve
 `model_unavailable` con el motivo de finalización en los dos campos de error.
 
+## Library interface / Interfaz de la biblioteca
+
+The **Code** page (`/library/#/codigo`) follows the browser language. It shows English for English locales and
+Spanish (Spain) by default. Model names, saved code, and technical output from the engine or job are shown as received.
+
+La página **Código** (`/library/#/codigo`) sigue el idioma del navegador. Se muestra en inglés si el navegador usa
+ese idioma y en castellano de España por defecto. Los nombres de los modelos, el código guardado y la salida técnica
+del motor o del trabajo se muestran tal como se reciben.
+
 ## Example library
 
 `vulcan/sand3d_examples/` holds eight tested programs, one per family of part, each with named, commented parameters at the top and its

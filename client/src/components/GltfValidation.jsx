@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { api } from "../api.js";
+import { tr } from "./animationI18n.js";
 import { useApp } from "../App.jsx";
 
 const SEVERITY = { error: "Error", warning: "Aviso", info: "Info", hint: "Pista" };
@@ -8,12 +9,12 @@ const EVENT = "vulcan-gltf-report";
 /** Badge text and chip class for a validation summary ({state, errors, warnings}). */
 export function gltfBadge(summary) {
   const s = summary || {};
-  if (s.state === "valid") return { text: "glTF válido", cls: "chip-ok" };
-  if (s.state === "warnings") return { text: `${s.warnings} ${s.warnings === 1 ? "aviso" : "avisos"}`, cls: "chip-warn" };
-  if (s.state === "errors") return { text: `${s.errors} ${s.errors === 1 ? "error" : "errores"}`, cls: "chip-danger" };
-  if (s.state === "not_installed") return { text: "validador no instalado", cls: "chip-warn" };
-  if (s.state === "error") return { text: "no se pudo validar", cls: "chip-warn" };
-  return { text: "glTF sin validar", cls: "" };
+  if (s.state === "valid") return { text: tr("glTF válido", "Valid glTF"), cls: "chip-ok" };
+  if (s.state === "warnings") return { text: `${s.warnings} ${s.warnings === 1 ? tr("aviso", "warning") : tr("avisos", "warnings")}`, cls: "chip-warn" };
+  if (s.state === "errors") return { text: `${s.errors} ${s.errors === 1 ? "error" : tr("errores", "errors")}`, cls: "chip-danger" };
+  if (s.state === "not_installed") return { text: tr("validador no instalado", "validator not installed"), cls: "chip-warn" };
+  if (s.state === "error") return { text: tr("no se pudo validar", "validation failed"), cls: "chip-warn" };
+  return { text: tr("glTF sin validar", "glTF not validated"), cls: "" };
 }
 
 /** Last saved report of a model (never runs the validator); follows the panel's "Validar" button through a window event. */
