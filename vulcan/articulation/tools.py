@@ -325,10 +325,15 @@ class LocalPaint(LocalEdit):
     crop: tuple[FaceIndex, FaceIndex, FaceIndex, FaceIndex] | None = None
     attribute: str | None = Field(None, max_length=100)
 
+    visibility_directions: list[Vec] = Field(default_factory=list, max_length=4,
+        description="Additional directions towards the viewer. All samples use the same artwork projection. / Direcciones adicionales hacia el visor. Todas las muestras usan la misma proyección de la ilustración.")
+
     @model_validator(mode="after")
     def check_region(self):
         if not self.region.view:
             raise ValueError("A colour replacement needs a view. / La sustitución de color requiere una vista.")
+        if any(math.hypot(*vector) < 1e-6 for vector in self.visibility_directions):
+            raise ValueError("Use nonzero viewing directions. / Usa direcciones de vista no nulas.")
         if self.crop and (self.crop[0] >= self.crop[2] or self.crop[1] >= self.crop[3]):
             raise ValueError("Use a positive image crop. / Usa un recorte de imagen con dimensiones positivas.")
         return self
@@ -355,11 +360,26 @@ class LocalSmooth(LocalEdit):
         return self
 
 
+class SurfaceFit(Args):
+    center: Vec = Field(description="Point inside the old surface in local rest metres. / Punto dentro de la superficie anterior en metros locales de reposo.")
+    bounds: tuple[Vec, Vec] | None = Field(None, description="Low and high corners restricting the new vertices fitted. / Esquinas mínima y máxima que acotan los vértices nuevos que se ajustan.")
+    clearance_m: Annotated[FiniteFloat, Field(ge=0)] = Field(0.001, description="Radial clearance over the sampled surface in metres. / Separación radial respecto a la superficie muestreada en metros.")
+    max_adjustment_m: Positive = Field(description="Maximum radial movement in metres. / Desplazamiento radial máximo en metros.")
+    smooth_iterations: int = Field(8, ge=0, le=50, description="Neighbour passes for the radial offsets. / Pasadas de alisado de los desplazamientos radiales.")
+
+    @model_validator(mode="after")
+    def check_bounds(self):
+        if self.bounds and any(a >= b for a, b in zip(*self.bounds)):
+            raise ValueError("Use ordered fit bounds. / Ordena los límites del ajuste.")
+        return self
+
+
 class ReplaceMesh(LocalEdit):
     mode: Literal["replace_mesh"]
     path: str = Field(description="Absolute path to one unrigged GLB mesh in the part's local rest coordinates. / Ruta absoluta a un GLB sin rig en coordenadas locales de reposo de la pieza.")
     sha256: Digest
     reference: str | None = Field(None, max_length=500)
+    fit: SurfaceFit | None = Field(None, description="Fit the replacement to the removed surface before transferring weights. / Ajusta la sustitución a la superficie retirada antes de transferir los pesos.")
     name: Name
 
 

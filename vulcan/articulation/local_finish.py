@@ -12,7 +12,8 @@ from mesh import make_mesh, read_array
 from surface_finish import ATTRIBUTE_FORMAT, fair_depth, smooth_surface, triangulated_mesh
 
 
-def select(obj, region, mode, mask_distance):
+def select(obj, edit, mask_distance):
+    region, mode = edit["region"], edit["mode"]
     mesh = obj.data
     slot_ids = [index for index, slot in enumerate(obj.material_slots) if slot.name == region["material"]]
     if not slot_ids:
@@ -53,7 +54,12 @@ def select(obj, region, mode, mask_distance):
         depth = relative @ normal
         low, high = view["depth"]
         points &= (mask_distance(view, uv) > 0) & (depth >= low) & (depth <= high)
-        points = visible_points(obj, positions, points, loops[faces[corners]], normal, dg)
+        incident = loops[faces[corners]]
+        shown = visible_points(obj, positions, points, incident, normal, dg)
+        for direction in edit.get("visibility_directions", ()):
+            direction = np.asarray(direction) / np.linalg.norm(direction)
+            shown |= visible_points(obj, positions, points & ~shown, incident, direction, dg)
+        points = shown
     if mode == "replace_mesh":
         faces &= np.logical_and.reduceat(points[loops], starts)
     hits = faces[corners] & points[loops]
@@ -219,6 +225,55 @@ def retain_faces(obj, faces):
         bpy.data.meshes.remove(source)
 
 
+def fit_surface(mesh, tree, settings):
+    center = np.asarray(settings["center"])
+    original = read_array(mesh.vertices, "co", 3)
+    offsets = original - center
+    radii = np.linalg.norm(offsets, axis=1)
+    eligible = radii > 1e-7
+    if settings["bounds"]:
+        low, high = settings["bounds"]
+        eligible &= np.all((original >= low) & (original <= high), axis=1)
+    fitted = np.zeros(len(original), dtype=bool)
+    adjustment = np.zeros(len(original))
+    found = np.flatnonzero(eligible)
+    directions = offsets[found] / radii[found, None]
+    limit = settings["max_adjustment_m"]
+    clearance = settings["clearance_m"]
+    for index, heading in zip(found, directions, strict=True):
+        # Search outward within the authored shell's local band. This prefers
+        # the underlying surface when outer stray triangles overlap the ray.
+        near = max(0.0, radii[index] - limit - clearance)
+        end = radii[index] + limit - clearance
+        if end <= near:
+            continue
+        _, _, face, distance = tree.ray_cast(Vector(center + heading * near), Vector(heading), end - near)
+        if face is not None:
+            fitted[index] = True
+            adjustment[index] = np.clip(near + distance + clearance - radii[index], -limit, limit)
+    if not fitted.any():
+        raise ValueError("Fitting rays missed the removed surface. / El ajuste radial no alcanza la superficie retirada.")
+    edges = read_array(mesh.edges, "vertices", 2, np.int32)
+    active = eligible[edges].any(axis=1)
+    left, right = edges[active].T
+    degree = np.bincount(np.r_[left, right], minlength=len(original))
+    measured = adjustment.copy()
+    for _ in range(settings["smooth_iterations"]):
+        sums = (np.bincount(left, adjustment[right], minlength=len(original))
+                + np.bincount(right, adjustment[left], minlength=len(original)))
+        neighbour = sums / np.maximum(1, degree)
+        # Diffuse measured offsets across short gaps in the source. Outside
+        # the fit bounds, hold the authored shape fixed.
+        adjustment[eligible] = 0.5 * adjustment[eligible] + 0.5 * neighbour[eligible]
+        adjustment[fitted] = 0.98 * adjustment[fitted] + 0.02 * measured[fitted]
+    original[found] += directions * adjustment[found, None]
+    mesh.vertices.foreach_set("co", original.ravel())
+    mesh.update()
+    return {"eligible_vertices": len(found), "fitted_vertices": int(np.count_nonzero(fitted)),
+            "mean_movement_m": float(np.abs(adjustment[found]).mean()),
+            "max_movement_m": float(np.abs(adjustment[found]).max())}
+
+
 def replace_mesh(obj, faces, edit):
     source = triangulated_mesh(obj)
     selected = read_array(source.loops, "vertex_index", 1, np.int32).reshape(-1, 3)[faces]
@@ -245,6 +300,7 @@ def replace_mesh(obj, faces, edit):
             image.filepath = "//" + image.name
     for item in imported:
         bpy.data.objects.remove(item, do_unlink=True)
+    fit = fit_surface(mesh, tree, edit["fit"]) if edit["fit"] else None
     result = obj.copy()
     result.name = edit["name"]
     result["articulation_part"] = edit["name"]
@@ -277,12 +333,13 @@ def replace_mesh(obj, faces, edit):
         result.vertex_groups[group].add(indices, weight, "REPLACE")
     retain_faces(obj, ~faces)
     return result, {"faces_removed": len(selected), "faces_added": len(mesh.polygons),
-                    "vertices_weighted": len(mesh.vertices), "replacement": result["articulation_part"]}
+                    "vertices_weighted": len(mesh.vertices), "replacement": result["articulation_part"],
+                    **({"fit": {**edit["fit"], **fit}} if fit else {})}
 
 
 def apply(obj, edit, mask_distance, sample):
     mode = edit["mode"]
-    positions, uv, faces, loops, hits, exclusive = select(obj, edit["region"], mode, mask_distance)
+    positions, uv, faces, loops, hits, exclusive = select(obj, edit, mask_distance)
     if mode == "replace_mesh":
         return replace_mesh(obj, faces, edit)
     if mode == "smooth":

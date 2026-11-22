@@ -422,22 +422,24 @@ def test_local_finish_replaces_only_visible_colour_and_preserves_the_rig(service
     art = tmp_path / "paint.png"
     Image.new("RGB", (8, 8), (210, 80, 30)).save(art)
     replacement = tmp_path / "replacement.glb"
-    trimesh.creation.icosphere(subdivisions=1, radius=0.008).apply_translation([0.04, 0.1, 0.04]).export(replacement)
+    trimesh.creation.icosphere(subdivisions=1, radius=0.008).apply_translation([0.05, 0.11, -0.05]).export(replacement)
     left = {"origin": [-0.065, -0.07, 0], "right": [0.06, 0, 0], "up": [0, 0.14, 0], "depth": [0, 0.23]}
     right = {"origin": [0.01, -0.07, 0], "right": [0.06, 0, 0], "up": [0, 0.14, 0], "depth": [0, 0.23]}
     region = {"part": "body", "material": material}
+    fit = {"center": [0.05, 0.05, 0.05], "clearance_m": 0.001, "max_adjustment_m": 0.025}
     result = call_tool(services, "articulation_finish", {
         "source": rig["files"]["scene"], "source_sha256": rig["artifacts"]["scene"]["sha256"],
         "view_size": 256, "cameras": [{"name": "top", "direction": [0, 0, 1]}],
         "edits": [
             {"mode": "replace_colour", "region": {**region, "view": left}, "path": str(art),
+             "visibility_directions": [[0, 0, 1]],
              "sha256": sha256(art.read_bytes()).hexdigest()},
             {"mode": "despeckle", "region": {**region, "view": right},
              "radius_m": 0.031, "threshold": 0.25, "max_spot_m": 0.015},
             {"mode": "smooth", "region": {**region, "view": right},
              "iterations": 4, "max_displacement_m": 0.001, "radius_m": radius_m},
             {"mode": "replace_mesh", "region": {**region, "group": "root", "face_ranges": [[142, 143]]},
-             "path": str(replacement), "sha256": sha256(replacement.read_bytes()).hexdigest(), "name": "New_part"},
+             "path": str(replacement), "sha256": sha256(replacement.read_bytes()).hexdigest(), "name": "New_part", "fit": fit},
         ],
     })
     painted, cleaned, smoothed, swapped = result["edits"]
@@ -445,6 +447,8 @@ def test_local_finish_replaces_only_visible_colour_and_preserves_the_rig(service
     assert cleaned["spots"] == 1 and cleaned["samples_written"] > 0
     assert 0 < smoothed["max_movement_m"] <= 0.001001
     assert swapped["faces_removed"] == 2 and swapped["faces_added"] == 80 and swapped["vertices_weighted"] == 42
+    assert swapped["fit"]["fitted_vertices"] == 42
+    assert 0.005 < swapped["fit"]["max_movement_m"] <= fit["max_adjustment_m"]
     scene = trimesh.load(result["files"]["rigged"], force="scene", process=False)
     body = scene.geometry[scene.graph["body"][1]]
     rgb = body.visual.vertex_attributes["color"][:, :3]

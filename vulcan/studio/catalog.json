@@ -18531,6 +18531,28 @@
               ],
               "default": null,
               "title": "Attribute"
+            },
+            "visibility_directions": {
+              "description": "Additional directions towards the viewer. All samples use the same artwork projection. / Direcciones adicionales hacia el visor. Todas las muestras usan la misma proyección de la ilustración.",
+              "items": {
+                "maxItems": 3,
+                "minItems": 3,
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              "maxItems": 4,
+              "title": "Visibility Directions",
+              "type": "array"
             }
           },
           "required": [
@@ -18738,6 +18760,18 @@
               "default": null,
               "title": "Reference"
             },
+            "fit": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/SurfaceFit"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Fit the replacement to the removed surface before transferring weights. / Ajusta la sustitución a la superficie retirada antes de transferir los pesos."
+            },
             "name": {
               "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,47}$",
               "title": "Name",
@@ -18885,6 +18919,105 @@
             }
           },
           "title": "SurfaceFinish",
+          "type": "object"
+        },
+        "SurfaceFit": {
+          "additionalProperties": false,
+          "properties": {
+            "center": {
+              "description": "Point inside the old surface in local rest metres. / Punto dentro de la superficie anterior en metros locales de reposo.",
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "title": "Center",
+              "type": "array"
+            },
+            "bounds": {
+              "anyOf": [
+                {
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "prefixItems": [
+                    {
+                      "maxItems": 3,
+                      "minItems": 3,
+                      "prefixItems": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ],
+                      "type": "array"
+                    },
+                    {
+                      "maxItems": 3,
+                      "minItems": 3,
+                      "prefixItems": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ],
+                      "type": "array"
+                    }
+                  ],
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Low and high corners restricting the new vertices fitted. / Esquinas mínima y máxima que acotan los vértices nuevos que se ajustan.",
+              "title": "Bounds"
+            },
+            "clearance_m": {
+              "default": 0.001,
+              "description": "Radial clearance over the sampled surface in metres. / Separación radial respecto a la superficie muestreada en metros.",
+              "minimum": 0,
+              "title": "Clearance M",
+              "type": "number"
+            },
+            "max_adjustment_m": {
+              "description": "Maximum radial movement in metres. / Desplazamiento radial máximo en metros.",
+              "exclusiveMinimum": 0,
+              "title": "Max Adjustment M",
+              "type": "number"
+            },
+            "smooth_iterations": {
+              "default": 8,
+              "description": "Neighbour passes for the radial offsets. / Pasadas de alisado de los desplazamientos radiales.",
+              "maximum": 50,
+              "minimum": 0,
+              "title": "Smooth Iterations",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "center",
+            "max_adjustment_m"
+          ],
+          "title": "SurfaceFit",
           "type": "object"
         },
         "ViewBox": {

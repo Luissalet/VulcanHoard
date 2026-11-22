@@ -39,6 +39,11 @@ class Preview:
             SimpleNamespace(vertices=np.asarray(points)),
         )
         self.light = light_obj
+        self.objects = objects
+        self.clearance = float(np.linalg.norm(np.ptp(points, axis=0))) * 0.1
+        for obj in scene.objects:
+            if obj.type == "CAMERA":
+                obj.data.clip_start = 0.0001
 
     def capture(self, output, prefix):
         previous = bpy.context.window.scene
@@ -47,7 +52,18 @@ class Preview:
             bpy.context.view_layer.update()
             paths = []
             for name, camera in self.views.items():
-                self.metadata["views"][name]["matrix"] = [list(row) for row in camera.matrix_world]
+                toward = camera.matrix_world.to_3x3() @ Vector((0, 0, 1))
+                farthest = max((obj.matrix_world @ Vector(corner) - camera.location).dot(toward)
+                               for obj in self.objects for corner in obj.bound_box)
+                if prefix == "before" and farthest + self.clearance >= 0:
+                    camera.location += toward * (farthest + self.clearance)
+                    bpy.context.view_layer.update()
+                elif farthest >= -camera.data.clip_start:
+                    raise ValueError("The comparison camera intersects a mesh. / La cámara de comparación cruza una malla.")
+                result = self.metadata["views"][name]
+                result["matrix"] = [list(row) for row in camera.matrix_world]
+                result["location"] = list(camera.location)
+                result["clip_start"] = camera.data.clip_start
                 offset = camera.matrix_world.to_3x3() @ Vector((-0.45, 0.6, 1))
                 self.light.rotation_euler = (-offset).to_track_quat("-Z", "Y").to_euler()
                 paths.extend(render(self.scene, output, {name: camera}, prefix, "MATERIAL"))
