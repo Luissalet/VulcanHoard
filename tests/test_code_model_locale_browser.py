@@ -63,6 +63,11 @@ def test_code_model_locales(tmp_path, monkeypatch):
                             "parameter": "Parameter t", "apply": "Apply parameters (1)", "badge": "Valid glTF",
                             "dimensions": "Size 80 × 40 mm: measured", "history": "Previous code versions (1)",
                             "viewer": "3D viewer", "view_hint": "Drag to rotate", "edit": "Edit by instruction",
+                            "library": "3D Library", "functions": "Functions", "sections": "Sections",
+                            "scanner": "Scanner", "idle": "idle", "counts": "0 models · 0 listings",
+                            "writing": "Writing the program", "failed": "Failed",
+                            "links": ["Gallery", "Collections", "Listings", "Organize", "Folders", "Statistics", "Design",
+                                      "Code", "Room", "3D Table", "Animations", "Spatial Analysis", "Settings"],
                         }),
                         ("es-ES", {
                             "title": "Modelar con código", "nav": "Código", "install": "Instalar el motor", "editor": "Código sand3d",
@@ -72,6 +77,11 @@ def test_code_model_locales(tmp_path, monkeypatch):
                             "parameter": "Parámetro t", "apply": "Aplicar parámetros (1)", "badge": "glTF válido",
                             "dimensions": "Tamaño 80 × 40 mm: medida", "history": "Versiones anteriores del código (1)",
                             "viewer": "Visor 3D", "view_hint": "Arrastra para girar", "edit": "Cambiar hablando",
+                            "library": "Biblioteca 3D", "functions": "Funciones", "sections": "Secciones",
+                            "scanner": "Escáner", "idle": "en reposo", "counts": "1 modelo · 0 fichas",
+                            "writing": "Escritura del programa", "failed": "Falló",
+                            "links": ["Galería", "Colecciones", "Fichas", "Organizar", "Carpetas", "Estadísticas", "Diseñar",
+                                      "Código", "Habitación", "Mesa 3D", "Animaciones", "Espacial", "Ajustes"],
                         }),
                     ):
                         engine_installed = False
@@ -80,6 +90,16 @@ def test_code_model_locales(tmp_path, monkeypatch):
                         page.on("pageerror", lambda error: errors.append(str(error)))
                         page.goto(f"http://127.0.0.1:{port}/library/#/codigo", wait_until="domcontentloaded")
                         expect = playwright.expect
+                        bar = page.locator(".fusion-bar")
+                        expect(bar.get_by_text(labels["library"], exact=True)).to_be_visible()
+                        expect(bar.get_by_role("link", name=labels["functions"], exact=True)).to_have_attribute("href", "/")
+                        expect(page).to_have_title(f"Vulcan's Hoard · {labels['library']}")
+                        navigation = page.get_by_role("navigation", name=labels["sections"], exact=True)
+                        expect(navigation.get_by_role("link")).to_have_text(labels["links"])
+                        sidebar = page.locator("aside")
+                        expect(sidebar.get_by_text(labels["scanner"], exact=True)).to_be_visible()
+                        expect(sidebar.get_by_text(labels["idle"], exact=True)).to_be_visible()
+                        expect(sidebar.get_by_text(labels["counts"], exact=True)).to_be_visible()
                         expect(page.get_by_role("heading", name=labels["title"], exact=True)).to_be_visible()
                         expect(page.get_by_role("link", name=labels["nav"], exact=True)).to_have_attribute("aria-current", "page")
                         expect(page.get_by_role("button", name=labels["install"], exact=True)).to_be_visible()
@@ -93,14 +113,23 @@ def test_code_model_locales(tmp_path, monkeypatch):
                         page.get_by_label(labels["description"]).fill(description)
                         page.get_by_role("button", name=labels["title"], exact=True).click()
                         expect(page.get_by_role("alert")).to_contain_text(labels["error"])
-                        expect(page.locator("ol")).to_contain_text(labels["attempt"])
+                        stages = page.locator("ol")
+                        failed_stage = stages.get_by_role("listitem").filter(has_text=labels["writing"])
+                        expect(failed_stage).to_contain_text(labels["attempt"])
+                        expect(failed_stage).to_contain_text(labels["failed"])
+                        expect(stages.locator('[aria-current="step"]')).to_have_count(0)
                         page.get_by_text(labels["register"], exact=True).click()
                         expect(page.locator("details[open] pre")).to_contain_text("model_timeout")
                         page.screenshot(path=str(tmp_path / f"code-job-{locale}.png"), full_page=True)
 
                         page.get_by_role("button", name=labels["measure"], exact=True).click()
-                        expect(page.locator("[data-requirements]")).to_contain_text(labels["dimensions"])
+                        check = page.locator("[data-requirements]")
+                        expect(check).to_contain_text(labels["dimensions"])
+                        measured = check.inner_text()
                         page.get_by_role("button", name=labels["run"], exact=True).click()
+                        saved_check = page.locator('section[aria-labelledby="code-result"] [data-requirements]')
+                        expect(saved_check).to_be_visible()
+                        assert saved_check.inner_text() == measured
                         expect(page.get_by_text(labels["badge"], exact=True)).to_be_visible()
                         expect(page.get_by_label(labels["viewer"])).to_contain_text(labels["view_hint"], timeout=15000)
                         expect(page.get_by_role("heading", name=labels["edit"], exact=True)).to_be_visible()
