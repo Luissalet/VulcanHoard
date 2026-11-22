@@ -88,7 +88,8 @@ def test_agent_tools_catalog_and_calls(scanned):
                      "articulation_build", "articulation_finish", "articulation_get", "articulation_view",
                      "articulation_pick", "articulation_undo",
                      "blocking_build", "blocking_get", "blocking_freeze", "blocking_pose_get", "blocking_pose_undo",
-                     "blocking_undo", "blocking_guide", "blocking_guide_undo", "blocking_pass"]
+                     "blocking_undo", "blocking_guide", "blocking_guide_undo", "blocking_pass",
+                     "blocking_compose", "blocking_compose_get", "blocking_compose_undo"]
     assert names == names_with_legacy_annotations + room_and_pose_names
     cold_descriptions = {tool["native_name"]: tool["description"] for tool in native_catalog() if tool["module"] == "library"}
     standard_annotations = {"readOnlyHint", "destructiveHint", "idempotentHint", "openWorldHint"}

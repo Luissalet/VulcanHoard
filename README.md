@@ -18,6 +18,7 @@ The library stays on the machine: SQLite with FTS5 and WebP thumbnails, no accou
 
 - Articulation of inferred meshes through MCP, with source-linked contact marks from the viewer, comparable pose close-ups, local seam repair, surface retouching from retained artwork, separately reconstructed parts, clipped panels built from a pinned dossier and rigged game exports within a triangle budget.
 - [Primitive blocking](docs/blocking.md) through MCP. Build an editable take with two simple hands and optional props, export a rigged GLB, and get matching camera passes, transparent part layers and grip contacts at each key.
+- [Detailed blocking composition](docs/blocking.md#detailed-composition). Render matching colour and depth of a textured rig on the retained camera, stairs and one-hand sheet keys.
 - [Sheet handoffs on detailed models](docs/blocking-pass.md) through MCP, with separate joints for both hands, measured grips, frozen poses and motion guides.
 - Roots are folders you choose, with include and exclude globs, per-root thumbnail policy and a minimum file size. Scans are incremental (size and mtime, then SHA-256), run in a process pool, show progress and ETA, and watch folders for changes.
 - Geometry through `trimesh`: triangles, bounding box in mm, volume, surface, watertight flag, body count and a unit guess. GLB and glTF are measured as scenes; FBX goes through Blender when it is installed.
