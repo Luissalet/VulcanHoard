@@ -1,9 +1,11 @@
 """Keep the family's Link API while resolving text/vision only to the global."""
 import asyncio
 import threading
+import time
 from contextvars import ContextVar
 
 from ..hoard_link import Link
+from ..hoard_link.link import _CHAT_DEADLINE
 from ..hoard_link.types import Resolution
 from ..hoard_link.reasoning import timeout_for
 from ..hoard_link._sync import SyncFacade
@@ -74,8 +76,13 @@ class GlobalLink(Link):
         if selection is None or url != selection['url']:
             raise RuntimeError('La llamada no coincide con la selección global fijada.')
         # No retry that could silently remove schema/reasoning constraints.
+        # An explicit chat deadline also governs the HTTP read.
+        deadline = _CHAT_DEADLINE.get()
+        remaining = timeout_for(120.0, level) if deadline is None else deadline - time.monotonic()
+        if remaining <= 0:
+            raise TimeoutError("Global chat deadline expired")
         response = await super()._post_json(provider, url, global_http.pin_payload(payload, selection),
-            timeout=timeout_for(120.0, level), headers=selection['headers'])
+            timeout=remaining, headers=selection['headers'])
         if response.json()['choices'][0].get('finish_reason') != 'stop':
             raise RuntimeError('El servicio global no completó la respuesta.')
         return response

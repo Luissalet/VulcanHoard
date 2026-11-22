@@ -24,6 +24,7 @@ glTF wants), ``.s3d.py`` (the program), ``.preview.png`` and ``.code.json`` (des
 from __future__ import annotations
 
 import json
+import math
 import os
 import re
 import shutil
@@ -37,13 +38,15 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
+import httpx
 import numpy as np
 
 from . import cad
 from . import code_checks as checks
 from .family_tools import import_file, model_ref
 from .gltf_validate import validate_export
-from .hoard_link import atomic, proc
+from .hoard_link import BackendError, atomic, proc
+from .hoard_link.appconfig import env_float
 from .sand3d_runner import check_program
 from .studio.global_http import job as global_job
 from .thumbnail import render
@@ -55,6 +58,10 @@ MAX_ATTEMPTS = 3       # model calls to get a program that runs
 MEASURE_RETRIES = 1    # one more call when it runs but misses the requested measures
 EXAMPLES_IN_PROMPT = 3
 RUN_TIMEOUT_S = float(os.environ.get("VULCAN_CODE_TIMEOUT", "300"))  # a busy machine can take a minute just to import bpy
+DEFAULT_LLM_TIMEOUT_S = 600.0
+LLM_TIMEOUT_S = env_float("VULCAN_CODE_LLM_TIMEOUT", default=DEFAULT_LLM_TIMEOUT_S)
+if not math.isfinite(LLM_TIMEOUT_S) or LLM_TIMEOUT_S <= 0:
+    LLM_TIMEOUT_S = DEFAULT_LLM_TIMEOUT_S
 SRC_LIMIT = 30_000
 HISTORY_LIMIT = 20
 VERSIONS_LIMIT = 5
@@ -363,8 +370,28 @@ def file_path(services, model_id: int, what: str) -> Path:
 @global_job
 def _ask(link, messages: list[dict]) -> str:
     # a program is 40-100 lines: little thinking is needed, and a reasoning model that spends its whole budget thinking ends with finish_reason=length
-    answer = link.sync.chat(messages, max_tokens=12000, effort="low")
+    answer = link.sync.chat(messages, max_tokens=12000, effort="low", timeout=LLM_TIMEOUT_S)
     return answer.text or ""
+
+
+def _model_error(error: Exception) -> CodeModelError:
+    status = error.status if isinstance(error, BackendError) else 0
+    if status == 504:
+        code = "model_timeout"
+        en = "The global language model service reported a timeout (HTTP 504)."
+        es = "El servicio del modelo de lenguaje global agotó su plazo (HTTP 504)."
+    elif isinstance(error, (TimeoutError, httpx.ReadTimeout)) or isinstance(error.__cause__, httpx.ReadTimeout):
+        code = "model_timeout"
+        en = f"Vulcan timed out waiting for the global language model (limit: {LLM_TIMEOUT_S:g} s per call)."
+        es = f"Vulcan agotó el tiempo de espera del modelo de lenguaje global (límite: {LLM_TIMEOUT_S:g} s por petición)."
+    else:
+        code = "model_unavailable"
+        detail = f"HTTP {status}" if status else type(error.__cause__ or error).__name__
+        en = f"The global language model did not return a usable answer ({detail}). Check the model service status."
+        es = f"El modelo de lenguaje global no devolvió una respuesta utilizable ({detail}). Comprueba el estado del servicio."
+    return CodeModelError(code,
+                          en + " Retry later, simplify the request, or run a program from the editor (code_model_run).",
+                          error_es=es + " Vuelve a intentarlo más tarde, simplifica la petición o usa «Ejecutar este código» (code_model_run).")
 
 
 def _retry_message(error: CodeModelError) -> str:
@@ -400,11 +427,15 @@ def write_program(services, messages: list[dict], log, cancelled, name: str, des
             try:
                 text = _ask(services.link, messages)
             except Exception as error:  # noqa: BLE001 - Unavailable, BackendError, timeouts
+                if cancelled():
+                    raise CodeModelError("cancelled", "Cancelled.") from error
+                failure = _model_error(error)
                 if best is not None:
-                    log(f"attempt {attempt}: no model answer, keeping the best program so far")
+                    log(f"attempt {attempt}: {failure.code}, keeping the best program so far")
                     break
-                raise CodeModelError("model_unavailable", f"No language model answered ({type(error).__name__}: {error}). Write the program yourself "
-                                     "(see code_model_status for the reference) and call code_model_run with code=...") from error
+                raise failure from error
+            if cancelled():
+                raise CodeModelError("cancelled", "Cancelled.")
             code = extract_code(text)
             if not code.strip():
                 failures += 1
@@ -481,6 +512,8 @@ def job_view(job: dict) -> dict:
     keys = ("job_id", "kind", "status", "stage", "attempt", "max_attempts", "name", "description", "instruction", "model_id", "created_at", "updated_at",
             "error", "error_code", "result", "requirements", "examples", "edit_mode")
     view = {k: job.get(k) for k in keys}
+    if job.get("error_es"):
+        view["error_es"] = job["error_es"]
     view["log"] = (job.get("log") or [])[-12:]
     view["ok"] = job.get("status") != "failed"
     return view
@@ -539,7 +572,8 @@ def _run_job(services, job: dict) -> None:
         _update(services, job, status="done", stage="done", result=result, model_id=result["id"])
     except CodeModelError as error:
         log(f"failed: {error.code}")
-        _update(services, job, status="cancelled" if error.code == "cancelled" else "failed", error=str(error)[:900], error_code=error.code)
+        _update(services, job, status="cancelled" if error.code == "cancelled" else "failed", error=str(error)[:900],
+                error_code=error.code, error_es=error.details.get("error_es"))
     except Exception as error:  # noqa: BLE001 - a job never dies silently
         log(f"failed: {type(error).__name__}: {error}")
         _update(services, job, status="failed", error=f"{type(error).__name__}: {error}"[:500], error_code="unexpected")
@@ -713,7 +747,8 @@ def status_info(services, install: dict | None = None) -> dict:
     engine = engine_info(services.config.data_dir)
     llm = llm_status(services)
     return {"engine": engine, "llm": llm, "ready": bool(engine.get("installed")), "text_ready": bool(engine.get("installed")) and llm["available"],
-            "limits": {"attempts": MAX_ATTEMPTS, "measure_retries": MEASURE_RETRIES, "run_timeout_s": RUN_TIMEOUT_S, "program_chars": SRC_LIMIT},
+            "limits": {"attempts": MAX_ATTEMPTS, "measure_retries": MEASURE_RETRIES, "run_timeout_s": RUN_TIMEOUT_S,
+                       "llm_timeout_s": LLM_TIMEOUT_S, "program_chars": SRC_LIMIT},
             "examples": [{"id": e["id"], "title": e["title"], "family": e["family"]} for e in checks.load_examples()],
             "api_reference_chars": len(api_doc()), "install": install_state(), "jobs": list_jobs(services, limit=5)}
 
