@@ -13,6 +13,17 @@ from . import global_http
 from .close_client import OwnedAsyncClient, close_client
 
 
+class GlobalCompletionError(RuntimeError):
+    """A successful HTTP response whose generation did not finish normally."""
+
+    def __init__(self, reason):
+        if reason is None or reason in ("length", "content_filter", "tool_calls", "function_call", "abort", "error"):
+            self.reason = reason
+        else:
+            self.reason = "unknown"
+        super().__init__(f"El servicio global no completó la respuesta (finish_reason={self.reason}).")
+
+
 class GlobalSync(SyncFacade):
     def close(self, timeout=None):
         loop, inner, thread = self._loop, self._inner, self._thread
@@ -83,6 +94,7 @@ class GlobalLink(Link):
             raise TimeoutError("Global chat deadline expired")
         response = await super()._post_json(provider, url, global_http.pin_payload(payload, selection),
             timeout=remaining, headers=selection['headers'])
-        if response.json()['choices'][0].get('finish_reason') != 'stop':
-            raise RuntimeError('El servicio global no completó la respuesta.')
+        reason = response.json()['choices'][0].get('finish_reason')
+        if reason != 'stop':
+            raise GlobalCompletionError(reason)
         return response

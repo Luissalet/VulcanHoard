@@ -232,6 +232,52 @@ def test_global_model_job_uses_its_configured_deadline(sim, monkeypatch, outcome
                 assert "300 s" in message
 
 
+@pytest.mark.parametrize(
+    ("reason", "english", "spanish"),
+    [
+        ("length", "token limit (finish_reason=length)", "límite de tokens (finish_reason=length)"),
+        ("content_filter", "content filter (finish_reason=content_filter)", "filtro de contenido (finish_reason=content_filter)"),
+        ("tool_calls", "requested a tool call (finish_reason=tool_calls)", "solicitó llamar a una herramienta (finish_reason=tool_calls)"),
+        ("abort", "generation was aborted (finish_reason=abort)", "generación se interrumpió (finish_reason=abort)"),
+        ("error", "generation error (finish_reason=error)", "error de generación (finish_reason=error)"),
+        (None, "without a finish reason", "sin indicar el motivo de finalización"),
+        ("private-token http://private.invalid", "unrecognised finish reason", "motivo de finalización desconocido"),
+    ],
+)
+def test_incomplete_global_model_reply_has_a_bilingual_job_error(sim, monkeypatch, reason, english, spanish):
+    from vulcan.hoard_link.config import LinkConfig
+    from vulcan.studio import global_http
+    from vulcan.studio.global_link import GlobalLink
+
+    selection = dict(url="http://fixture.invalid/api/global-model/v1/chat/completions", model="test-model",
+                     endpoint_id="test-endpoint", connection_revision="test-revision", headers={})
+    monkeypatch.setattr(global_http, "select_global", lambda *_: selection)
+
+    def respond(request):
+        choice = {"message": {"content": fence(GOOD)}}
+        if reason is not None:
+            choice["finish_reason"] = reason
+        return httpx.Response(200, json={"choices": [choice]})
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(respond))
+    sim.link = GlobalLink(LinkConfig(app="fixture"), client=client)
+    try:
+        started = call_tool(sim, "code_model", {"description": "a plate", "wait": False})
+        job = wait_job(sim, started["job_id"])
+        assert call_tool(sim, "code_model_status", {"job_id": job["job_id"]}) == job
+    finally:
+        sim.link.sync.close()
+        asyncio.run(client.aclose())
+
+    assert (job["status"], job["stage"], job["attempt"], job["error_code"]) == ("failed", "writing", 1, "model_unavailable")
+    assert job["result"] is None and sim.stats.counts()["models"] == 0
+    assert english in job["error"]
+    assert spanish in job["error_es"]
+    for message in (job["error"], job["error_es"]):
+        assert "code_model_run" in message
+        assert "private-token" not in message and "private.invalid" not in message
+
+
 def test_model_timeout_during_measurement_repair_keeps_the_mesh(sim):
     sim.link = FakeChat([fence(GOOD), TimeoutError()])
     job = call_tool(sim, "code_model", {"description": "plate 80 x 40 x 11 mm"})

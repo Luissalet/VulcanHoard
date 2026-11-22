@@ -49,6 +49,7 @@ from .hoard_link import BackendError, atomic, proc
 from .hoard_link.appconfig import env_float
 from .sand3d_runner import check_program
 from .studio.global_http import job as global_job
+from .studio.global_link import GlobalCompletionError
 from .thumbnail import render
 
 RUNNER = Path(__file__).with_name("sand3d_runner.py")
@@ -374,9 +375,32 @@ def _ask(link, messages: list[dict]) -> str:
     return answer.text or ""
 
 
+_GLOBAL_COMPLETION_REASONS = {
+    "length": ("reached its token limit (finish_reason=length)",
+               "alcanzó su límite de tokens (finish_reason=length)"),
+    "content_filter": ("stopped because of a content filter (finish_reason=content_filter)",
+                       "se detuvo por un filtro de contenido (finish_reason=content_filter)"),
+    "tool_calls": ("requested a tool call (finish_reason=tool_calls)",
+                   "solicitó llamar a una herramienta (finish_reason=tool_calls)"),
+    "function_call": ("requested a function call (finish_reason=function_call)",
+                      "solicitó llamar a una función (finish_reason=function_call)"),
+    "abort": ("reported that generation was aborted (finish_reason=abort)",
+              "indicó que la generación se interrumpió (finish_reason=abort)"),
+    "error": ("reported a generation error (finish_reason=error)",
+              "indicó un error de generación (finish_reason=error)"),
+    None: ("ended without a finish reason", "terminó sin indicar el motivo de finalización"),
+    "unknown": ("reported an unrecognised finish reason", "indicó un motivo de finalización desconocido"),
+}
+
+
 def _model_error(error: Exception) -> CodeModelError:
     status = error.status if isinstance(error, BackendError) else 0
-    if status == 504:
+    if isinstance(error, GlobalCompletionError):
+        code = "model_unavailable"
+        reason_en, reason_es = _GLOBAL_COMPLETION_REASONS[error.reason]
+        en = f"The global language model {reason_en}. Vulcan discarded the reply."
+        es = f"El modelo de lenguaje global {reason_es}. Vulcan descartó la respuesta."
+    elif status == 504:
         code = "model_timeout"
         en = "The global language model service reported a timeout (HTTP 504)."
         es = "El servicio del modelo de lenguaje global agotó su plazo (HTTP 504)."

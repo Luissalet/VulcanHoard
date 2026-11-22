@@ -26,7 +26,7 @@ const STAGES = [
 const FINAL = ["done", "failed", "cancelled"];
 const MODEL_REFUSALS = {
   model_timeout: { es: "Se agotó el tiempo de espera del modelo.", en: "The language model request timed out." },
-  model_unavailable: { es: "El modelo de lenguaje no respondió.", en: "The language model did not answer." },
+  model_unavailable: { es: "No se pudo obtener un programa del modelo de lenguaje.", en: "Could not get a program from the language model." },
 };
 const REFUSALS = {
   engine_missing: "El motor sand3d no está instalado. Pulsa «Instalar el motor».",
