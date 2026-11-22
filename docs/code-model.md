@@ -34,6 +34,14 @@ con `VULCAN_CODE_LLM_TIMEOUT` y consultarlo en `limits.llm_timeout_s`. El motor 
 antes de reintentar, simplifica la petición o ejecuta un programa conocido con `code_model_run`. Si el plazo vence
 durante una corrección de medidas, se conserva la mejor malla ya generada.
 
+If the global service returns an unfinished response, the job reports `model_unavailable` and explains its
+finish reason in both fields. For example, `finish_reason=length` means the model used its token budget.
+An unfinished response is discarded before the engine runs, even if it contains a code block.
+
+Si el servicio global devuelve una respuesta incompleta, el trabajo informa de `model_unavailable` y explica
+el motivo de finalización en los dos campos. Por ejemplo, `finish_reason=length` indica que el modelo agotó
+su presupuesto de tokens. La respuesta incompleta se descarta antes de ejecutar el motor, aunque contenga código.
+
 ## Example library
 
 `vulcan/sand3d_examples/` holds eight tested programs, one per family of part, each with named, commented parameters at the top and its
