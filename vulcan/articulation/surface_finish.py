@@ -210,7 +210,11 @@ def add_loft(obj, edit, points, triangles, uv, depth, selected):
     right, up = map(Vector, (edit["right"], edit["up"]))
     normal = right.cross(up).normalized()
     metres = np.array([right.length, up.length, 1])
-    choices = np.flatnonzero(selected)
+    loops = read_array(mesh.loops, "vertex_index", 1, np.int32)
+    # A prior cut can retain vertex indices after removing all their faces.
+    attached = np.zeros(len(selected), dtype=bool)
+    attached[loops] = True
+    choices = np.flatnonzero(selected & attached)
     if not len(choices):
         raise FinishError("The patch needs nearby surface in the chosen region. / El parche necesita superficie cercana dentro de la zona.")
     tree = KDTree(len(choices))
@@ -222,7 +226,6 @@ def add_loft(obj, edit, points, triangles, uv, depth, selected):
     origin = Vector(edit["origin"])
     local = np.asarray([world_to_local @ (origin + right * float(u) + up * float(v) + normal * float(d)) for u, v, d in points],
                        dtype=np.float32)
-    loops = read_array(mesh.loops, "vertex_index", 1, np.int32)
     corners = {}
     needed = set(anchors)
     for i, vertex in enumerate(loops):

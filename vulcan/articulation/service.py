@@ -62,12 +62,29 @@ def run_worker(worker, args, receipt, timeout):
         raise AppError("unavailable", "The mesh engine timed out. / El motor de mallas agotó el plazo.") from exc
     if done.returncode or not receipt.is_file():
         if worker == FINISH_WORKER:
-            error = receipt.with_name("error.txt")
+            error = receipt.with_name("error.json")
             if error.is_file():
-                raise AppError("invalid", error.read_text(encoding="utf-8"))
+                raise finish_worker_error(json.loads(error.read_text(encoding="utf-8")))
         details = proc.tail_lines((done.stdout or "") + "\n" + (done.stderr or ""))
         raise AppError("invalid", "Articulation could not finish. / No se pudo terminar la articulación.",
                        details={"engine": details})
+
+
+def finish_worker_error(error):
+    step = error["step"]
+    target = ""
+    if "edit" in error:
+        target = f" #{error['edit']} ({error['mode']}, {error['part']!r})"
+    elif "part" in error:
+        target = f" ({error['part']!r})"
+    engine = error["engine"]
+    cause = engine["message"]
+    if error["code"] == "finish_engine_error":
+        cause = f"Engine message / Mensaje del motor ({engine['type']}) — {cause}"
+    # The Hub forwards the error text even when it omits the app's structured details.
+    message = (f"[{error['code']}] Articulation finish failed at {step}{target}. / "
+               f"Falló el acabado de la articulación en {step}{target}. {cause}")
+    return AppError("invalid", message, details={"details": error})
 
 
 def build(data_dir, recipe):

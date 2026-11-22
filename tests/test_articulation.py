@@ -369,11 +369,14 @@ def test_articulation_finish_adds_closed_loft_in_selected_pose(services, tmp_pat
         "bones": [{"name": "root", "head": [0, 0, 0], "tail": [0, 0, 1]}],
         "poses": [{"name": "turned", "rotations": {"root": [0, 0, 90]}, "export": False, "cameras": []}],
     })
-    # The source may already have been edited and saved with split normals.
+    # A previous cut can leave loose vertices, including one closer to the loft
+    # than any vertex on the remaining faces. The loft still needs a real corner.
     editable = tmp_path / "custom-normals.blend"
     subprocess.run([
         find_blender(), "-b", "--factory-startup", rig["files"]["scene"], "--python-exit-code", "3", "--python-expr",
-        "import bpy; mesh = bpy.data.objects['body'].data; "
+        "import bmesh, bpy; obj = bpy.data.objects['body']; mesh = obj.data; "
+        "bm = bmesh.new(); bm.from_mesh(mesh); bm.verts.new((-0.13, -0.247, 0.55)); bm.to_mesh(mesh); bm.free(); "
+        "obj.vertex_groups['root'].add([len(mesh.vertices) - 1], 1, 'REPLACE'); "
         "mesh.normals_split_custom_set([(0.2, 0.2, 0.9591663)] * len(mesh.loops)); "
         "assert mesh.has_custom_normals; "
         f"bpy.ops.wm.save_as_mainfile(filepath={str(editable)!r})",
@@ -394,6 +397,13 @@ def test_articulation_finish_adds_closed_loft_in_selected_pose(services, tmp_pat
     with pytest.raises(AppError, match="The patch must fit.*El parche debe quedar") as rejected:
         call_tool(services, "articulation_finish", recipe)
     assert rejected.value.code == "invalid"
+    error = rejected.value.details["details"]
+    assert (error["code"], error["step"], error["edit"], error["mode"], error["part"]) == (
+        "finish_rejected", "surface.loft", 1, "colour", "body",
+    )
+    assert error["engine"]["type"] == "FinishError"
+    assert "[finish_rejected]" in rejected.value.message and "surface.loft #1" in rejected.value.message
+    assert {p.name for p in (services.config.data_dir / "articulation").iterdir()} == {rig["id"], result["id"]}
     change = result["edits"][0]
     assert result["frame"] == 25
     assert change["geometry"] == {"loft_faces": 124, "loft_vertices": 64, "loft_boundary_edges": 0}
