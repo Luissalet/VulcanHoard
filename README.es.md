@@ -16,7 +16,7 @@ La biblioteca se queda en la máquina: SQLite con FTS5 y miniaturas WebP, sin cu
 
 **Biblioteca**
 
-- Articulación de mallas inferidas por MCP con marcas de contacto vinculadas al origen desde el visor, primeros planos comparables, reparación local de encastres, retoque de color y superficie por material a partir de referencias conservadas, sustitución reversible de regiones articuladas, piezas reconstruidas por separado, paneles con una esquina cortada a partir de un expediente de revisión fija y exportación articulada de juego con límite de triángulos.
+- Articulación de mallas inferidas por MCP con marcas de contacto vinculadas al origen desde el visor, primeros planos comparables, reparación local de encastres, retoque de color y superficie por material a partir de referencias conservadas, limpieza configurable de motas claras aisladas, sustitución reversible de regiones articuladas, piezas reconstruidas por separado, paneles con una esquina cortada a partir de un expediente de revisión fija y exportación articulada de juego con límite de triángulos.
 - [Bloqueo de primitivas](docs/blocking.md) por MCP. Crea una toma editable con dos manos sencillas y accesorios opcionales, exporta un GLB articulado y obtiene mapas de la misma cámara, capas transparentes y contactos de agarre por clave.
 - [Composición de bloqueos con un rig detallado](docs/blocking.md#composición-detallada). Renderiza color y profundidad con la cámara, la escalera y las claves de agarre a una mano conservadas.
 - [Pase de hoja en modelos detallados](docs/blocking-pass.md) por MCP, con articulaciones para ambas manos, medida de los agarres, poses congeladas y guías de vídeo.

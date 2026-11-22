@@ -1,4 +1,5 @@
 import json
+import subprocess
 from hashlib import sha256
 from pathlib import Path
 
@@ -368,17 +369,31 @@ def test_articulation_finish_adds_closed_loft_in_selected_pose(services, tmp_pat
         "bones": [{"name": "root", "head": [0, 0, 0], "tail": [0, 0, 1]}],
         "poses": [{"name": "turned", "rotations": {"root": [0, 0, 90]}, "export": False, "cameras": []}],
     })
+    # The source may already have been edited and saved with split normals.
+    editable = tmp_path / "custom-normals.blend"
+    subprocess.run([
+        find_blender(), "-b", "--factory-startup", rig["files"]["scene"], "--python-exit-code", "3", "--python-expr",
+        "import bpy; mesh = bpy.data.objects['body'].data; "
+        "mesh.normals_split_custom_set([(0.2, 0.2, 0.9591663)] * len(mesh.loops)); "
+        "assert mesh.has_custom_normals; "
+        f"bpy.ops.wm.save_as_mainfile(filepath={str(editable)!r})",
+    ], check=True, capture_output=True, timeout=60)
     image = tmp_path / "art.png"
     Image.new("RGB", (8, 8), (128, 64, 32)).save(image)
-    result = call_tool(services, "articulation_finish", {
-        "source": rig["files"]["scene"], "source_sha256": rig["artifacts"]["scene"]["sha256"], "frame": 25,
+    recipe = {
+        "source": str(editable), "source_sha256": sha256(editable.read_bytes()).hexdigest(), "frame": 25,
         "edits": [{"mode": "colour", "part": "body", "path": str(image), "sha256": sha256(image.read_bytes()).hexdigest(),
                    "origin": [-0.65, -0.65, 0], "right": [1.3, 0, 0], "up": [0, 1.3, 0],
                    "depth": [-0.55, 0.8], "min_facing": -1, "surface": {"loft": [
                        {"v": 0.4, "u": 0.6, "depth": 0.55, "radius_u": 0.09, "radius_depth_m": 0.1},
                        {"v": 0.7, "u": 0.68, "depth": 0.56, "radius_u": 0.07, "radius_depth_m": 0.1},
                    ]}}],
-    })
+    }
+    result = call_tool(services, "articulation_finish", recipe)
+    recipe["edits"][0]["surface"]["loft"][0]["radius_u"] = 0.61
+    with pytest.raises(AppError, match="The patch must fit.*El parche debe quedar") as rejected:
+        call_tool(services, "articulation_finish", recipe)
+    assert rejected.value.code == "invalid"
     change = result["edits"][0]
     assert result["frame"] == 25
     assert change["geometry"] == {"loft_faces": 124, "loft_vertices": 64, "loft_boundary_edges": 0}
@@ -478,6 +493,55 @@ def test_local_finish_replaces_only_visible_colour_and_preserves_the_rig(service
     assert all(not Path(path).exists() for path in result["views"].values())
     call_tool(services, "articulation_undo", withdrawn["undo"])
     assert call_tool(services, "articulation_get", {"id": result["id"]}) == result
+
+
+@pytest.mark.skipif(find_blender() is None, reason="Blender is not installed")
+def test_bright_despeckle_removes_a_wide_spot_and_keeps_the_stripe(services, tmp_path):
+    source = tmp_path / "fabric.glb"
+    ticks = np.arange(-12, 13) * 0.001
+    vertices = np.array([(x, 0.1, -y) for y in ticks for x in ticks])
+    faces = []
+    for row in range(len(ticks) - 1):
+        for col in range(len(ticks) - 1):
+            i = row * len(ticks) + col
+            faces.extend([(i, i + 1, i + len(ticks) + 1), (i, i + len(ticks) + 1, i + len(ticks))])
+    x, y = vertices[:, 0], -vertices[:, 2]
+    spot = np.hypot(x + 0.004, y) < 0.0025
+    # At this fold the clean cloth lies farther back than the search radius.
+    vertices[spot, 1] += 0.008
+    stripe = (x > 0.0045) & (x < 0.0065)
+    dark = np.hypot(x + 0.004, y - 0.007) < 0.0015
+    colours = np.tile([112, 112, 112, 255], (len(vertices), 1))
+    colours[spot | stripe, :3] = 205
+    colours[dark, :3] = 48
+    mesh = trimesh.Trimesh(vertices, faces, process=False)
+    mesh.visual.vertex_colors = colours
+    mesh.export(source)
+    rig = call_tool(services, "articulation_build", {
+        "source": str(source), "selection_views": False, "body_bone": "root",
+        "bones": [{"name": "root", "head": [0, 0, 0], "tail": [0, 0, 1]}],
+    })
+    gltf, _ = read_gltf(Path(rig["files"]["rigged"]))
+    material = gltf["materials"][gltf["meshes"][0]["primitives"][0]["material"]]["name"]
+    result = call_tool(services, "articulation_finish", {
+        "source": rig["files"]["scene"], "source_sha256": rig["artifacts"]["scene"]["sha256"],
+        "view_size": 256, "cameras": [{"name": "top", "direction": [0, 0, 1]}],
+        "edits": [{"mode": "despeckle", "region": {"part": "body", "material": material,
+                             "view": {"origin": [-0.014, -0.014, 0], "right": [0.028, 0, 0],
+                                      "up": [0, 0.028, 0], "depth": [0.09, 0.12]}},
+                   "polarity": "bright", "radius_m": 0.005, "max_spot_m": 0.006, "threshold": 0.04}],
+    })
+    assert result["edits"][0]["spots"] == 1
+    before = trimesh.load(rig["files"]["rigged"], force="scene", process=False)
+    after = trimesh.load(result["files"]["rigged"], force="scene", process=False)
+    old, new = (scene.geometry[scene.graph["body"][1]] for scene in (before, after))
+    assert np.array_equal(old.faces, new.faces)
+    assert np.array_equal(old.vertices, new.vertices)
+    x, y = new.vertices[:, 0], -new.vertices[:, 2]
+    spot = np.hypot(x + 0.004, y) < 0.0025
+    before_colour, after_colour = (mesh.visual.vertex_attributes["color"] for mesh in (old, new))
+    assert spot.any() and np.all(after_colour[spot, 0] < before_colour[spot, 0])
+    np.testing.assert_array_equal(after_colour[~spot], before_colour[~spot])
 
 
 @pytest.mark.skipif(find_blender() is None, reason="Blender is not installed")

@@ -7,6 +7,7 @@ import bpy
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent))
+from finish_error import FinishError  # noqa: E402
 from worker import export_glb  # noqa: E402
 from local_finish import apply as apply_local  # noqa: E402
 from finish_preview import Preview  # noqa: E402
@@ -43,7 +44,7 @@ def sample(image, uv, crop):
     width, height = image.size
     x0, y0, x1, y1 = crop or (0, 0, width, height)
     if not (0 <= x0 < x1 <= width and 0 <= y0 < y1 <= height):
-        raise ValueError("The crop is outside the reference image. / El recorte queda fuera de la imagen de referencia.")
+        raise FinishError("The crop is outside the reference image. / El recorte queda fuera de la imagen de referencia.")
     x = x0 + (x1 - x0 - 1) * uv[:, 0]
     y = height - y1 + (y1 - y0 - 1) * uv[:, 1]
     left, bottom = x.astype(int), y.astype(int)
@@ -71,7 +72,7 @@ def mask_distance(edit, uv):
 def paint_colour(mesh, image, edit, uv, depth, facing, loft_start=None):
     colour = mesh.color_attributes.get(edit["attribute"]) if edit["attribute"] else mesh.color_attributes.active_color
     if colour is None or colour.domain not in {"POINT", "CORNER"}:
-        raise ValueError("Choose an existing point or corner colour attribute. / Elige un atributo de color en vértices o esquinas.")
+        raise FinishError("Choose an existing point or corner colour attribute. / Elige un atributo de color en vértices o esquinas.")
     low, high = edit["depth"]
     distance = mask_distance(edit, uv)
     chosen = (distance > 0) & (depth >= low) & (depth <= high) & (facing >= edit["min_facing"])
@@ -79,7 +80,7 @@ def paint_colour(mesh, image, edit, uv, depth, facing, loft_start=None):
         chosen[:loft_start] = False
     selected = np.flatnonzero(chosen)
     if not len(selected):
-        raise ValueError("The colour patch missed the surface. / La proyección de color no alcanza la superficie.")
+        raise FinishError("The colour patch missed the surface. / La proyección de color no alcanza la superficie.")
     pixels = sample(image, uv[selected], edit["crop"])
     opacity = pixels[:, 3] * edit["opacity"]
     if edit["feather"]:
@@ -93,7 +94,7 @@ def paint_colour(mesh, image, edit, uv, depth, facing, loft_start=None):
     weight = opacity[offsets, None]
     visible = weight[:, 0] > 0
     if not visible.any():
-        raise ValueError("The projected artwork is transparent. / La imagen proyectada es transparente.")
+        raise FinishError("The projected artwork is transparent. / La imagen proyectada es transparente.")
     indices, offsets, weight = indices[visible], offsets[visible], weight[visible]
     # Read in bulk. Write only affected elements, leaving all other values intact.
     original = mesh_values(colour.data, "color", 4)[indices]
@@ -121,7 +122,7 @@ def repair_surface(obj, edit, uv, depth, facing):
     if settings.get("loft"):
         points, triangles = loft_geometry(settings["loft"])
         if np.any(mask_distance(edit, points[:, :2]) <= 0) or np.any((points[:, 2] < low) | (points[:, 2] > high)):
-            raise ValueError("The patch must fit inside the selected region. / El parche debe quedar dentro de la zona elegida.")
+            raise FinishError("The patch must fit inside the selected region. / El parche debe quedar dentro de la zona elegida.")
         loft_start = len(obj.data.vertices)
         result.update(add_loft(obj, edit, points, triangles, uv, depth, selected))
         bpy.context.view_layer.update()
@@ -129,7 +130,7 @@ def repair_surface(obj, edit, uv, depth, facing):
         if len(uv) != loft_start + len(points) or not np.allclose(
             np.column_stack((uv[loft_start:], depth[loft_start:])), points, atol=1e-5
         ):
-            raise ValueError("The patch does not match the selected pose. / El parche no coincide con la pose elegida.")
+            raise FinishError("The patch does not match the selected pose. / El parche no coincide con la pose elegida.")
         selected = np.arange(len(uv)) >= loft_start
         distance = mask_distance(edit, uv)
     if settings["smooth_iterations"]:
@@ -152,7 +153,7 @@ def repair_surface(obj, edit, uv, depth, facing):
 def apply_image(obj, image, uv):
     mesh = obj.data
     if not len(mesh.polygons) or np.any(np.ptp(uv, axis=0) < 1e-6):
-        raise ValueError("The projection has no surface area. / La proyección no tiene superficie.")
+        raise FinishError("The projection has no surface area. / La proyección no tiene superficie.")
     layer = mesh.uv_layers.new(name="Projected artwork", do_init=False)
     points = mesh_values(mesh.loops, "vertex_index", 1, np.int32).ravel()
     layer.uv.foreach_set("vector", uv[points].astype(np.float32).ravel())
@@ -167,7 +168,7 @@ def apply_image(obj, image, uv):
         tree = material.node_tree
         shader = next((node for node in tree.nodes if node.type == "BSDF_PRINCIPLED"), None)
         if shader is None:
-            raise ValueError("Use a material with a Principled shader. / Usa un material con un sombreador Principled.")
+            raise FinishError("Use a material with a Principled shader. / Usa un material con un sombreador Principled.")
         coordinates = tree.nodes.new("ShaderNodeUVMap")
         coordinates.uv_map = layer.name
         texture = tree.nodes.new("ShaderNodeTexImage")
@@ -196,7 +197,7 @@ def main(source, recipe, output):
              if modifier.type == "ARMATURE" and modifier.object}
     rigs = [obj for obj in scene.objects if obj in bound]
     if not rigs:
-        raise ValueError("Use an editable articulation with a rig. / Usa una articulación editable con un esqueleto.")
+        raise FinishError("Use an editable articulation with a rig. / Usa una articulación editable con un esqueleto.")
     preview = Preview(scene, recipe, objects, rigs) if recipe.get("cameras") else None
     views = preview.capture(output, "before") if preview else []
     changes = []
@@ -208,18 +209,18 @@ def main(source, recipe, output):
         part = region["part"] if region else edit["part"]
         matches = [obj for obj in objects if obj["articulation_part"] == part]
         if len(matches) != 1:
-            raise ValueError("Expected one matching articulated part. / Se esperaba una única pieza articulada con ese nombre.")
+            raise FinishError("Expected one matching articulated part. / Se esperaba una única pieza articulada con ese nombre.")
         obj = matches[0]
         if any(modifier.show_viewport and modifier.type != "ARMATURE" for modifier in obj.modifiers):
-            raise ValueError("Use a part with only armature deformation. / Usa una pieza cuya única deformación sea la del esqueleto.")
+            raise FinishError("Use a part with only armature deformation. / Usa una pieza cuya única deformación sea la del esqueleto.")
         if obj.data.users > 1:
             obj.data = obj.data.copy()
         if region:
             replaces_surface = edit["mode"] in {"replace_mesh", "rebuild_patch"}
             if replaces_surface and any(obj["articulation_part"] == edit["name"] for obj in objects):
-                raise ValueError("Use a new part name. / Usa un nombre de pieza nuevo.")
+                raise FinishError("Use a new part name. / Usa un nombre de pieza nuevo.")
             if region["face_ranges"] and part in modified_topology:
-                raise ValueError("Face ranges refer to the input scene. / Los tramos de caras se refieren a la escena de entrada.")
+                raise FinishError("Face ranges refer to the input scene. / Los tramos de caras se refieren a la escena de entrada.")
             if replaces_surface and obj.name in normal_patches:
                 finish_normals(obj, original_vertices[obj.name], normal_patches.pop(obj.name))
             replacement, change = apply_local(obj, edit, mask_distance, sample)
@@ -277,4 +278,8 @@ def main(source, recipe, output):
 
 if __name__ == "__main__":
     source_path, recipe_path, output_path = map(Path, sys.argv[sys.argv.index("--") + 1:])
-    main(source_path, json.loads(recipe_path.read_text(encoding="utf-8")), output_path)
+    try:
+        main(source_path, json.loads(recipe_path.read_text(encoding="utf-8")), output_path)
+    except FinishError as exc:
+        (output_path / "error.txt").write_text(str(exc), encoding="utf-8")
+        raise
