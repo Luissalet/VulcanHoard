@@ -254,4 +254,3 @@ def smooth_surface(obj, strength, settings):
     distance = np.linalg.norm((coords[selected] - original[selected]) @ matrix.T, axis=1)
     return {"vertices_moved": int(np.count_nonzero(distance)),
             "max_movement_m": float(distance.max(initial=0))}
-
