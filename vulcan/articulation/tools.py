@@ -172,11 +172,7 @@ class Build(Args):
         return self
 
 
-class Projection(Args):
-    part: str = Field(min_length=1, max_length=100, description="Name of the articulated mesh. / Nombre de la malla articulada.")
-    path: str = Field(description="Absolute PNG or JPEG path. / Ruta absoluta a un PNG o JPEG.")
-    sha256: Digest
-    reference: str | None = Field(None, max_length=500)
+class ProjectionAxes(Args):
     origin: Vec = Field(description="Lower left of the projection in world metres. / Esquina inferior izquierda de la proyección en metros de escena.")
     right: Vec = Field(description="Full width vector towards image right. / Vector de anchura completa hacia la derecha de la imagen.")
     up: Vec = Field(description="Full height vector towards image top. / Vector de altura completa hacia arriba en la imagen.")
@@ -187,6 +183,13 @@ class Projection(Args):
         if min(width, height) < 1e-6 or abs(sum(a * b for a, b in zip(self.right, self.up))) > 1e-6 * width * height:
             raise ValueError("Use nonzero perpendicular projection axes. / Usa ejes de proyección perpendiculares y no nulos.")
         return self
+
+
+class Projection(ProjectionAxes):
+    part: str = Field(min_length=1, max_length=100, description="Name of the articulated mesh. / Nombre de la malla articulada.")
+    path: str = Field(description="Absolute PNG or JPEG path. / Ruta absoluta a un PNG o JPEG.")
+    sha256: Digest
+    reference: str | None = Field(None, max_length=500)
 
 
 class LoftSection(Args):
@@ -239,6 +242,18 @@ class SurfaceFinish(Args):
         return self
 
 
+def validate_region(depth, mask):
+    if depth[0] > depth[1]:
+        raise ValueError("Depth bounds are reversed. / Los límites de profundidad están invertidos.")
+    if mask:
+        edges = list(zip(mask, mask[1:] + mask[:1]))
+        if len(set(mask)) != len(mask) or len(mask) < 3 or any(
+            (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0]) <= 0
+            for a, b in edges for p in mask if p not in (a, b)
+        ):
+            raise ValueError("Use a convex counterclockwise mask. / Usa una máscara convexa antihoraria.")
+
+
 class ColourProjection(Projection):
     mode: Literal["colour"]
     depth: tuple[FiniteFloat, FiniteFloat] = Field(
@@ -256,21 +271,13 @@ class ColourProjection(Projection):
 
     @model_validator(mode="after")
     def check_region(self):
-        if self.depth[0] > self.depth[1]:
-            raise ValueError("Depth bounds are reversed. / Los límites de profundidad están invertidos.")
+        validate_region(self.depth, self.mask)
         if self.surface and self.surface.depth and not (
             self.depth[0] <= self.surface.depth[0] <= self.surface.depth[1] <= self.depth[1]
         ):
             raise ValueError("Geometry depth must be inside colour depth. / La profundidad de la geometría debe quedar dentro de la del color.")
         if self.crop and (self.crop[0] >= self.crop[2] or self.crop[1] >= self.crop[3]):
             raise ValueError("The crop must have a positive width and height. / El recorte debe tener anchura y altura positivas.")
-        if self.mask:
-            edges = list(zip(self.mask, self.mask[1:] + self.mask[:1]))
-            if len(set(self.mask)) != len(self.mask) or len(self.mask) < 3 or any(
-                (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0]) <= 0
-                for a, b in edges for p in self.mask if p not in (a, b)
-            ):
-                raise ValueError("Use a convex counterclockwise mask. / Usa una máscara convexa antihoraria.")
         return self
 
 
@@ -278,12 +285,151 @@ class ImageProjection(Projection):
     mode: Literal["image"]
 
 
+class ViewBox(ProjectionAxes):
+    depth: tuple[FiniteFloat, FiniteFloat] = Field(description="Signed depth bounds along right × up. / Límites de profundidad con signo en la dirección right × up.")
+    mask: list[tuple[Unit, Unit]] = Field(default_factory=list, max_length=32,
+        description="Convex counterclockwise mask in view coordinates. / Máscara convexa antihoraria en coordenadas de la vista.")
+
+    @model_validator(mode="after")
+    def check_box(self):
+        validate_region(self.depth, self.mask)
+        return self
+
+
+class LocalRegion(Args):
+    part: str = Field(min_length=1, max_length=100)
+    material: str = Field(min_length=1, max_length=100, description="Exact material name. / Nombre exacto del material.")
+    view: ViewBox | None = None
+    group: str | None = Field(None, min_length=1, max_length=100, description="Existing vertex group. / Grupo de vértices existente.")
+    face_ranges: list[tuple[FaceIndex, FaceIndex]] = Field(default_factory=list, max_length=20000,
+        description="Inclusive face ranges in the pinned editable scene. / Tramos inclusivos de caras en la escena editable fijada.")
+
+    @model_validator(mode="after")
+    def check_selection(self):
+        if not (self.view or self.group or self.face_ranges):
+            raise ValueError("Choose a view, vertex group or face ranges. / Elige una vista, un grupo de vértices o tramos de caras.")
+        if any(first > last for first, last in self.face_ranges):
+            raise ValueError("Face bounds are reversed. / Los límites de caras están invertidos.")
+        return self
+
+
+class LocalEdit(Args):
+    region: LocalRegion
+
+
+class LocalPaint(LocalEdit):
+    mode: Literal["replace_colour"]
+    path: str = Field(description="Absolute path to retained PNG or JPEG. / Ruta absoluta al PNG o JPEG conservado.")
+    sha256: Digest
+    reference: str | None = Field(None, max_length=500)
+    crop: tuple[FaceIndex, FaceIndex, FaceIndex, FaceIndex] | None = None
+    attribute: str | None = Field(None, max_length=100)
+
+    visibility_directions: list[Vec] = Field(default_factory=list, max_length=4,
+        description="Additional directions towards the viewer. All samples use the same artwork projection. / Direcciones adicionales hacia el visor. Todas las muestras usan la misma proyección de la ilustración.")
+
+    @model_validator(mode="after")
+    def check_region(self):
+        if not self.region.view:
+            raise ValueError("A colour replacement needs a view. / La sustitución de color requiere una vista.")
+        if any(math.hypot(*vector) < 1e-6 for vector in self.visibility_directions):
+            raise ValueError("Use nonzero viewing directions. / Usa direcciones de vista no nulas.")
+        if self.crop and (self.crop[0] >= self.crop[2] or self.crop[1] >= self.crop[3]):
+            raise ValueError("Use a positive image crop. / Usa un recorte de imagen con dimensiones positivas.")
+        return self
+
+
+class Despeckle(LocalEdit):
+    mode: Literal["despeckle"]
+    attribute: str | None = Field(None, max_length=100)
+    radius_m: Positive = Field(description="Neighbour radius in metres. / Radio de la vecindad en metros.")
+    threshold: Annotated[FiniteFloat, Field(gt=0, le=1)] = Field(description="Minimum RGB deviation in linear colour. / Desviación RGB mínima en color lineal.")
+    max_spot_m: Positive = Field(description="Maximum spot diameter in metres. / Diámetro máximo de una mota en metros.")
+
+
+class LocalSmooth(LocalEdit):
+    mode: Literal["smooth"]
+    iterations: int = Field(8, ge=1, le=50)
+    max_displacement_m: Positive
+    radius_m: Positive | None = Field(None, description="Fit depths across disconnected triangles in a view, in metres. / Ajusta la profundidad entre triángulos desconectados en la vista, en metros.")
+
+    @model_validator(mode="after")
+    def check_depth_fit(self):
+        if self.radius_m and not self.region.view:
+            raise ValueError("Depth fitting needs a view. / El ajuste de profundidad requiere una vista.")
+        return self
+
+
+class RebuildPatch(LocalEdit):
+    mode: Literal["rebuild_patch"]
+    name: Name
+    path: str | None = Field(None, description="Absolute path to retained PNG or JPEG. / Ruta absoluta al PNG o JPEG conservado.")
+    sha256: Digest | None = None
+    reference: str | None = Field(None, max_length=500)
+    crop: tuple[FaceIndex, FaceIndex, FaceIndex, FaceIndex] | None = None
+    attribute: str | None = Field(None, max_length=100)
+    samples: int = Field(72, ge=24, le=160, description="Samples across the longest side. / Muestras a lo ancho del lado más largo.")
+    smooth_m: Positive = Field(0.002, description="Depth smoothing radius in metres. / Radio de alisado de profundidad en metros.")
+    feather: Annotated[FiniteFloat, Field(ge=0.01, le=0.24)] = Field(0.07, description="Width of the transition to the original edge in view units. / Anchura de transición al borde original en unidades de la vista.")
+
+    @model_validator(mode="after")
+    def check_patch(self):
+        if not self.region.view:
+            raise ValueError("A rebuilt patch needs a view. / El parche reconstruido requiere una vista.")
+        if bool(self.path) != bool(self.sha256) or (self.crop and not self.path):
+            raise ValueError("Provide the artwork path and digest together. / Indica juntos la ruta y la huella de la ilustración.")
+        if self.crop and (self.crop[0] >= self.crop[2] or self.crop[1] >= self.crop[3]):
+            raise ValueError("Use a positive image crop. / Usa un recorte de imagen con dimensiones positivas.")
+        return self
+
+
+class FitTarget(Args):
+    path: str = Field(description="Absolute path to a self-contained GLB in local rest coordinates. / Ruta absoluta a un GLB autocontenido en coordenadas locales de reposo.")
+    sha256: Digest
+    reference: str | None = Field(None, max_length=500)
+
+
+class SurfaceFit(Args):
+    center: Vec = Field(description="Point inside the fitting surface in local rest metres. / Punto dentro de la superficie de ajuste en metros locales de reposo.")
+    target: FitTarget | None = Field(None, description="Independent fitting surface in the same rest coordinates. / Superficie de ajuste independiente en las mismas coordenadas de reposo.")
+    bounds: tuple[Vec, Vec] | None = Field(None, description="Low and high corners restricting the new vertices fitted. / Esquinas mínima y máxima que acotan los vértices nuevos que se ajustan.")
+    clearance_m: Annotated[FiniteFloat, Field(ge=0)] = Field(0.001, description="Radial clearance over the sampled surface in metres. / Separación radial respecto a la superficie muestreada en metros.")
+    max_adjustment_m: Positive = Field(description="Maximum radial movement in metres. / Desplazamiento radial máximo en metros.")
+    smooth_iterations: int = Field(8, ge=0, le=50, description="Neighbour passes for the radial offsets. / Pasadas de alisado de los desplazamientos radiales.")
+
+    @model_validator(mode="after")
+    def check_bounds(self):
+        if self.bounds and any(a >= b for a, b in zip(*self.bounds)):
+            raise ValueError("Use ordered fit bounds. / Ordena los límites del ajuste.")
+        return self
+
+
+class ReplaceMesh(LocalEdit):
+    mode: Literal["replace_mesh"]
+    path: str = Field(description="Absolute path to one unrigged GLB mesh in the part's local rest coordinates. / Ruta absoluta a un GLB sin rig en coordenadas locales de reposo de la pieza.")
+    sha256: Digest
+    reference: str | None = Field(None, max_length=500)
+    fit: SurfaceFit | None = Field(None, description="Fit the replacement to the removed surface before transferring weights. / Ajusta la sustitución a la superficie retirada antes de transferir los pesos.")
+    name: Name
+
+
 class Finish(Args):
     source: str = Field(description="Absolute editable articulation .blend path. / Ruta absoluta al .blend editable de articulación.")
     source_sha256: Digest
     source_ref: str | None = Field(None, max_length=500)
     frame: int | None = Field(None, description="Projection frame; defaults to the saved frame. / Fotograma de proyección. Por defecto usa el guardado.")
-    edits: list[Annotated[ColourProjection | ImageProjection, Field(discriminator="mode")]] = Field(min_length=1, max_length=16)
+    edits: list[Annotated[ColourProjection | ImageProjection | LocalPaint | Despeckle | LocalSmooth | RebuildPatch | ReplaceMesh,
+                          Field(discriminator="mode")]] = Field(min_length=1, max_length=16)
+    cameras: list[Camera] = Field(default_factory=list, max_length=8)
+    view_size: int = Field(384, ge=256, le=1024)
+
+    @model_validator(mode="after")
+    def check_views(self):
+        if any(isinstance(edit, LocalEdit) for edit in self.edits) and not self.cameras:
+            raise ValueError("Provide comparison cameras. / Indica las cámaras para la comparación.")
+        if len({camera.name for camera in self.cameras}) != len(self.cameras):
+            raise ValueError("Use distinct camera names. / Usa nombres de cámara distintos.")
+        return self
 
 
 class Lookup(Args):
@@ -353,9 +499,9 @@ TOOLS = [
          Build, ann(draft_safe=True), build, timeout_s=600, capped=False),
     Tool("articulation_finish", "Project retained artwork onto a rig. Proyecta ilustraciones de referencia sobre una articulación.\n"
          "Paint local colour, optionally closing holes, adding a bounded patch and smoothing, or map an image to a part. Keeps the rig and animation. "
-         "Returns an editable scene and skinned GLB. Undo: articulation_undo. "
+         "Add material-scoped colour replacement, speck cleaning, smoothing, a continuous textured patch or a skinned mesh swap fitted to an independent surface, with before/after views. Undo: articulation_undo. "
          "Reproyecta color localizado, con relleno, parche acotado y alisado opcionales, o aplica una imagen a una pieza. Conserva esqueleto y animación. "
-         "Devuelve escena editable y GLB articulado. Deshacer: articulation_undo.\n"
+         "Sustituye color o malla, limpia motas, alisa o reconstruye un parche continuo por material. Ajusta la malla a una superficie de referencia. Incluye vistas antes y después. Deshacer: articulation_undo.\n"
          "Sinónimos: reparar huecos y escalones, reproyectar el color de la cara, aplicar tinta al mapa, texturizar una pieza articulada.",
          Finish, ann(draft_safe=True), finish, timeout_s=600, capped=False),
     Tool("articulation_get", "Read an articulation package. Consulta de articulación.\nReturns its revision, measurements and files. "

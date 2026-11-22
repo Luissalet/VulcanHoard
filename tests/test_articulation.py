@@ -391,3 +391,138 @@ def test_articulation_finish_adds_closed_loft_in_selected_pose(services, tmp_pat
     assert np.allclose(colours[loft_faces], [0.21586, 0.05127, 0.01444], atol=2e-5)
     shell = trimesh.Trimesh(vertices=geom.vertices, faces=loft_faces, process=True)
     assert shell.is_watertight and shell.is_winding_consistent and shell.volume > 0
+
+
+@pytest.mark.skipif(find_blender() is None, reason="Blender is not installed")
+@pytest.mark.parametrize("radius_m", [None, 0.031])
+def test_local_finish_replaces_only_visible_colour_and_preserves_the_rig(services, tmp_path, radius_m):
+    source = tmp_path / "layers.glb"
+    coordinates = np.linspace(-0.06, 0.06, 7)
+    vertices = np.array([(x, depth, -y) for depth in [0.2, 0.1] for y in coordinates for x in coordinates])
+    speck = 3 * 7 + 5
+    vertices[speck, 1] += 0.004
+    faces = []
+    for offset in (0, 49):
+        for row in range(6):
+            for column in range(6):
+                point = offset + 7 * row + column
+                faces.extend([(point, point + 1, point + 8), (point, point + 8, point + 7)])
+    mesh = trimesh.Trimesh(vertices, faces, process=False)
+    colours = np.tile([110, 110, 110, 255], (98, 1))
+    colours[speck, :3] = 245
+    mesh.visual.vertex_colors = colours
+    mesh.export(source)
+    rig = call_tool(services, "articulation_build", {
+        "source": str(source), "body_bone": "root", "selection_views": False,
+        "bones": [{"name": "root", "head": [0, 0, 0], "tail": [0, 0, 1]}],
+        "poses": [{"name": "turned", "rotations": {"root": [0, 0, 90]}, "export": False, "cameras": []}],
+    })
+    original, _ = read_gltf(Path(rig["files"]["rigged"]))
+    material = original["materials"][original["meshes"][0]["primitives"][0]["material"]]["name"]
+    art = tmp_path / "paint.png"
+    Image.new("RGB", (8, 8), (210, 80, 30)).save(art)
+    replacement = tmp_path / "replacement.glb"
+    trimesh.creation.icosphere(subdivisions=1, radius=0.008).apply_translation([0.05, 0.11, -0.05]).export(replacement)
+    left = {"origin": [-0.065, -0.07, 0], "right": [0.06, 0, 0], "up": [0, 0.14, 0], "depth": [0, 0.23]}
+    right = {"origin": [0.01, -0.07, 0], "right": [0.06, 0, 0], "up": [0, 0.14, 0], "depth": [0, 0.23]}
+    region = {"part": "body", "material": material}
+    fit = {"center": [0.05, 0.05, 0.05], "clearance_m": 0.001, "max_adjustment_m": 0.025}
+    if radius_m:
+        support = tmp_path / "fitting-surface.glb"
+        trimesh.Trimesh(vertices=[[0, 0.107, 0], [0.1, 0.107, 0], [0.1, 0.107, -0.1], [0, 0.107, -0.1]],
+                        faces=[[0, 1, 2], [0, 2, 3]], process=False).export(support)
+        fit["target"] = {"path": str(support), "sha256": sha256(support.read_bytes()).hexdigest()}
+    result = call_tool(services, "articulation_finish", {
+        "source": rig["files"]["scene"], "source_sha256": rig["artifacts"]["scene"]["sha256"],
+        "view_size": 256, "cameras": [{"name": "top", "direction": [0, 0, 1]}],
+        "edits": [
+            {"mode": "replace_colour", "region": {**region, "view": left}, "path": str(art),
+             "visibility_directions": [[0, 0, 1]],
+             "sha256": sha256(art.read_bytes()).hexdigest()},
+            {"mode": "despeckle", "region": {**region, "view": right},
+             "radius_m": 0.031, "threshold": 0.25, "max_spot_m": 0.015},
+            {"mode": "smooth", "region": {**region, "view": right},
+             "iterations": 4, "max_displacement_m": 0.001, "radius_m": radius_m},
+            {"mode": "replace_mesh", "region": {**region, "group": "root", "face_ranges": [[142, 143]]},
+             "path": str(replacement), "sha256": sha256(replacement.read_bytes()).hexdigest(), "name": "New_part", "fit": fit},
+        ],
+    })
+    painted, cleaned, smoothed, swapped = result["edits"]
+    assert painted["samples_written"] > 0
+    assert cleaned["spots"] == 1 and cleaned["samples_written"] > 0
+    assert 0 < smoothed["max_movement_m"] <= 0.001001
+    assert swapped["faces_removed"] == 2 and swapped["faces_added"] == 80 and swapped["vertices_weighted"] == 42
+    assert swapped["fit"]["fitted_vertices"] == 42
+    assert 0.002 < swapped["fit"]["max_movement_m"] <= fit["max_adjustment_m"]
+    if radius_m:
+        assert swapped["fit"]["target"]["sha256"] == fit["target"]["sha256"]
+        assert "file" not in swapped["fit"]["target"]
+    scene = trimesh.load(result["files"]["rigged"], force="scene", process=False)
+    body = scene.geometry[scene.graph["body"][1]]
+    rgb = body.visual.vertex_attributes["color"][:, :3]
+    back = body.vertices[:, 1] < 0.15
+    front_left = ~back & (body.vertices[:, 0] < -0.01)
+    assert len(body.faces) == 142
+    np.testing.assert_allclose(rgb[back], np.broadcast_to(rgb[back][0], rgb[back].shape))
+    assert np.all(rgb[front_left, 0] > 3 * rgb[front_left, 1])
+    unpainted = rgb[~back & (body.vertices[:, 0] > 0.01)]
+    np.testing.assert_allclose(unpainted, np.broadcast_to(rgb[back][0], unpainted.shape))
+    final, _ = read_gltf(Path(result["files"]["rigged"]))
+    assert len(original["animations"][0]["channels"]) == len(final["animations"][0]["channels"])
+    assert len(final["skins"][0]["joints"]) == 1
+    for name, path in result["views"].items():
+        assert sha256(Path(path).read_bytes()).hexdigest() == result["view_artifacts"][name]["sha256"]
+        assert Image.open(path).size == (256, 256)
+    assert set(result["views"]) == {"before-top.png", "after-top.png"}
+    withdrawn = call_tool(services, "articulation_undo", result["undo"])
+    assert all(not Path(path).exists() for path in result["views"].values())
+    call_tool(services, "articulation_undo", withdrawn["undo"])
+    assert call_tool(services, "articulation_get", {"id": result["id"]}) == result
+
+
+@pytest.mark.skipif(find_blender() is None, reason="Blender is not installed")
+def test_rebuild_patch_cuts_old_layers_and_projects_one_surface(services, tmp_path):
+    source = tmp_path / "stepped.glb"
+    ticks = np.linspace(-0.05, 0.05, 11)
+    vertices = np.array([(x, z + (0.004 if x > 0 else 0), -y)
+                         for z in (0.2, 0.19) for y in ticks for x in ticks])
+    faces = []
+    for offset in (0, 121):
+        for row in range(10):
+            for col in range(10):
+                point = offset + 11 * row + col
+                faces.extend([(point, point + 1, point + 12), (point, point + 12, point + 11)])
+    original = trimesh.Trimesh(vertices, faces, process=False)
+    original.visual.vertex_colors = [140, 140, 140, 255]
+    original.export(source)
+    rig = call_tool(services, "articulation_build", {
+        "source": str(source), "body_bone": "root", "selection_views": False,
+        "bones": [{"name": "root", "head": [0, 0, 0], "tail": [0, 0, 1]}],
+        "poses": [{"name": "turned", "rotations": {"root": [0, 0, 40]}, "export": False, "cameras": []}],
+    })
+    gltf, _ = read_gltf(Path(rig["files"]["rigged"]))
+    material = gltf["materials"][gltf["meshes"][0]["primitives"][0]["material"]]["name"]
+    art = tmp_path / "retained.png"
+    Image.new("RGB", (30, 20), (205, 100, 68)).save(art)
+    result = call_tool(services, "articulation_finish", {
+        "source": rig["files"]["scene"], "source_sha256": rig["artifacts"]["scene"]["sha256"],
+        "cameras": [{"name": "top", "direction": [0, 0, 1]}], "view_size": 256,
+        "edits": [{"mode": "rebuild_patch", "name": "Eye_surface", "path": str(art),
+                   "sha256": sha256(art.read_bytes()).hexdigest(), "samples": 36, "smooth_m": 0.003,
+                   "region": {"part": "body", "material": material, "view": {"origin": [-0.033, -0.033, 0],
+                              "right": [0.066, 0, 0], "up": [0, 0.066, 0], "depth": [0.18, 0.22]}}}],
+    })
+    edit = result["edits"][0]
+    assert edit["faces_removed"] == 144
+    assert edit["depth_samples"] == 36 ** 2
+    assert edit["samples_written"] > 500
+    mesh = trimesh.load(result["files"]["rigged"], force="scene", process=False)
+    patch = mesh.geometry[mesh.graph["Eye_surface"][1]]
+    assert patch.euler_number == 1 and len(patch.split(only_watertight=False)) == 1
+    assert np.ptp(patch.vertices[:, 1]) < 0.005
+    body = mesh.geometry[mesh.graph["body"][1]]
+    assert len(body.faces) == len(faces) - edit["faces_removed"]
+    report, _ = read_gltf(Path(result["files"]["rigged"]))
+    assert len(report["animations"][0]["channels"]) == len(gltf["animations"][0]["channels"])
+    assert report["skins"][0]["joints"] == gltf["skins"][0]["joints"]
+    assert call_tool(services, "articulation_undo", result["undo"])["archived"]
