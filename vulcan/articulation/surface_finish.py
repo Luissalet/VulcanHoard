@@ -188,6 +188,22 @@ def loft_geometry(sections):
     return points, np.asarray(faces, dtype=np.int32)
 
 
+def rigid_matrix(obj, anchors):
+    mesh = obj.data
+    groups = [[(group.group, group.weight) for group in mesh.vertices[index].groups] for index in anchors]
+    if any(len(group) != 1 or not np.isclose(group[0][1], 1) for group in groups) or len({group[0][0] for group in groups}) != 1:
+        raise ValueError("Use vertices bound to one rigid bone. / Usa vértices ligados a un solo hueso rígido.")
+    rig_modifiers = [modifier for modifier in obj.modifiers if modifier.type == "ARMATURE" and modifier.show_viewport]
+    if len(rig_modifiers) != 1 or not rig_modifiers[0].object or not rig_modifiers[0].use_vertex_groups:
+        raise ValueError("Use a single armature with vertex weights. / Usa un solo esqueleto con pesos por vértice.")
+    evaluated = rig_modifiers[0].object.evaluated_get(bpy.context.evaluated_depsgraph_get())
+    bone = evaluated.pose.bones.get(obj.vertex_groups[groups[0][0][0]].name)
+    if bone is None or not bone.bone.use_deform:
+        raise ValueError("Use a deforming bone for the patch. / Usa un hueso deformante para el parche.")
+    armature = evaluated.matrix_world
+    return armature @ bone.matrix @ bone.bone.matrix_local.inverted() @ armature.inverted() @ obj.matrix_world
+
+
 def add_loft(obj, edit, points, triangles, uv, depth, selected):
     mesh = triangulated_mesh(obj)
     right, up = map(Vector, (edit["right"], edit["up"]))
@@ -201,19 +217,7 @@ def add_loft(obj, edit, points, triangles, uv, depth, selected):
         tree.insert((*tuple(uv[index] * metres[:2]), depth[index]), int(index))
     tree.balance()
     anchors = [tree.find(point)[1] for point in points * metres]
-    groups = [[(group.group, group.weight) for group in mesh.vertices[index].groups] for index in anchors]
-    if any(len(group) != 1 or not np.isclose(group[0][1], 1) for group in groups) or len({group[0][0] for group in groups}) != 1:
-        raise ValueError("Anchor the patch on one rigid bone. / Ancla el parche a un solo hueso rígido.")
-    rig_modifiers = [modifier for modifier in obj.modifiers if modifier.type == "ARMATURE" and modifier.show_viewport]
-    if len(rig_modifiers) != 1 or not rig_modifiers[0].object or not rig_modifiers[0].use_vertex_groups:
-        raise ValueError("Use a single armature with vertex weights. / Usa un solo esqueleto con pesos por vértice.")
-    evaluated = rig_modifiers[0].object.evaluated_get(bpy.context.evaluated_depsgraph_get())
-    bone = evaluated.pose.bones.get(obj.vertex_groups[groups[0][0][0]].name)
-    if bone is None or not bone.bone.use_deform:
-        raise ValueError("Use a deforming bone for the patch. / Usa un hueso deformante para el parche.")
-    armature = evaluated.matrix_world
-    world_to_local = (armature @ bone.matrix @ bone.bone.matrix_local.inverted()
-                      @ armature.inverted() @ obj.matrix_world).inverted()
+    world_to_local = rigid_matrix(obj, anchors).inverted()
     origin = Vector(edit["origin"])
     local = np.asarray([world_to_local @ (origin + right * float(u) + up * float(v) + normal * float(d)) for u, v, d in points],
                        dtype=np.float32)
@@ -353,5 +357,56 @@ def smooth_surface(obj, strength, settings):
     mesh.vertices.foreach_set("co", coords.ravel())
     mesh.update()
     distance = np.linalg.norm((coords[selected] - original[selected]) @ matrix.T, axis=1)
+    return {"vertices_moved": int(np.count_nonzero(distance)),
+            "max_movement_m": float(distance.max(initial=0))}
+
+
+def fair_depth(obj, strength, settings, locations, normal):
+    """Reduce depth steps across neighbouring triangles that do not share edges."""
+    mesh = triangulated_mesh(obj)
+    radius = settings["smooth_radius_m"]
+    selected = np.flatnonzero(strength > 0)
+    if not len(selected):
+        return {"vertices_moved": 0, "max_movement_m": 0.0}
+    points = locations[selected]
+    tree = KDTree(len(selected))
+    for i, point in enumerate(points):
+        tree.insert(point, i)
+    tree.balance()
+    rows, columns, weights = [], [], []
+    for i, point in enumerate(points):
+        neighbours = tree.find_range(point, radius)
+        if len(neighbours) < 3:
+            continue
+        indices = [idx for _, idx, _ in neighbours]
+        distance = np.array([distance for _, _, distance in neighbours])
+        kernel = np.maximum(0, 1 - distance / radius) ** 2
+        offsets = (points[indices, :2] - point[:2]) / radius
+        design = np.column_stack((np.ones(len(indices)), offsets))
+        gram = design.T @ (design * kernel[:, None])
+        # The fitted intercept preserves a local slope at the edge of a brush.
+        gram[1:, 1:] += np.eye(2) * 1e-5
+        fit = (np.linalg.solve(gram, [1, 0, 0]) @ design.T) * kernel
+        rows.extend([i] * len(indices))
+        columns.extend(indices)
+        weights.extend(fit)
+    rows, columns = np.asarray(rows, dtype=np.int32), np.asarray(columns, dtype=np.int32)
+    weights = np.asarray(weights)
+    depth = points[:, 2]
+    change = np.zeros(len(points))
+    limit = settings["max_displacement_m"]
+    for _ in range(settings["smooth_iterations"]):
+        heights = depth + change
+        error = np.bincount(rows, weights * (heights[columns] - heights[rows]), minlength=len(points))
+        change = np.clip(change + strength[selected] * 0.45 * error, -limit, limit)
+    matrix = rigid_matrix(obj, selected)
+    direction = matrix.inverted().to_3x3() @ Vector(normal)
+    coords = read_array(mesh.vertices, "co", 3)
+    original = coords[selected].copy()
+    coords[selected] += change[:, None] * np.asarray(direction)
+    mesh.vertices.foreach_set("co", coords.ravel())
+    mesh.update()
+    linear = np.asarray(matrix, dtype=np.float64)[:3, :3]
+    distance = np.linalg.norm((coords[selected] - original) @ linear.T, axis=1)
     return {"vertices_moved": int(np.count_nonzero(distance)),
             "max_movement_m": float(distance.max(initial=0))}

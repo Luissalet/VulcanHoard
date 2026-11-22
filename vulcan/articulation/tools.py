@@ -211,6 +211,8 @@ class SurfaceFinish(Args):
         None, description="Back an interrupted rim patch with a closed shell of this thickness. / Cierra el parche de un contorno interrumpido con este grosor de respaldo.")
     smooth_iterations: int = Field(
         0, ge=0, le=50, description="Passes of local surface smoothing. / Pasadas de alisado de la superficie local.")
+    smooth_radius_m: Positive | None = Field(
+        None, description="Fit nearby projected surface heights within this radius. / Ajusta la altura de la superficie proyectada dentro de este radio en metros.")
     max_displacement_m: Positive | None = Field(
         None, description="Maximum movement of existing vertices in metres. / Desplazamiento máximo de los vértices existentes en metros.")
 
@@ -226,6 +228,8 @@ class SurfaceFinish(Args):
             raise ValueError("A gap must be smaller than the hole diameter. / El tramo abierto debe ser menor que el diámetro del hueco.")
         if self.backing_m and (not self.max_gap_m or self.backing_m >= self.max_hole_m):
             raise ValueError("A backing needs gap repair and must be thinner than the hole diameter. / El respaldo requiere reparar tramos abiertos y debe ser más fino que el diámetro del hueco.")
+        if self.smooth_radius_m and not self.smooth_iterations:
+            raise ValueError("A smoothing radius needs smoothing passes. / El radio de alisado requiere pasadas de alisado.")
         if self.smooth_iterations and not self.max_displacement_m:
             raise ValueError("Set a maximum smoothing displacement. / Indica el desplazamiento máximo del alisado.")
         return self

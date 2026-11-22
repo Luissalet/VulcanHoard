@@ -8,7 +8,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent))
 from worker import export_glb  # noqa: E402
-from surface_finish import add_loft, fill_surface, loft_geometry, smooth_surface  # noqa: E402
+from surface_finish import add_loft, fair_depth, fill_surface, loft_geometry, smooth_surface  # noqa: E402
 
 
 def mesh_values(items, field, width, dtype=np.float32):
@@ -135,7 +135,13 @@ def repair_surface(obj, edit, uv, depth, facing):
         if edit["feather"]:
             fade = np.clip(distance / edit["feather"], 0, 1)
             strength *= fade * fade * (3 - 2 * fade)
-        result.update(smooth_surface(obj, strength, settings))
+        if settings.get("smooth_radius_m"):
+            axes = np.asarray([edit["right"], edit["up"]])
+            metres = np.linalg.norm(axes, axis=1)
+            normal = np.cross(*axes) / np.prod(metres)
+            result.update(fair_depth(obj, strength, settings, np.column_stack((uv * metres, depth)), normal))
+        else:
+            result.update(smooth_surface(obj, strength, settings))
         bpy.context.view_layer.update()
         uv, depth, facing = projection(obj, edit)
     return result, uv, depth, facing, loft_start

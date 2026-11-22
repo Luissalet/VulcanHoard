@@ -18457,6 +18457,20 @@
               "title": "Smooth Iterations",
               "type": "integer"
             },
+            "smooth_radius_m": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Fit nearby projected surface heights within this radius. / Ajusta la altura de la superficie proyectada dentro de este radio en metros.",
+              "title": "Smooth Radius M"
+            },
             "max_displacement_m": {
               "anyOf": [
                 {

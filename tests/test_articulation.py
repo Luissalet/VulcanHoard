@@ -256,7 +256,8 @@ def test_articulation_finish_keeps_rig_and_limits_writes_to_the_selected_parts(s
 
 
 @pytest.mark.skipif(find_blender() is None, reason="Blender is not installed")
-def test_articulation_finish_closes_local_hole_and_bounds_displacement(services, tmp_path):
+@pytest.mark.parametrize("radius", [None, 1.6])
+def test_articulation_finish_closes_local_hole_and_bounds_displacement(services, tmp_path, radius):
     source = tmp_path / "surface.glb"
     vertices = np.array([(x, 0.15 if (x, y) == (-1, -1) else 0, -y) for y in range(-2, 3)
                          for x in range(-2, 3)])
@@ -284,7 +285,7 @@ def test_articulation_finish_closes_local_hole_and_bounds_displacement(services,
                    "sha256": sha256(artwork.read_bytes()).hexdigest(), "min_facing": -1,
                    "origin": [-1.6, -1.6, 0], "right": [3.2, 0, 0], "up": [0, 3.2, 0],
                    "depth": [-0.25, 0.25], "surface": {"max_hole_m": 1.5, "smooth_iterations": 3,
-                                                       "max_displacement_m": 0.08}}],
+                                                       "max_displacement_m": 0.08, "smooth_radius_m": radius}}],
     })
     change = result["edits"][0]
     assert change["geometry"]["holes_filled"] == 1
@@ -300,6 +301,8 @@ def test_articulation_finish_closes_local_hole_and_bounds_displacement(services,
     first = before.geometry[before.graph["body"][1]]
     final = after.geometry[after.graph["body"][1]]
     assert len(final.faces) == len(first.faces) + 2
+    if radius:
+        assert set(map(tuple, final.vertices[:, [0, 2]])) == set(map(tuple, first.vertices[:, [0, 2]]))
     original_boundary = {tuple(vertex) for vertex in first.vertices if np.max(np.abs(vertex)) == 2}
     final_boundary = {tuple(vertex) for vertex in final.vertices if np.max(np.abs(vertex)) == 2}
     assert original_boundary == final_boundary
