@@ -57,12 +57,20 @@ API_DOC = Path(__file__).with_name("sand3d_api.md")
 REPO = Path(__file__).resolve().parent.parent
 MAX_ATTEMPTS = 3       # model calls to get a program that runs
 MEASURE_RETRIES = 1    # one more call when it runs but misses the requested measures
+LENGTH_RETRIES = 1    # one compact retry per job if the provider runs out of tokens
 EXAMPLES_IN_PROMPT = 3
 RUN_TIMEOUT_S = float(os.environ.get("VULCAN_CODE_TIMEOUT", "300"))  # a busy machine can take a minute just to import bpy
 DEFAULT_LLM_TIMEOUT_S = 600.0
 LLM_TIMEOUT_S = env_float("VULCAN_CODE_LLM_TIMEOUT", default=DEFAULT_LLM_TIMEOUT_S)
 if not math.isfinite(LLM_TIMEOUT_S) or LLM_TIMEOUT_S <= 0:
     LLM_TIMEOUT_S = DEFAULT_LLM_TIMEOUT_S
+DEFAULT_LLM_MAX_TOKENS = 24_000
+try:
+    LLM_MAX_TOKENS = int(os.environ.get("VULCAN_CODE_LLM_MAX_TOKENS", ""))
+except ValueError:
+    LLM_MAX_TOKENS = DEFAULT_LLM_MAX_TOKENS
+if LLM_MAX_TOKENS <= 0:
+    LLM_MAX_TOKENS = DEFAULT_LLM_MAX_TOKENS
 SRC_LIMIT = 30_000
 HISTORY_LIMIT = 20
 VERSIONS_LIMIT = 5
@@ -368,10 +376,8 @@ def file_path(services, model_id: int, what: str) -> Path:
 
 # ---------------------------------------------------------------------------------------------------------------------
 # the language model
-@global_job
 def _ask(link, messages: list[dict]) -> str:
-    # a program is 40-100 lines: little thinking is needed, and a reasoning model that spends its whole budget thinking ends with finish_reason=length
-    answer = link.sync.chat(messages, max_tokens=12000, effort="low", timeout=LLM_TIMEOUT_S)
+    answer = link.sync.chat(messages, max_tokens=LLM_MAX_TOKENS, effort="off", timeout=LLM_TIMEOUT_S)
     return answer.text or ""
 
 
@@ -423,6 +429,7 @@ def _retry_message(error: CodeModelError) -> str:
     return f"That program failed{where}:\n{error}\nReturn the complete corrected program in one python block."
 
 
+@global_job
 def write_program(services, messages: list[dict], log, cancelled, name: str, description: str, progress, kind: str, instruction: str | None,
                   model_id: int | None, requirements: list[dict] | None = None, extra: dict | None = None) -> dict:
     """The loop: ask the model, run, hand errors back (MAX_ATTEMPTS calls to get a program that runs); when it runs, measure it
@@ -430,7 +437,7 @@ def write_program(services, messages: list[dict], log, cancelled, name: str, des
     latest) is saved. Returns the saved result with ``requirements_check``."""
     requirements = requirements or []
     last: CodeModelError | None = None
-    failures = measure_retries = attempt = 0
+    failures = measure_retries = length_retries = attempt = 0
     best: dict | None = None  # {"run", "code", "check", "attempt", "met"}
 
     def keep(candidate: dict) -> None:
@@ -443,7 +450,7 @@ def write_program(services, messages: list[dict], log, cancelled, name: str, des
             shutil.rmtree(candidate["run"]["work"], ignore_errors=True)
 
     try:
-        while failures < MAX_ATTEMPTS and attempt < MAX_ATTEMPTS + MEASURE_RETRIES:
+        while failures < MAX_ATTEMPTS and attempt < MAX_ATTEMPTS + MEASURE_RETRIES + LENGTH_RETRIES:
             attempt += 1
             if cancelled():
                 raise CodeModelError("cancelled", "Cancelled.")
@@ -453,6 +460,12 @@ def write_program(services, messages: list[dict], log, cancelled, name: str, des
             except Exception as error:  # noqa: BLE001 - Unavailable, BackendError, timeouts
                 if cancelled():
                     raise CodeModelError("cancelled", "Cancelled.") from error
+                if isinstance(error, GlobalCompletionError) and error.reason == "length" and length_retries < LENGTH_RETRIES:
+                    length_retries += 1
+                    compact = system_prompt() + "\nReturn the shortest complete program that meets the request. Start the code block immediately."
+                    messages = [{"role": "system", "content": compact}, *messages[1:]]
+                    log(f"attempt {attempt}: finish_reason=length")
+                    continue
                 failure = _model_error(error)
                 if best is not None:
                     log(f"attempt {attempt}: {failure.code}, keeping the best program so far")
@@ -630,7 +643,7 @@ def _run_parameter_edit(services, job: dict, progress, log) -> dict:
 def _start(services, kind: str, messages: list[dict] | None, name: str, description: str, model_id: int | None, instruction: str | None, wait: bool,
            wait_timeout: float = 1800.0, requirements: list[dict] | None = None, extra: dict | None = None, code: str | None = None) -> dict:
     job = {"job_id": uuid.uuid4().hex[:12], "kind": kind, "status": "queued", "stage": "queued", "attempt": 0,
-           "max_attempts": 1 if code is not None else MAX_ATTEMPTS + (MEASURE_RETRIES if requirements else 0), "name": name,
+           "max_attempts": 1 if code is not None else MAX_ATTEMPTS + LENGTH_RETRIES + (MEASURE_RETRIES if requirements else 0), "name": name,
            "description": description, "instruction": instruction, "model_id": model_id, "created_at": time.time(), "updated_at": time.time(), "log": [],
            "result": None, "error": None, "requirements": requirements or [], "examples": (extra or {}).get("examples"),
            "edit_mode": ("parameters" if code is not None else "model") if kind == "edit" else None,
@@ -772,7 +785,8 @@ def status_info(services, install: dict | None = None) -> dict:
     llm = llm_status(services)
     return {"engine": engine, "llm": llm, "ready": bool(engine.get("installed")), "text_ready": bool(engine.get("installed")) and llm["available"],
             "limits": {"attempts": MAX_ATTEMPTS, "measure_retries": MEASURE_RETRIES, "run_timeout_s": RUN_TIMEOUT_S,
-                       "llm_timeout_s": LLM_TIMEOUT_S, "program_chars": SRC_LIMIT},
+                       "llm_timeout_s": LLM_TIMEOUT_S, "llm_max_tokens": LLM_MAX_TOKENS, "length_retries": LENGTH_RETRIES,
+                       "program_chars": SRC_LIMIT},
             "examples": [{"id": e["id"], "title": e["title"], "family": e["family"]} for e in checks.load_examples()],
             "api_reference_chars": len(api_doc()), "install": install_state(), "jobs": list_jobs(services, limit=5)}
 
