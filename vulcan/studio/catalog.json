@@ -17986,7 +17986,7 @@
     "module": "library",
     "native_name": "articulation_finish",
     "name": "articulation_finish",
-    "description": "Project retained artwork onto a rig. Proyecta ilustraciones de referencia sobre una articulación.\nPaint a localized vertex-colour patch or map an image to a named part. Keeps geometry, rig and animation. Returns an editable scene and skinned GLB. Undo: articulation_undo. Reproyecta color localizado o aplica una imagen a una pieza nombrada. Conserva geometría, esqueleto y animación. Devuelve escena editable y GLB articulado. Deshacer: articulation_undo.\nSinónimos: reproyectar el color de la cara, aplicar tinta al mapa, texturizar una pieza articulada.",
+    "description": "Project retained artwork onto a rig. Proyecta ilustraciones de referencia sobre una articulación.\nPaint local colour, optionally closing holes, adding a bounded patch and smoothing, or map an image to a part. Keeps the rig and animation. Returns an editable scene and skinned GLB. Undo: articulation_undo. Reproyecta color localizado, con relleno, parche acotado y alisado opcionales, o aplica una imagen a una pieza. Conserva esqueleto y animación. Devuelve escena editable y GLB articulado. Deshacer: articulation_undo.\nSinónimos: reparar huecos y escalones, reproyectar el color de la cara, aplicar tinta al mapa, texturizar una pieza articulada.",
     "annotations": {
       "readOnlyHint": false,
       "destructiveHint": false,
@@ -18193,6 +18193,18 @@
               "maximum": 1,
               "title": "Opacity",
               "type": "number"
+            },
+            "surface": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/SurfaceFinish"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Repair and smooth this region before applying colour. / Repara y alisa esta zona antes de aplicar el color."
             }
           },
           "required": [
@@ -18311,6 +18323,184 @@
             "mode"
           ],
           "title": "ImageProjection",
+          "type": "object"
+        },
+        "LoftSection": {
+          "additionalProperties": false,
+          "properties": {
+            "v": {
+              "description": "Height in the projection, from bottom to top. / Altura en la proyección, de abajo arriba.",
+              "maximum": 1,
+              "minimum": 0,
+              "title": "V",
+              "type": "number"
+            },
+            "u": {
+              "description": "Horizontal centre in the projection. / Centro horizontal en la proyección.",
+              "maximum": 1,
+              "minimum": 0,
+              "title": "U",
+              "type": "number"
+            },
+            "depth": {
+              "description": "Signed centre depth in metres. / Profundidad con signo del centro en metros.",
+              "title": "Depth",
+              "type": "number"
+            },
+            "radius_u": {
+              "description": "Horizontal radius in projection units. / Radio horizontal en unidades de proyección.",
+              "exclusiveMinimum": 0,
+              "title": "Radius U",
+              "type": "number"
+            },
+            "radius_depth_m": {
+              "description": "Depth radius in metres. / Radio en profundidad en metros.",
+              "exclusiveMinimum": 0,
+              "title": "Radius Depth M",
+              "type": "number"
+            }
+          },
+          "required": [
+            "v",
+            "u",
+            "depth",
+            "radius_u",
+            "radius_depth_m"
+          ],
+          "title": "LoftSection",
+          "type": "object"
+        },
+        "SurfaceFinish": {
+          "additionalProperties": false,
+          "properties": {
+            "depth": {
+              "anyOf": [
+                {
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Optional narrower depth interval for geometry, in metres. / Intervalo de profundidad más estrecho para la geometría, en metros.",
+              "title": "Depth"
+            },
+            "loft": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/$defs/LoftSection"
+                  },
+                  "maxItems": 32,
+                  "minItems": 2,
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Closed patch between elliptical sections on a part bound to one bone. / Parche cerrado entre secciones elípticas de una pieza ligada a un hueso.",
+              "title": "Loft"
+            },
+            "max_hole_m": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Fill boundary rings up to this diameter in metres. / Rellena contornos abiertos hasta este diámetro en metros.",
+              "title": "Max Hole M"
+            },
+            "max_gap_m": {
+              "default": 0,
+              "description": "Maximum new edge between nearby ends of an interrupted ring. / Longitud máxima de una arista nueva entre extremos de un contorno interrumpido.",
+              "minimum": 0,
+              "title": "Max Gap M",
+              "type": "number"
+            },
+            "backing_m": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Back an interrupted rim patch with a closed shell of this thickness. / Cierra el parche de un contorno interrumpido con este grosor de respaldo.",
+              "title": "Backing M"
+            },
+            "normal_blend_radius_m": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Blend shading normals on new repair faces with nearby original vertices, in metres. / Funde las normales de sombreado de las caras nuevas con los vértices originales próximos, en metros.",
+              "title": "Normal Blend Radius M"
+            },
+            "smooth_iterations": {
+              "default": 0,
+              "description": "Passes of local surface smoothing. / Pasadas de alisado de la superficie local.",
+              "maximum": 50,
+              "minimum": 0,
+              "title": "Smooth Iterations",
+              "type": "integer"
+            },
+            "smooth_radius_m": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Fit nearby projected surface heights within this radius. / Ajusta la altura de la superficie proyectada dentro de este radio en metros.",
+              "title": "Smooth Radius M"
+            },
+            "max_displacement_m": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Maximum movement of existing vertices in metres. / Desplazamiento máximo de los vértices existentes en metros.",
+              "title": "Max Displacement M"
+            }
+          },
+          "title": "SurfaceFinish",
           "type": "object"
         }
       },
