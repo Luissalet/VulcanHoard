@@ -175,17 +175,24 @@ def test_without_a_language_model_the_tool_points_to_code_model_run(sim):
     assert "code_model_run" in job["error_es"]
 
 
-@pytest.mark.parametrize("outcome", ["slow_answer", "read_timeout", "gateway_timeout", "connection_refused"])
+@pytest.mark.parametrize("outcome", ["slow_answer", "length_then_success", "read_timeout", "gateway_timeout", "connection_refused"])
 def test_global_model_job_uses_its_configured_deadline(sim, monkeypatch, outcome):
     from vulcan.hoard_link.config import LinkConfig
     from vulcan.studio import global_http
     from vulcan.studio.global_link import GlobalLink
 
     monkeypatch.setattr(cm, "LLM_TIMEOUT_S", 300.0)
+    monkeypatch.setattr(cm, "LLM_MAX_TOKENS", 15_000)
     selection = dict(url="http://127.0.0.1:9999/api/global-model/v1/chat/completions", model="test-model",
                      endpoint_id="test-endpoint", connection_revision="test-revision", headers={})
-    monkeypatch.setattr(global_http, "select_global", lambda *_: selection)
+    selections = []
     calls = []
+
+    def select(*_):
+        selections.append(selection)
+        return selection
+
+    monkeypatch.setattr(global_http, "select_global", select)
 
     def respond(request):
         body = json.loads(request.content)
@@ -197,6 +204,8 @@ def test_global_model_job_uses_its_configured_deadline(sim, monkeypatch, outcome
             raise httpx.ConnectError("test backend details", request=request)
         if outcome == "gateway_timeout":
             return httpx.Response(504, json={"error": "test backend details"})
+        if outcome == "length_then_success" and len(calls) == 1:
+            return httpx.Response(200, json={"choices": [{"message": {"content": fence(BAD)}, "finish_reason": "length"}]})
         return httpx.Response(200, json={"choices": [{"message": {"content": fence(GOOD)}, "finish_reason": "stop"}]})
 
     client = httpx.AsyncClient(transport=httpx.MockTransport(respond))
@@ -205,17 +214,29 @@ def test_global_model_job_uses_its_configured_deadline(sim, monkeypatch, outcome
         started = call_tool(sim, "code_model", {"description": "plate 80 x 40 x 6 mm", "wait": False})
         job = wait_job(sim, started["job_id"])
         assert call_tool(sim, "code_model_status", {"job_id": started["job_id"]}) == job
-        assert call_tool(sim, "code_model_status", {})["limits"]["llm_timeout_s"] == 300
+        assert selections == [selection]
+        limits = call_tool(sim, "code_model_status", {})["limits"]
+        assert limits["llm_timeout_s"] == 300 and limits["llm_max_tokens"] == 15_000 and limits["length_retries"] == 1
     finally:
         sim.link.sync.close()
         asyncio.run(client.aclose())
 
-    [(body, read_timeout)] = calls
-    assert 250 < read_timeout <= 300
-    assert body["expected_connection_revision"] == "test-revision"
-    assert body["expected_model"] == body["model"] == "test-model"
-    assert body["expected_endpoint_id"] == "test-endpoint"
-    if outcome == "slow_answer":
+    assert len(calls) == (2 if outcome == "length_then_success" else 1)
+    for body, read_timeout in calls:
+        assert 250 < read_timeout <= 300
+        assert body["expected_connection_revision"] == "test-revision"
+        assert body["expected_model"] == body["model"] == "test-model"
+        assert body["expected_endpoint_id"] == "test-endpoint"
+        assert body["max_tokens"] == 15_000
+        assert body["chat_template_kwargs"]["enable_thinking"] is False
+    if outcome == "length_then_success":
+        original, retry = (call[0]["messages"] for call in calls)
+        assert len(retry[0]["content"]) < len(original[0]["content"])
+        assert "shortest complete program" in retry[0]["content"]
+        assert retry[1:] == original[1:]  # preserve the request and dimensions, discard partial code
+        assert job["result"]["attempts"] == 2 and job["attempt"] <= job["max_attempts"]
+        assert sim.stats.counts()["models"] == 1
+    if outcome in ("slow_answer", "length_then_success"):
         assert job["status"] == "done"
         assert job["result"]["measures"]["bbox_mm"] == [80.0, 40.0, 6.0]
         assert cm.file_path(sim, job["result"]["id"], "model.glb").read_bytes().startswith(b"glTF")
@@ -269,7 +290,8 @@ def test_incomplete_global_model_reply_has_a_bilingual_job_error(sim, monkeypatc
         sim.link.sync.close()
         asyncio.run(client.aclose())
 
-    assert (job["status"], job["stage"], job["attempt"], job["error_code"]) == ("failed", "writing", 1, "model_unavailable")
+    assert (job["status"], job["stage"], job["error_code"]) == ("failed", "writing", "model_unavailable")
+    assert job["attempt"] == (2 if reason == "length" else 1)
     assert job["result"] is None and sim.stats.counts()["models"] == 0
     assert english in job["error"]
     assert spanish in job["error_es"]
@@ -600,7 +622,7 @@ def test_a_part_that_misses_the_measures_goes_back_once_with_the_real_ones(sim):
     sim.link = FakeChat([fence(WRONG_SIZE), fence(GOOD)])
     job = call_tool(sim, "code_model", {"description": "wall plate for a controller, 80 x 40 mm, 6 mm thick"})
     result = job["result"]
-    assert job["status"] == "done" and result["attempts"] == 2 and result["measure_retries"] == 1 and job["max_attempts"] == 4
+    assert job["status"] == "done" and result["attempts"] == 2 and result["measure_retries"] == 1 and job["max_attempts"] == 5
     feedback = sim.link.calls[1][0][-1]["content"]
     assert "does not have the measures" in feedback and "70 x 40 x 6" in feedback and "size 80 x 40 mm" in feedback
     assert result["requirements_check"]["ok"] is True and result["measures"]["bbox_mm"] == [80.0, 40.0, 6.0]

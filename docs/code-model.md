@@ -34,13 +34,20 @@ con `VULCAN_CODE_LLM_TIMEOUT` y consultarlo en `limits.llm_timeout_s`. El motor 
 antes de reintentar, simplifica la petición o ejecuta un programa conocido con `code_model_run`. Si el plazo vence
 durante una corrección de medidas, se conserva la mejor malla ya generada.
 
-If the global service returns an unfinished response, the job reports `model_unavailable` and explains its
-finish reason in both fields. For example, `finish_reason=length` means the model used its token budget.
-An unfinished response is discarded before the engine runs, even if it contains a code block.
+Vulcan requests 24,000 output tokens and asks the global service to turn off reasoning where supported.
+Set `VULCAN_CODE_LLM_MAX_TOKENS` to a positive integer to change the budget. `code_model_status` returns it in
+`limits.llm_max_tokens`. If the service reaches the budget (`finish_reason=length`), Vulcan retries once per job
+with a shorter prompt that drops the example library excerpts and retains the request, measures and any repair
+feedback. An unfinished reply is discarded before the engine runs. If the last reply is still incomplete, Vulcan
+keeps any mesh already built or reports `model_unavailable` with the finish reason in both error fields.
 
-Si el servicio global devuelve una respuesta incompleta, el trabajo informa de `model_unavailable` y explica
-el motivo de finalización en los dos campos. Por ejemplo, `finish_reason=length` indica que el modelo agotó
-su presupuesto de tokens. La respuesta incompleta se descarta antes de ejecutar el motor, aunque contenga código.
+Vulcan solicita 24.000 tokens de salida y pide al servicio global que desactive el razonamiento si lo admite.
+Puedes ajustar el presupuesto con un entero positivo en `VULCAN_CODE_LLM_MAX_TOKENS` y consultarlo en
+`limits.llm_max_tokens` de `code_model_status`. Si el servicio agota el presupuesto (`finish_reason=length`),
+Vulcan reintenta una vez por trabajo con un mensaje más breve. Quita los ejemplos y conserva la petición,
+las medidas y las indicaciones de corrección. Las respuestas incompletas se descartan antes de ejecutar el motor.
+Si la última respuesta sigue incompleta, Vulcan conserva la malla que ya haya generado o devuelve
+`model_unavailable` con el motivo de finalización en los dos campos de error.
 
 ## Example library
 
